@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "FocusScenes Framework",
+    "slug": "focus-scenes-framework",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.framework.focusscenes"
+    },
+    "plugins": ["expo-sqlite"]
+  }
+}
+

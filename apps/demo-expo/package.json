@@ -1,0 +1,30 @@
+{
+  "name": "@framework/demo-expo",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@framework/core": "workspace:",
+    "@framework/data": "workspace:",
+    "@framework/example-domain": "workspace:",
+    "@framework/expo-adapter": "workspace:",
+    "@framework/react": "workspace:",
+    "@framework/ui": "workspace:",
+    "expo": "catalog:",
+    "expo-sqlite": "catalog:",
+    "expo-status-bar": "catalog:",
+    "react": "catalog:",
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}
+

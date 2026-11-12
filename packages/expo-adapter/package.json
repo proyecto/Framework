@@ -1,0 +1,30 @@
+{
+  "name": "@framework/expo-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@framework/core": "workspace:"
+  },
+  "peerDependencies": {
+    "expo-sqlite": ">=50.0.0"
+  },
+  "devDependencies": {
+    "expo-sqlite": "catalog:",
+    "typescript": "catalog:"
+  }
+}
+

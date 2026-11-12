@@ -1,0 +1,242 @@
+import fs from 'node:fs';
+import { IncomingMessage, ServerResponse } from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import { PassThrough } from 'node:stream';
+import type { Socket } from 'node:net';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  HttpSyncTransport,
+  HybridSyncRepository,
+  InMemoryEntityStoreDriver,
+  MemoryKeyValueStore,
+  SqlEntityStoreDriver,
+  SqlKeyValueStore
+} from '@framework/data';
+import { createLibSqlDriver } from '@framework/data-libsql';
+import {
+  EXAMPLE_APP_ID,
+  EXAMPLE_SERVER_MODULE,
+  PRESET_ENTITY_NAME,
+  PresetController,
+  PresetModel,
+  type PresetEntity
+} from '@framework/example-domain';
+import { createFrameworkServer, type FrameworkServerInstance } from './index.js';
+
+function createServerFetch(server: FrameworkServerInstance): typeof fetch {
+  return async (input, init) => {
+    const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const parsed = new URL(rawUrl, 'http://localhost');
+    const method = init?.method ?? 'GET';
+    const headers: Record<string, string> = {};
+    if (init?.headers) {
+      const h = new Headers(init.headers);
+      h.forEach((value, key) => {
+        headers[key.toLowerCase()] = value;
+      });
+    }
+
+    const reqStream = new PassThrough() as unknown as Socket;
+    const req = new IncomingMessage(reqStream);
+    req.url = `${parsed.pathname}${parsed.search}`;
+    req.method = method;
+    req.headers = headers;
+
+    const bodyText =
+      typeof init?.body === 'string'
+        ? init.body
+        : init?.body instanceof Uint8Array
+          ? Buffer.from(init.body).toString('utf8')
+          : '';
+    if (bodyText) {
+      req.push(bodyText);
+    }
+    req.push(null);
+
+    const chunks: Buffer[] = [];
+    const res = new ServerResponse(req);
+    const originalWrite = res.write.bind(res);
+    const originalEnd = res.end.bind(res);
+
+    await new Promise<void>((resolve, reject) => {
+      res.write = ((chunk: unknown, ...rest: unknown[]) => {
+        if (chunk) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+        }
+        return (originalWrite as (...a: unknown[]) => boolean)(chunk, ...rest);
+      }) as typeof res.write;
+
+      res.end = ((chunk?: unknown, ...rest: unknown[]) => {
+        if (chunk && typeof chunk !== 'function') {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+        }
+        const result = (originalEnd as (...a: unknown[]) => ServerResponse)(chunk, ...rest);
+        resolve();
+        return result;
+      }) as typeof res.end;
+
+      server.handleRequest(req, res).catch(reject);
+    });
+
+    const responseHeaders = new Headers();
+    for (const [k, v] of Object.entries(res.getHeaders())) {
+      if (v !== undefined) {
+        responseHeaders.set(k, Array.isArray(v) ? v.join(', ') : String(v));
+      }
+    }
+
+    return new Response(Buffer.concat(chunks).toString('utf8'), {
+      status: res.statusCode,
+      headers: responseHeaders
+    });
+  };
+}
+
+describe('@framework/server + LibSQL local/cloud sync end-to-end', () => {
+  const cleanups: Array<() => Promise<void>> = [];
+
+  afterEach(async () => {
+    while (cleanups.length > 0) {
+      const fn = cleanups.pop();
+      if (fn) await fn();
+    }
+  });
+
+  it('keeps free users strictly local and syncs multi-device data once upgraded to Pro', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-sync-test-'));
+    const serverDbPath = path.join(tmpDir, 'server-libsql.db');
+    const mobileDbPath = path.join(tmpDir, 'mobile-local.db');
+
+    const server: FrameworkServerInstance = await createFrameworkServer({
+      port: 0,
+      host: '127.0.0.1',
+      database: {
+        mode: 'local',
+        url: `file:${serverDbPath}`
+      },
+      apps: [EXAMPLE_SERVER_MODULE]
+    });
+    const fetchImpl = createServerFetch(server);
+    const baseUrl = 'http://localhost';
+
+    cleanups.push(async () => {
+      await server.stop();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    // Health check reports local libSQL driver & registered example app
+    const healthRes = await fetchImpl(`${baseUrl}/health`);
+    const healthJson = (await healthRes.json()) as {
+      ok: boolean;
+      driver: string;
+      registeredApps: string[];
+    };
+    expect(healthJson.ok).toBe(true);
+    expect(healthJson.driver).toBe('libsql-local');
+    expect(healthJson.registeredApps).toContain(EXAMPLE_APP_ID);
+
+    // Client A (simulating Expo Android on-device SQLite via ISqlDriver)
+    const mobileDriver = createLibSqlDriver({ mode: 'local', url: `file:${mobileDbPath}` });
+    cleanups.push(async () => {
+      await mobileDriver.close();
+    });
+
+    const mobileRepo = new HybridSyncRepository<PresetEntity>({
+      appId: EXAMPLE_APP_ID,
+      userId: 'rafael',
+      deviceId: 'android-1',
+      entityName: PRESET_ENTITY_NAME,
+      store: new SqlEntityStoreDriver(mobileDriver),
+      kv: new SqlKeyValueStore(mobileDriver),
+      transport: new HttpSyncTransport({ baseUrl, fetchImpl }),
+      defaultMode: 'local',
+      defaultPlan: 'free'
+    });
+    const mobileController = new PresetController(new PresetModel(mobileRepo));
+    await mobileController.init();
+    await mobileController.createPreset({
+      name: 'Escena Offline Móvil',
+      ambientLevel: 70
+    });
+
+    // While Free, ZERO records exist on the server
+    const freeServerRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/entities/${PRESET_ENTITY_NAME}?userId=rafael`
+    );
+    const freeServerData = (await freeServerRes.json()) as { items: PresetEntity[] };
+    expect(freeServerData.items).toHaveLength(0);
+
+    // Free user attempting direct sync gets rejected
+    await expect(mobileRepo.syncNow()).rejects.toThrow(/Pro|Nube/i);
+
+    // Client A pays for Pro & enables Cloud Sync -> local presets push to server!
+    await mobileController.upgradeToProAndEnableCloud();
+    expect({
+      errorMessage: mobileController.getState().errorMessage,
+      storage: mobileController.getState().storage
+    }).toMatchObject({
+      errorMessage: null,
+      storage: {
+        plan: 'pro',
+        mode: 'cloud',
+        cloudEnabled: true,
+        pendingChanges: 0
+      }
+    });
+
+    const proServerRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/entities/${PRESET_ENTITY_NAME}?userId=rafael`
+    );
+    const proServerData = (await proServerRes.json()) as { items: PresetEntity[] };
+    expect(proServerData.items.some((p) => p.name === 'Escena Offline Móvil')).toBe(true);
+
+    // Client B (simulating React Web View) logs in as the same Pro user and syncs!
+    const webRepo = new HybridSyncRepository<PresetEntity>({
+      appId: EXAMPLE_APP_ID,
+      userId: 'rafael',
+      deviceId: 'web-1',
+      entityName: PRESET_ENTITY_NAME,
+      store: new InMemoryEntityStoreDriver(),
+      kv: new MemoryKeyValueStore(),
+      transport: new HttpSyncTransport({ baseUrl, fetchImpl }),
+      defaultMode: 'local',
+      defaultPlan: 'free'
+    });
+    const webController = new PresetController(new PresetModel(webRepo));
+    await webController.upgradeToProAndEnableCloud();
+
+    const pulledOnWeb = webController
+      .getState()
+      .presets.find((p) => p.name === 'Escena Offline Móvil');
+    expect(pulledOnWeb).toBeDefined();
+
+    // Client B moves a slider and syncs automatically; Client A pulls the change!
+    await webController.updateSlider(pulledOnWeb!.id, 'ambientLevel', 95);
+    await mobileController.syncNow();
+
+    const syncedBackOnMobile = mobileController
+      .getState()
+      .presets.find((p) => p.id === pulledOnWeb!.id);
+    expect(syncedBackOnMobile?.ambientLevel).toBe(95);
+
+    // Custom reusable server MVC action endpoint works out-of-the-box
+    const statsRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/actions/stats`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: 'rafael' })
+      }
+    );
+    const statsJson = (await statsRes.json()) as {
+      ok: boolean;
+      result: { cloudPresetsCount: number };
+    };
+    expect(statsJson.ok).toBe(true);
+    expect(statsJson.result.cloudPresetsCount).toBeGreaterThanOrEqual(3);
+
+    mobileController.dispose();
+    webController.dispose();
+  });
+});
