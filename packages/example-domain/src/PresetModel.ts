@@ -13,11 +13,13 @@ import type {
   UpdatePresetInput
 } from './contracts.js';
 
+/** Normaliza valores numéricos de sliders asegurando rango entero seguro dentro del dominio. */
 function clampNumber(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
+/** Genera IDs portables sin acoplar el dominio ni a `node:crypto` ni al DOM del navegador. */
 function createUuidLike(): string {
   const webCrypto = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (typeof webCrypto?.randomUUID === 'function') {
@@ -26,6 +28,7 @@ function createUuidLike(): string {
   return `preset_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** Escenas iniciales sembradas la primera vez que la app arranca sin historial previo. */
 const DEFAULT_SEED_PRESETS: CreatePresetInput[] = [
   {
     name: 'Enfoque Profundo',
@@ -43,6 +46,16 @@ const DEFAULT_SEED_PRESETS: CreatePresetInput[] = [
   }
 ];
 
+/**
+ * Implementación del **Modelo (M)** de FocusScenes (`IPresetModel`).
+ *
+ * Responsabilidades exclusivas:
+ * - Validar invariantes del dominio (nombres no vacíos, rangos válidos en sliders, escena activa única).
+ * - Siembra inicial idempotente consultando incluso registros borrados (`includeDeleted: true`) para
+ *   no resucitar escenas que el usuario eliminó voluntariamente.
+ * - Delegar persistencia y sincronización exclusivamente al contrato `ISyncableRepository<PresetEntity>`.
+ * - Reenviar eventos de cambio hacia los controladores mediante el patrón **Observer**.
+ */
 export class PresetModel implements IPresetModel {
   private presets: PresetEntity[] = [];
   private readonly listeners = new Set<() => void>();
@@ -72,6 +85,10 @@ export class PresetModel implements IPresetModel {
     return [...this.presets];
   }
 
+  /**
+   * Carga las escenas activas desde el repositorio.
+   * Si la base local jamás ha tenido registros (ni tombstones), siembra las escenas por defecto.
+   */
   async loadPresets(): Promise<PresetEntity[]> {
     let items = await this.repository.list();
 
@@ -165,6 +182,7 @@ export class PresetModel implements IPresetModel {
 
     const saved = await this.repository.save(updated);
 
+    // Regla de negocio: solo puede existir una escena activa simultáneamente.
     if (patch.isActive === true) {
       const others = (await this.repository.list()).filter(
         (item) => item.id !== id && item.isActive

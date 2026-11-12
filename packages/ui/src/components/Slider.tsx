@@ -20,6 +20,7 @@ export interface SliderProps {
   onSlidingComplete?: (value: number) => void;
 }
 
+/** Recorta el valor al rango `[min, max]` y lo ajusta al múltiplo exacto de `step`. */
 function clampAndStep(raw: number, min: number, max: number, step: number): number {
   const clamped = Math.min(max, Math.max(min, raw));
   const stepped = Math.round((clamped - min) / step) * step + min;
@@ -28,9 +29,11 @@ function clampAndStep(raw: number, min: number, max: number, step: number): numb
 }
 
 /**
- * Pure React Native Slider built solely with View + PanResponder.
- * Zero native third-party slider dependency, ensuring consistent look across
- * all apps and effortless Expo SDK upgrades.
+ * Slider propio implementado con primitivas puras de React Native (`View` + `PanResponder`).
+ *
+ * Al evitar dependencias nativas externas (`@react-native-community/slider`), garantiza:
+ * - Estética 100% idéntica en todas las apps del framework.
+ * - Cero fricción o roturas de enlazado nativo al actualizar versiones de Expo SDK.
  */
 export function Slider({
   label,
@@ -47,6 +50,8 @@ export function Slider({
   const [trackWidth, setTrackWidth] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
+
+  // Refs mutables para leer ancho y último valor dentro del closure memorizado de PanResponder.
   const trackWidthRef = useRef(0);
   const latestDraftRef = useRef(value);
   const startLocationXRef = useRef(0);
@@ -112,7 +117,10 @@ export function Slider({
   };
 
   const thumbSize = dragging ? 24 : 20;
-  const thumbLeft = Math.max(0, Math.min(Math.max(0, trackWidth - thumbSize), ratio * trackWidth - thumbSize / 2));
+  const thumbLeft = Math.max(
+    0,
+    Math.min(Math.max(0, trackWidth - thumbSize), ratio * trackWidth - thumbSize / 2)
+  );
 
   return (
     <View style={{ opacity: disabled ? 0.5 : 1, gap: theme.spacing.xs }}>
@@ -192,4 +200,3 @@ export function Slider({
     </View>
   );
 }
-

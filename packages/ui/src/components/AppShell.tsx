@@ -15,6 +15,7 @@ export interface ModalDialogProps {
   children?: ReactNode;
 }
 
+/** Diálogo modal reutilizable implementado sobre el `<Modal>` estándar de React Native. */
 export function ModalDialog({
   visible,
   title,
@@ -112,8 +113,9 @@ export interface AppShellProps<T extends string> {
 }
 
 /**
- * Standard app shell giving every app created with the framework the exact same
- * header, spacing, toast surface, and bottom navigation structure.
+ * Contenedor maestro (**Template / Layout Shell**) que unifica el aspecto visual de todas las
+ * aplicaciones creadas con el framework: cabecera fija, banda de notificaciones, cuerpo
+ * desplazable y barra inferior de pestañas.
  */
 export function AppShell<T extends string>({
   appName,
@@ -251,4 +253,3 @@ export function AppShell<T extends string>({
     </View>
   );
 }
-

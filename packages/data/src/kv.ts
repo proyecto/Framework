@@ -1,22 +1,15 @@
 import type { IKeyValueStore, ISqlDriver } from '@framework/core';
-import { FRAMEWORK_LOCAL_MIGRATIONS, MigrationRunner } from './migrations.js';
+import { createMigrationInitializer } from './migrations.js';
 
+/**
+ * Adaptador **IKeyValueStore -> ISqlDriver** (Expo SQLite en Android o libSQL en Node).
+ * Almacena configuraciones locales del repositorio (`mode`, `plan`, cursor de sync).
+ */
 export class SqlKeyValueStore implements IKeyValueStore {
-  private readyPromise: Promise<void> | null = null;
+  private readonly ensureReady: () => Promise<void>;
 
-  constructor(private readonly driver: ISqlDriver) {}
-
-  private ensureReady(): Promise<void> {
-    if (!this.readyPromise) {
-      this.readyPromise = new MigrationRunner(this.driver)
-        .run(FRAMEWORK_LOCAL_MIGRATIONS)
-        .then(() => undefined)
-        .catch((err) => {
-          this.readyPromise = null;
-          throw err;
-        });
-    }
-    return this.readyPromise;
+  constructor(private readonly driver: ISqlDriver) {
+    this.ensureReady = createMigrationInitializer(driver);
   }
 
   async get(key: string): Promise<string | null> {
@@ -44,6 +37,10 @@ export class SqlKeyValueStore implements IKeyValueStore {
   }
 }
 
+/**
+ * Adaptador **IKeyValueStore -> Memoria RAM**.
+ * Diseñado para tests unitarios rápidos y entornos efímeros sin disco.
+ */
 export class MemoryKeyValueStore implements IKeyValueStore {
   private readonly store = new Map<string, string>();
 
@@ -60,6 +57,10 @@ export class MemoryKeyValueStore implements IKeyValueStore {
   }
 }
 
+/**
+ * Adaptador **IKeyValueStore -> Browser `localStorage`**.
+ * Aísla prefijos por namespace para que varias aplicaciones web compartan dominio sin colisiones.
+ */
 export class WebStorageKeyValueStore implements IKeyValueStore {
   constructor(private readonly namespace = 'fw_kv') {}
 
@@ -81,7 +82,7 @@ export class WebStorageKeyValueStore implements IKeyValueStore {
     try {
       globalThis.localStorage.setItem(this.keyFor(key), value);
     } catch {
-      // Ignore storage quota errors in restricted browser contexts.
+      // Ignora restricciones de cuota o navegación privada en navegadores restrictivos.
     }
   }
 
@@ -90,7 +91,7 @@ export class WebStorageKeyValueStore implements IKeyValueStore {
     try {
       globalThis.localStorage.removeItem(this.keyFor(key));
     } catch {
-      // Ignore storage restrictions.
+      // Ignora errores de almacenamiento bloqueado por políticas del navegador.
     }
   }
 }

@@ -1,15 +1,19 @@
 import type { EntityBase, ISqlDriver, SyncStatus } from '@framework/core';
-import { FRAMEWORK_LOCAL_MIGRATIONS, MigrationRunner } from './migrations.js';
+import { createMigrationInitializer } from './migrations.js';
 
+/** Registro persistido localmente junto a su estado de cola de sincronización. */
 export interface StoredEntityRecord<T extends EntityBase> {
   entity: T;
   syncStatus: SyncStatus;
 }
 
 /**
- * Low-level local entity storage driver contract.
- * Implemented identically by SqlEntityStoreDriver (Expo SQLite / Node libSQL),
- * WebLocalStorageEntityStore (Web browser local mode), and InMemoryEntityStoreDriver (tests).
+ * Contrato de bajo nivel (**Patrón Adapter / Storage Driver**) para almacenar entidades en el dispositivo.
+ *
+ * Implementaciones intercambiables:
+ * - `SqlEntityStoreDriver`: SQLite en Android (`ExpoSqliteDriver`) o libSQL local (`LibSqlDriver`).
+ * - `WebLocalStorageEntityStore`: caché local del navegador (`localStorage`).
+ * - `InMemoryEntityStoreDriver`: doble de memoria para tests unitarios.
  */
 export interface IEntityStoreDriver {
   ensureInitialized(): Promise<void>;
@@ -23,7 +27,10 @@ export interface IEntityStoreDriver {
     entity: T,
     syncStatus: SyncStatus
   ): Promise<void>;
-  markSynced(entityName: string, idsAndVersions: Array<{ id: string; version: number }>): Promise<void>;
+  markSynced(
+    entityName: string,
+    idsAndVersions: Array<{ id: string; version: number }>
+  ): Promise<void>;
   countPending(entityName: string): Promise<number>;
 }
 
@@ -32,22 +39,20 @@ interface SqlEntityRow {
   sync_status: string;
 }
 
+/**
+ * Adaptador SQL para entidades locales-first sobre cualquier `ISqlDriver`.
+ * Guarda cada entidad como JSON + columnas indexadas (`version`, `updated_at`, `deleted_at`, `sync_status`)
+ * evitando tener que migrar esquemas cada vez que se añade una nueva app simple.
+ */
 export class SqlEntityStoreDriver implements IEntityStoreDriver {
-  private readyPromise: Promise<void> | null = null;
+  private readonly initializeOnce: () => Promise<void>;
 
-  constructor(private readonly driver: ISqlDriver) {}
+  constructor(private readonly driver: ISqlDriver) {
+    this.initializeOnce = createMigrationInitializer(driver);
+  }
 
   ensureInitialized(): Promise<void> {
-    if (!this.readyPromise) {
-      this.readyPromise = new MigrationRunner(this.driver)
-        .run(FRAMEWORK_LOCAL_MIGRATIONS)
-        .then(() => undefined)
-        .catch((err) => {
-          this.readyPromise = null;
-          throw err;
-        });
-    }
-    return this.readyPromise;
+    return this.initializeOnce();
   }
 
   async list<T extends EntityBase>(entityName: string): Promise<StoredEntityRecord<T>[]> {
@@ -113,6 +118,10 @@ export class SqlEntityStoreDriver implements IEntityStoreDriver {
     );
   }
 
+  /**
+   * Marca como `synced` únicamente si la versión local sigue coincidiendo con la subida,
+   * evitando borrar por error una edición más nueva ocurrida mientras viajaba la petición HTTP.
+   */
   async markSynced(
     entityName: string,
     idsAndVersions: Array<{ id: string; version: number }>
@@ -144,6 +153,10 @@ export class SqlEntityStoreDriver implements IEntityStoreDriver {
   }
 }
 
+/**
+ * Adaptador en memoria RAM (con clonado defensivo mediante `structuredClone`)
+ * para aislar pruebas unitarias sin tocar disco ni sistema de archivos.
+ */
 export class InMemoryEntityStoreDriver implements IEntityStoreDriver {
   private readonly tables = new Map<string, Map<string, StoredEntityRecord<EntityBase>>>();
 
@@ -213,6 +226,10 @@ export class InMemoryEntityStoreDriver implements IEntityStoreDriver {
   }
 }
 
+/**
+ * Adaptador para aplicaciones Web en modo local-only usando `globalThis.localStorage`.
+ * Si el usuario no activa la nube Pro, sus datos jamás salen del navegador local.
+ */
 export class WebLocalStorageEntityStore implements IEntityStoreDriver {
   constructor(private readonly namespace = 'fw_entities') {}
 
@@ -222,7 +239,9 @@ export class WebLocalStorageEntityStore implements IEntityStoreDriver {
     return `${this.namespace}:${entityName}`;
   }
 
-  private readMap<T extends EntityBase>(entityName: string): Record<string, StoredEntityRecord<T>> {
+  private readMap<T extends EntityBase>(
+    entityName: string
+  ): Record<string, StoredEntityRecord<T>> {
     if (typeof globalThis.localStorage === 'undefined') return {};
     try {
       const raw = globalThis.localStorage.getItem(this.storageKey(entityName));

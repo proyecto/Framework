@@ -1,7 +1,9 @@
 import {
   CloudEntitlementError,
+  LastWriteWinsConflictStrategy,
   getErrorMessage,
   type EntityBase,
+  type IConflictResolutionStrategy,
   type IKeyValueStore,
   type IRemoteSyncTransport,
   type ISyncableRepository,
@@ -21,11 +23,27 @@ export interface HybridSyncRepositoryOptions {
   store: IEntityStoreDriver;
   kv: IKeyValueStore;
   transport?: IRemoteSyncTransport;
+  /** Estrategia de mezcla al aplicar cambios remotos; por defecto `LastWriteWinsConflictStrategy`. */
+  conflictStrategy?: IConflictResolutionStrategy;
   defaultMode?: StorageMode;
   defaultPlan?: UserPlan;
   autoSyncInCloudMode?: boolean;
 }
 
+/**
+ * Repositorio local-first con respaldo opcional en la nube (**Patrón Repository + Observer + Strategy**).
+ *
+ * Garantías de diseño:
+ * 1. **Modo Local (`plan: 'free'` o `mode: 'local'`)**:
+ *    Lee y escribe únicamente en `IEntityStoreDriver` local (SQLite en Android / localStorage en Web).
+ *    Nunca realiza tráfico de red ni guarda registros fuera del dispositivo.
+ * 2. **Modo Nube (`plan: 'pro'` y `mode: 'cloud'`)**:
+ *    Sigue escribiendo primero en local (offline-first, respuesta instantánea en UI) y después
+ *    empuja los registros `pending` hacia el servidor mediante `IRemoteSyncTransport`.
+ * 3. **Coalescing Single-Flight**:
+ *    Si llegan múltiples peticiones simultáneas de `syncNow()`, comparten la misma promesa `inFlightSync`
+ *    para evitar duplicar rondas HTTP concurrentes.
+ */
 export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepository<T> {
   readonly entityName: string;
 
@@ -35,6 +53,7 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
   private readonly store: IEntityStoreDriver;
   private readonly kv: IKeyValueStore;
   private readonly transport?: IRemoteSyncTransport;
+  private readonly conflictStrategy: IConflictResolutionStrategy;
   private readonly defaultMode: StorageMode;
   private readonly defaultPlan: UserPlan;
   private readonly autoSyncInCloudMode: boolean;
@@ -52,6 +71,7 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     this.store = options.store;
     this.kv = options.kv;
     this.transport = options.transport;
+    this.conflictStrategy = options.conflictStrategy ?? new LastWriteWinsConflictStrategy();
     this.defaultMode = options.defaultMode ?? 'local';
     this.defaultPlan = options.defaultPlan ?? 'free';
     this.autoSyncInCloudMode = options.autoSyncInCloudMode ?? true;
@@ -79,12 +99,29 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     return this.kv.get(this.kvKey('lastSyncedAt'));
   }
 
+  /** Recalcula y difunde el estado de almacenamiento a todos los observadores (Modelo/UI). */
   private async notifyStatus(): Promise<StorageStatus> {
     const status = await this.getStorageStatus();
     for (const listener of this.statusListeners) {
       listener(status);
     }
     return status;
+  }
+
+  /**
+   * Intenta sincronizar en segundo plano tras una mutación local solo si el usuario está en
+   * modo Nube + plan Pro. Un fallo de red queda reflejado en `lastSyncError` sin perder el cambio local.
+   */
+  private async syncAfterLocalMutationIfEnabled(): Promise<void> {
+    const status = await this.getStorageStatus();
+    if (!status.cloudEnabled || !this.autoSyncInCloudMode || !this.transport) return;
+
+    try {
+      await this.syncNow();
+    } catch (error) {
+      this.lastSyncError = getErrorMessage(error);
+      await this.notifyStatus();
+    }
   }
 
   subscribeStatus(listener: (status: StorageStatus) => void): () => void {
@@ -143,20 +180,15 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
 
     await this.store.upsert(this.entityName, nextEntity, 'pending');
     await this.notifyStatus();
-
-    const status = await this.getStorageStatus();
-    if (status.cloudEnabled && this.autoSyncInCloudMode && this.transport) {
-      try {
-        await this.syncNow();
-      } catch (error) {
-        this.lastSyncError = getErrorMessage(error);
-        await this.notifyStatus();
-      }
-    }
+    await this.syncAfterLocalMutationIfEnabled();
 
     return nextEntity;
   }
 
+  /**
+   * Realiza un borrado lógico mediante tombstone (`deletedAt != null`) e incrementa `version`
+   * para poder propagar la eliminación al resto de dispositivos cuando sincronice la nube.
+   */
   async remove(id: string): Promise<void> {
     const existing = await this.store.getById<T>(this.entityName, id);
     if (!existing) return;
@@ -171,16 +203,7 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
 
     await this.store.upsert(this.entityName, tombstone, 'pending');
     await this.notifyStatus();
-
-    const status = await this.getStorageStatus();
-    if (status.cloudEnabled && this.autoSyncInCloudMode && this.transport) {
-      try {
-        await this.syncNow();
-      } catch (error) {
-        this.lastSyncError = getErrorMessage(error);
-        await this.notifyStatus();
-      }
-    }
+    await this.syncAfterLocalMutationIfEnabled();
   }
 
   async setPlan(plan: UserPlan): Promise<StorageStatus> {
@@ -194,6 +217,7 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
 
     await this.kv.set(this.kvKey('plan'), plan);
     if (plan === 'free') {
+      // Al bajar a plan gratuito forzamos vuelta inmediata a modo solo local.
       await this.kv.set(this.kvKey('mode'), 'local');
     }
     this.lastSyncError = null;
@@ -224,6 +248,9 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     return this.getStorageStatus();
   }
 
+  /**
+   * Ejecuta una ronda completa de sincronización, reutilizando cualquier ronda ya en curso.
+   */
   async syncNow(): Promise<SyncReport> {
     if (this.inFlightSync) {
       return this.inFlightSync;
@@ -237,6 +264,15 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     }
   }
 
+  /**
+   * Flujo de sincronización paso a paso:
+   * 1. Verifica modo Nube + plan Pro y existencia de transporte.
+   * 2. Valida entitlement real en servidor (si fue revocado, degrada a `free`/`local`).
+   * 3. Recolecta registros locales `pending` y los envía junto al último `sinceCursor`.
+   * 4. Marca la instantánea subida como `synced` (respetando versiones concurrentes).
+   * 5. Aplica los cambios remotos entrantes usando `this.conflictStrategy` (Patrón Strategy).
+   * 6. Actualiza el nuevo cursor monotónico y timestamp de última sincronización.
+   */
   private async executeSync(): Promise<SyncReport> {
     const [mode, plan] = await Promise.all([this.readMode(), this.readPlan()]);
     if (mode !== 'cloud' || plan !== 'pro') {
@@ -299,18 +335,11 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
         const local = await this.store.getById<T>(this.entityName, remote.recordId);
         const incomingEntity = remote.payload as unknown as T;
 
-        if (!local) {
-          await this.store.upsert(this.entityName, incomingEntity, 'synced');
-          pulledCount += 1;
-          continue;
-        }
-
-        const remoteIsNewer =
-          incomingEntity.updatedAt > local.entity.updatedAt ||
-          (incomingEntity.updatedAt === local.entity.updatedAt &&
-            incomingEntity.version > local.entity.version);
-
-        if (remoteIsNewer) {
+        if (
+          this.conflictStrategy.shouldAcceptIncoming(incomingEntity, local?.entity, {
+            acceptEqualVersion: false
+          })
+        ) {
           await this.store.upsert(this.entityName, incomingEntity, 'synced');
           pulledCount += 1;
         }
@@ -335,4 +364,3 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     }
   }
 }
-

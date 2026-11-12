@@ -1,5 +1,13 @@
 import type { EntitlementStatus, ISqlDriver, SqlMigration, UserPlan } from '@framework/core';
 
+/**
+ * Migraciones base del servidor reutilizable `@framework/server`.
+ * Independientes de la app concreta: aíslan los datos por `(app_id, user_id)`.
+ *
+ * - `_fw_server_entitlements`: almacena el plan (`free` / `pro`) de cada usuario por aplicación.
+ * - `_fw_server_records`: almacén universal multi-app y multi-entidad con cursor monotónico
+ *   `server_seq` para sincronización incremental eficiente.
+ */
 export const SERVER_MIGRATIONS: SqlMigration[] = [
   {
     version: 100,
@@ -30,11 +38,19 @@ export const SERVER_MIGRATIONS: SqlMigration[] = [
   }
 ];
 
+/**
+ * Contrato de autorización comercial (**Patrón Provider / Strategy**).
+ * Permite sustituir la tabla SQL local de demostración por validación contra Stripe,
+ * RevenueCat o Google Play Billing en producción sin tocar el resto del servidor.
+ */
 export interface IServerEntitlementProvider {
   getEntitlement(appId: string, userId: string): Promise<EntitlementStatus>;
   setEntitlement(appId: string, userId: string, plan: UserPlan): Promise<EntitlementStatus>;
 }
 
+/**
+ * Implementación por defecto de `IServerEntitlementProvider` sobre `ISqlDriver` (libSQL o Turso).
+ */
 export class SqlEntitlementProvider implements IServerEntitlementProvider {
   constructor(private readonly driver: ISqlDriver) {}
 
@@ -80,4 +96,3 @@ export class SqlEntitlementProvider implements IServerEntitlementProvider {
     };
   }
 }
-

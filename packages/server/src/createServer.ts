@@ -1,25 +1,20 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  CloudEntitlementError,
-  FrameworkError,
-  ValidationError,
-  getErrorMessage,
-  type ISqlDriver,
-  type RegisteredAppModule,
-  type SyncPullResponse,
-  type SyncPushRequest,
-  type SyncRecordEnvelope,
-  type UserPlan
+import type {
+  IConflictResolutionStrategy,
+  ISqlDriver,
+  RegisteredAppModule
 } from '@framework/core';
 import { MigrationRunner } from '@framework/data';
 import { createLibSqlDriver, type LibSqlDriverConfig } from '@framework/data-libsql';
+import { createServerRequestHandler } from './router.js';
 import {
   SERVER_MIGRATIONS,
   SqlEntitlementProvider,
   type IServerEntitlementProvider
 } from './schema.js';
+import { CloudSyncService } from './syncService.js';
 
 export interface FrameworkServerOptions {
   port?: number;
@@ -28,10 +23,12 @@ export interface FrameworkServerOptions {
   database?: LibSqlDriverConfig;
   apps?: RegisteredAppModule[];
   entitlementProvider?: IServerEntitlementProvider;
+  conflictStrategy?: IConflictResolutionStrategy;
   corsOrigins?: string[];
   allowDemoPlanSwitch?: boolean;
 }
 
+/** Controlador de ciclo de vida del servidor Node.js reutilizable. */
 export interface FrameworkServerInstance {
   readonly port: number;
   readonly host: string;
@@ -42,45 +39,25 @@ export interface FrameworkServerInstance {
   handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void>;
 }
 
-interface ExistingRecordRow {
-  entity: string;
-  record_id: string;
-  payload_json: string;
-  version: number;
-  updated_at: string;
-  deleted_at: string | null;
-  server_seq: number;
-}
-
+/** Garantiza que exista la carpeta padre cuando se configura una base de datos SQLite en archivo local. */
 function ensureLocalSqliteDir(config?: LibSqlDriverConfig): void {
   if (!config || config.mode !== 'local') return;
   if (!config.url.startsWith('file:')) return;
   const rawPath = config.url.slice('file:'.length).split('?')[0] ?? '';
   if (!rawPath || rawPath === ':memory:') return;
-  const dir = path.dirname(path.resolve(rawPath));
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(path.dirname(path.resolve(rawPath)), { recursive: true });
 }
 
-async function readJsonBody(req: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  const raw = Buffer.concat(chunks).toString('utf8').trim();
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    throw new ValidationError('El cuerpo de la petición no es un JSON válido.');
-  }
-}
-
-function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
-  res.statusCode = statusCode;
-  res.setHeader('content-type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(body));
-}
-
+/**
+ * Patrón: **Facade + Composition Root** del backend multi-aplicación.
+ *
+ * Ensambla en un único punto legible:
+ * 1. Driver SQL (`ISqlDriver`, local libSQL o Turso mediante configuración).
+ * 2. Migraciones base del servidor + migraciones de cada módulo de aplicación registrado.
+ * 3. Proveedor de suscripciones (`IServerEntitlementProvider`).
+ * 4. Servicio de sincronización incremental (`CloudSyncService` + `IConflictResolutionStrategy`).
+ * 5. Enrutador HTTP declarativo (`createServerRequestHandler`).
+ */
 export async function createFrameworkServer(
   options: FrameworkServerOptions = {}
 ): Promise<FrameworkServerInstance> {
@@ -95,6 +72,7 @@ export async function createFrameworkServer(
       }
     );
 
+  // 1. Ejecuta migraciones globales del servidor y de cada app registrada.
   const migrationRunner = new MigrationRunner(driver);
   await migrationRunner.run(SERVER_MIGRATIONS);
 
@@ -106,240 +84,20 @@ export async function createFrameworkServer(
     }
   }
 
+  // 2. Compone servicios de negocio y router HTTP.
   const entitlements = options.entitlementProvider ?? new SqlEntitlementProvider(driver);
-  const allowDemoPlanSwitch = options.allowDemoPlanSwitch ?? true;
-  const corsOrigins = options.corsOrigins ?? ['*'];
+  const syncService = new CloudSyncService(driver, entitlements, options.conflictStrategy);
 
-  const applyCors = (req: IncomingMessage, res: ServerResponse): void => {
-    const requestOrigin = req.headers.origin;
-    if (corsOrigins.includes('*')) {
-      res.setHeader('access-control-allow-origin', '*');
-    } else if (requestOrigin && corsOrigins.includes(requestOrigin)) {
-      res.setHeader('access-control-allow-origin', requestOrigin);
-    }
-    res.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('access-control-allow-headers', 'content-type,authorization');
-  };
+  const handleRequest = createServerRequestHandler({
+    driver,
+    entitlements,
+    syncService,
+    appModules,
+    corsOrigins: options.corsOrigins ?? ['*'],
+    allowDemoPlanSwitch: options.allowDemoPlanSwitch ?? true
+  });
 
-  const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    applyCors(req, res);
-    if (req.method === 'OPTIONS') {
-      res.statusCode = 204;
-      res.end();
-      return;
-    }
-
-    try {
-      const url = new URL(req.url ?? '/', 'http://localhost');
-      const pathname = url.pathname;
-      const method = req.method ?? 'GET';
-
-      if (method === 'GET' && pathname === '/health') {
-        await driver.query('SELECT 1 AS ok');
-        sendJson(res, 200, {
-          ok: true,
-          driver: driver.driverName,
-          registeredApps: Array.from(appModules.keys())
-        });
-        return;
-      }
-
-      const entitlementMatch = pathname.match(/^\/api\/v1\/apps\/([^/]+)\/entitlements$/);
-      if (entitlementMatch) {
-        const appId = decodeURIComponent(entitlementMatch[1] ?? '');
-        if (method === 'GET') {
-          const userId = url.searchParams.get('userId') ?? 'default-user';
-          const status = await entitlements.getEntitlement(appId, userId);
-          sendJson(res, 200, status);
-          return;
-        }
-        if (method === 'POST') {
-          if (!allowDemoPlanSwitch) {
-            throw new FrameworkError(
-              'ENTITLEMENT_REQUIRED',
-              'El cambio directo de plan está deshabilitado en este servidor.',
-              403
-            );
-          }
-          const body = (await readJsonBody(req)) as { userId?: string; plan?: UserPlan };
-          const userId = body.userId?.trim() || 'default-user';
-          const plan: UserPlan = body.plan === 'pro' ? 'pro' : 'free';
-          const status = await entitlements.setEntitlement(appId, userId, plan);
-          sendJson(res, 200, status);
-          return;
-        }
-      }
-
-      const syncMatch = pathname.match(/^\/api\/v1\/apps\/([^/]+)\/sync$/);
-      if (syncMatch && method === 'POST') {
-        const appId = decodeURIComponent(syncMatch[1] ?? '');
-        const body = (await readJsonBody(req)) as Partial<SyncPushRequest>;
-        const userId = body.userId?.trim();
-        if (!userId) {
-          throw new ValidationError('El campo "userId" es obligatorio para sincronizar.');
-        }
-
-        const entitlement = await entitlements.getEntitlement(appId, userId);
-        if (!entitlement.cloudSyncAllowed) {
-          throw new CloudEntitlementError(
-            'El usuario no tiene un plan Pro activo para usar la nube.'
-          );
-        }
-
-        const sinceSeq = body.sinceCursor ? Number(body.sinceCursor) || 0 : 0;
-        const incomingChanges = Array.isArray(body.changes) ? body.changes : [];
-
-        const pullResponse = await driver.transaction<SyncPullResponse>(async (tx) => {
-          const maxRows = await tx.query<{ max_seq: number }>(
-            `SELECT COALESCE(MAX(server_seq), 0) AS max_seq
-             FROM _fw_server_records
-             WHERE app_id = ? AND user_id = ?`,
-            [appId, userId]
-          );
-          let nextSeq = Number(maxRows[0]?.max_seq ?? 0);
-          let acceptedCount = 0;
-          const acceptedKeys = new Set<string>();
-
-          for (const change of incomingChanges) {
-            if (!change.entity || !change.recordId) continue;
-            const existingRows = await tx.query<ExistingRecordRow>(
-              `SELECT entity, record_id, payload_json, version, updated_at, deleted_at, server_seq
-               FROM _fw_server_records
-               WHERE app_id = ? AND user_id = ? AND entity = ? AND record_id = ?
-               LIMIT 1`,
-              [appId, userId, change.entity, change.recordId]
-            );
-            const existing = existingRows[0];
-            const shouldAccept =
-              !existing ||
-              change.updatedAt > existing.updated_at ||
-              (change.updatedAt === existing.updated_at &&
-                change.version >= Number(existing.version));
-
-            if (shouldAccept) {
-              nextSeq += 1;
-              acceptedCount += 1;
-              acceptedKeys.add(`${change.entity}:${change.recordId}`);
-
-              await tx.execute(
-                `INSERT INTO _fw_server_records (
-                   app_id, user_id, entity, record_id, payload_json, version, updated_at, deleted_at, server_seq
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                 ON CONFLICT(app_id, user_id, entity, record_id) DO UPDATE SET
-                   payload_json = excluded.payload_json,
-                   version = excluded.version,
-                   updated_at = excluded.updated_at,
-                   deleted_at = excluded.deleted_at,
-                   server_seq = excluded.server_seq`,
-                [
-                  appId,
-                  userId,
-                  change.entity,
-                  change.recordId,
-                  JSON.stringify(change.payload),
-                  change.version,
-                  change.updatedAt,
-                  change.deletedAt ?? null,
-                  nextSeq
-                ]
-              );
-            }
-          }
-
-          const changedRows = await tx.query<ExistingRecordRow>(
-            `SELECT entity, record_id, payload_json, version, updated_at, deleted_at, server_seq
-             FROM _fw_server_records
-             WHERE app_id = ? AND user_id = ? AND server_seq > ?
-             ORDER BY server_seq ASC`,
-            [appId, userId, sinceSeq]
-          );
-
-          const changesToPull: SyncRecordEnvelope[] = changedRows
-            .filter((row) => !acceptedKeys.has(`${row.entity}:${row.record_id}`))
-            .map((row) => ({
-              entity: row.entity,
-              recordId: row.record_id,
-              payload: JSON.parse(row.payload_json) as Record<string, unknown>,
-              version: Number(row.version),
-              updatedAt: row.updated_at,
-              deletedAt: row.deleted_at
-            }));
-
-          return {
-            serverCursor: String(nextSeq),
-            acceptedCount,
-            changes: changesToPull
-          };
-        });
-
-        sendJson(res, 200, pullResponse);
-        return;
-      }
-
-      const entitiesMatch = pathname.match(/^\/api\/v1\/apps\/([^/]+)\/entities\/([^/]+)$/);
-      if (entitiesMatch && method === 'GET') {
-        const appId = decodeURIComponent(entitiesMatch[1] ?? '');
-        const entity = decodeURIComponent(entitiesMatch[2] ?? '');
-        const userId = url.searchParams.get('userId') ?? 'default-user';
-        const rows = await driver.query<ExistingRecordRow>(
-          `SELECT entity, record_id, payload_json, version, updated_at, deleted_at, server_seq
-           FROM _fw_server_records
-           WHERE app_id = ? AND user_id = ? AND entity = ? AND deleted_at IS NULL
-           ORDER BY updated_at DESC`,
-          [appId, userId, entity]
-        );
-        sendJson(res, 200, {
-          items: rows.map((row) => JSON.parse(row.payload_json) as Record<string, unknown>)
-        });
-        return;
-      }
-
-      const actionMatch = pathname.match(/^\/api\/v1\/apps\/([^/]+)\/actions\/([^/]+)$/);
-      if (actionMatch && method === 'POST') {
-        const appId = decodeURIComponent(actionMatch[1] ?? '');
-        const actionName = decodeURIComponent(actionMatch[2] ?? '');
-        const mod = appModules.get(appId);
-        const handler = mod?.actions?.[actionName];
-        if (!handler) {
-          throw new FrameworkError(
-            'NOT_FOUND',
-            `Acción "${actionName}" no registrada para la app "${appId}".`,
-            404
-          );
-        }
-        const body = await readJsonBody(req);
-        const query: Record<string, string> = {};
-        for (const [k, v] of url.searchParams.entries()) {
-          query[k] = v;
-        }
-        const userId =
-          typeof (body as { userId?: unknown }).userId === 'string'
-            ? (body as { userId: string }).userId
-            : url.searchParams.get('userId') ?? 'default-user';
-        const result = await handler({
-          appId,
-          userId,
-          driver,
-          body,
-          query
-        });
-        sendJson(res, 200, { ok: true, result });
-        return;
-      }
-
-      sendJson(res, 404, { error: 'Ruta no encontrada.' });
-    } catch (error) {
-      if (error instanceof FrameworkError) {
-        sendJson(res, error.statusCode, { error: error.message, code: error.code });
-        return;
-      }
-      sendJson(res, 500, {
-        error: getErrorMessage(error),
-        code: 'INTERNAL_ERROR'
-      });
-    }
-  };
-
+  // 3. Gestión de socket HTTP Node.js (`start` / `stop`).
   let httpServer: http.Server | null = null;
   let boundHost = options.host ?? '127.0.0.1';
   let boundPort = options.port ?? 4000;
@@ -385,4 +143,3 @@ export async function createFrameworkServer(
     }
   };
 }
-

@@ -1,16 +1,7 @@
+import { SqlEntityStoreDriver, SqlKeyValueStore } from '@framework/data';
 import {
-  HttpSyncTransport,
-  HybridSyncRepository,
-  SqlEntityStoreDriver,
-  SqlKeyValueStore
-} from '@framework/data';
-import {
-  EXAMPLE_APP_ID,
-  PRESET_ENTITY_NAME,
-  PresetController,
-  PresetModel,
-  type IPresetController,
-  type PresetEntity
+  createPresetStudioController,
+  type IPresetController
 } from '@framework/example-domain';
 import { ExpoSqliteDriver } from '@framework/expo-adapter';
 
@@ -19,6 +10,13 @@ export interface ExpoContainerConfig {
   userId?: string;
 }
 
+/**
+ * **Composition Root** específica para Android (Expo).
+ *
+ * Únicamente ensambla los adaptadores concretos del dispositivo (`ExpoSqliteDriver` ->
+ * `SqlEntityStoreDriver` + `SqlKeyValueStore`) y delega la creación del Repositorio,
+ * Modelo y Controlador a la factoría compartida `createPresetStudioController`.
+ */
 export function createExpoAppController(
   config: ExpoContainerConfig = {}
 ): IPresetController {
@@ -26,26 +24,14 @@ export function createExpoAppController(
     config.apiBaseUrl ??
     process.env.EXPO_PUBLIC_API_URL ??
     'http://10.0.2.2:4000';
-  const userId = config.userId ?? 'demo-user';
 
   const sqlDriver = new ExpoSqliteDriver('focus_scenes.db');
-  const entityStore = new SqlEntityStoreDriver(sqlDriver);
-  const kvStore = new SqlKeyValueStore(sqlDriver);
-  const transport = new HttpSyncTransport({ baseUrl: apiBaseUrl });
 
-  const repository = new HybridSyncRepository<PresetEntity>({
-    appId: EXAMPLE_APP_ID,
-    userId,
+  return createPresetStudioController({
+    store: new SqlEntityStoreDriver(sqlDriver),
+    kv: new SqlKeyValueStore(sqlDriver),
     deviceId: 'android-expo-device',
-    entityName: PRESET_ENTITY_NAME,
-    store: entityStore,
-    kv: kvStore,
-    transport,
-    defaultMode: 'local',
-    defaultPlan: 'free'
+    userId: config.userId ?? 'demo-user',
+    apiBaseUrl
   });
-
-  const model = new PresetModel(repository);
-  return new PresetController(model);
 }
-

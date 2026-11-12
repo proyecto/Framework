@@ -16,6 +16,10 @@ export interface FrameworkThemeProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Proveedor de tema del Design System (`LIGHT_THEME` / `DARK_THEME`).
+ * Soporta selección automática según sistema operativo (`preference = 'system'`) o forzado explícito.
+ */
 export function FrameworkThemeProvider({
   preference = 'system',
   customLightTheme = LIGHT_THEME,
@@ -37,9 +41,9 @@ export function FrameworkThemeProvider({
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+/** Devuelve el tema activo; cae a `LIGHT_THEME` si el componente se usa fuera de un provider. */
 export function useFrameworkTheme(): FrameworkTheme {
   const ctx = useContext(ThemeContext);
   if (ctx) return ctx.theme;
   return LIGHT_THEME;
 }
-

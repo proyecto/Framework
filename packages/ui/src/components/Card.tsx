@@ -11,6 +11,7 @@ export interface CardProps {
   style?: ViewStyle;
 }
 
+/** Tarjeta contenedora estándar con soporte opcional de cabecera, slot derecho y borde destacado. */
 export function Card({
   title,
   subtitle,
@@ -74,4 +75,3 @@ export function Card({
     </View>
   );
 }
-

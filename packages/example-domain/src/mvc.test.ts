@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { IView, ViewEvent } from '@framework/core';
 import {
-  HybridSyncRepository,
   InMemoryEntityStoreDriver,
   MemoryKeyValueStore
 } from '@framework/data';
 import {
-  EXAMPLE_APP_ID,
-  PRESET_ENTITY_NAME,
-  PresetController,
-  PresetModel,
-  type PresetEntity,
+  createPresetStudioController,
   type PresetStudioViewState
 } from './index.js';
 
+/**
+ * Vista espía de prueba que implementa `IView<PresetStudioViewState>` sin UI gráfica,
+ * demostrando que el Modelo y el Controlador funcionan en total aislamiento.
+ */
 class SpyView implements IView<PresetStudioViewState, ViewEvent> {
   readonly renders: PresetStudioViewState[] = [];
   readonly events: ViewEvent[] = [];
@@ -35,19 +34,12 @@ class SpyView implements IView<PresetStudioViewState, ViewEvent> {
 
 describe('Strict MVC separation (Model <-> Controller <-> IView)', () => {
   it('runs completely offline in free local mode and enforces cloud entitlement', async () => {
-    const repo = new HybridSyncRepository<PresetEntity>({
-      appId: EXAMPLE_APP_ID,
-      userId: 'user-1',
-      deviceId: 'test-device',
-      entityName: PRESET_ENTITY_NAME,
+    const controller = createPresetStudioController({
       store: new InMemoryEntityStoreDriver(),
       kv: new MemoryKeyValueStore(),
-      defaultMode: 'local',
-      defaultPlan: 'free'
+      deviceId: 'test-device',
+      userId: 'user-1'
     });
-
-    const model = new PresetModel(repo);
-    const controller = new PresetController(model);
     const view = new SpyView();
 
     const detach = controller.attachView(view);
@@ -58,12 +50,12 @@ describe('Strict MVC separation (Model <-> Controller <-> IView)', () => {
     expect(view.latest.storage.mode).toBe('local');
     expect(view.latest.storage.cloudEnabled).toBe(false);
 
-    // Free user tries enabling cloud mode -> blocked via ViewEvent & CloudEntitlementError
+    // Usuario gratuito intenta activar la nube -> bloqueado vía ViewEvent & CloudEntitlementError
     await controller.setStorageMode('cloud');
     expect(view.latest.storage.mode).toBe('local');
     expect(view.events.some((e) => e.type === 'upgrade-required')).toBe(true);
 
-    // Create + adjust sliders + favorite + delete via strict IController interface
+    // Crear + ajustar sliders + marcar favorito + borrar mediante interfaz IController
     await controller.createPreset({ name: 'Estudio Tarde', ambientLevel: 40 });
     const created = view.latest.presets.find((p) => p.name === 'Estudio Tarde');
     expect(created).toBeDefined();
@@ -84,4 +76,3 @@ describe('Strict MVC separation (Model <-> Controller <-> IView)', () => {
     controller.dispose();
   });
 });
-

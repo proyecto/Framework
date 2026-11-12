@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { IPresetController } from '@framework/example-domain';
-import { useMvcController } from '@framework/react';
+import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 import {
   AppShell,
   Badge,
@@ -20,6 +20,7 @@ import {
 type ScreenTab = 'scenes' | 'cloud';
 
 export interface PresetStudioScreenProps {
+  /** Interfaz pura del Controlador MVC: esta vista jamás importa el Modelo ni el Repositorio. */
   controller: IPresetController;
   themePreference: ThemeScheme;
   onThemePreferenceChange: (next: ThemeScheme) => void;
@@ -27,6 +28,10 @@ export interface PresetStudioScreenProps {
   onApiBaseUrlChange: (nextUrl: string) => void;
 }
 
+/**
+ * Vista Android (`Expo` + `@framework/ui`).
+ * Consume exclusivamente `IPresetController` a través del adaptador `useMvcController`.
+ */
 export function PresetStudioScreen({
   controller,
   themePreference,
@@ -35,6 +40,7 @@ export function PresetStudioScreen({
   onApiBaseUrlChange
 }: PresetStudioScreenProps) {
   const theme = useFrameworkTheme();
+  const env = useFrameworkEnvironment();
   const [activeTab, setActiveTab] = useState<ScreenTab>('scenes');
   const [toast, setToast] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -42,6 +48,7 @@ export function PresetStudioScreen({
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [draftApiUrl, setDraftApiUrl] = useState(apiBaseUrl);
 
+  // Suscripción reactiva al Controlador usando el contrato IView.
   const state = useMvcController(controller, {
     onEvent: (event) => {
       setToast(event.message);
@@ -51,6 +58,7 @@ export function PresetStudioScreen({
     }
   });
 
+  // Limpia automáticamente el banner tipo toast tras 3.5 segundos.
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 3500);
@@ -76,8 +84,8 @@ export function PresetStudioScreen({
 
   return (
     <AppShell<ScreenTab>
-      appName="FocusScenes"
-      subtitle="Framework MVC · Expo Android"
+      appName={env.appName}
+      subtitle={`Framework MVC · ${env.platformName}`}
       toastMessage={toast}
       tabs={[
         { id: 'scenes', label: 'Escenas' },
@@ -101,6 +109,7 @@ export function PresetStudioScreen({
     >
       {activeTab === 'scenes' ? (
         <>
+          {/* Lista seleccionable de escenas + filtro rápido de favoritas */}
           <Card
             title="Tus escenas"
             subtitle="Selecciona una escena para ajustar sus controles"
@@ -149,6 +158,7 @@ export function PresetStudioScreen({
             )}
           </Card>
 
+          {/* Inspector de escena seleccionada usando Sliders y Switch del Design System */}
           {selectedPreset ? (
             <Card
               highlighted={selectedPreset.isActive}
@@ -222,6 +232,7 @@ export function PresetStudioScreen({
             </Card>
           ) : null}
 
+          {/* Formulario de creación conectado directamente al Controlador */}
           <Card title="Nueva escena" subtitle="Se guarda en local o en la nube según tu modo">
             <TextField
               label="Nombre"
@@ -246,6 +257,7 @@ export function PresetStudioScreen({
         </>
       ) : (
         <>
+          {/* Gestión transparente de almacenamiento Local (Gratis) vs Nube (Pro) */}
           <Card
             title="Almacenamiento y Nube"
             subtitle="Tú decides si tus datos permanecen solo en el móvil o se sincronizan"

@@ -10,10 +10,18 @@ import {
 
 export interface HttpSyncTransportOptions {
   baseUrl: string;
+  /** Permite inyectar un `fetch` personalizado (ej. testing en proceso o auth interceptor). */
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 }
 
+/**
+ * Patrón: **Adapter / Anti-Corruption Layer** sobre HTTP + `fetch`.
+ *
+ * Traduce el contrato abstracto `IRemoteSyncTransport` a llamadas REST JSON contra
+ * `@framework/server`, gestionando timeouts con `AbortController` y mapeando códigos HTTP
+ * (`402 -> ENTITLEMENT_REQUIRED`, red -> `NETWORK_ERROR`) a `FrameworkError`.
+ */
 export class HttpSyncTransport implements IRemoteSyncTransport {
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
@@ -93,4 +101,3 @@ export class HttpSyncTransport implements IRemoteSyncTransport {
     });
   }
 }
-

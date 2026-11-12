@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View, type ViewStyle } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
+import type { FrameworkTheme } from '../tokens.js';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -17,6 +18,37 @@ export interface ButtonProps {
   style?: ViewStyle;
 }
 
+interface ButtonPalette {
+  bg: string;
+  border: string;
+  text: string;
+}
+
+/** Tabla declarativa de estrategias de color por variante de botón. */
+const BUTTON_VARIANT_PALETTES: Record<
+  ButtonVariant,
+  (colors: FrameworkTheme['colors']) => ButtonPalette
+> = {
+  primary: (c) => ({ bg: c.accent, border: c.accent, text: c.textInverse }),
+  secondary: (c) => ({ bg: c.surfaceMuted, border: c.border, text: c.textPrimary }),
+  outline: (c) => ({ bg: 'transparent', border: c.border, text: c.textPrimary }),
+  danger: (c) => ({ bg: c.danger, border: c.danger, text: '#FFFFFF' }),
+  ghost: (c) => ({ bg: 'transparent', border: 'transparent', text: c.accent })
+};
+
+/** Métricas estáticas por tamaño para evitar lógica condicional dispersa en JSX. */
+const BUTTON_SIZE_METRICS: Record<
+  ButtonSize,
+  { paddingV: number; paddingH: number; fontSize: number }
+> = {
+  sm: { paddingV: 8, paddingH: 12, fontSize: 13 },
+  md: { paddingV: 11, paddingH: 16, fontSize: 15 },
+  lg: { paddingV: 14, paddingH: 20, fontSize: 16 }
+};
+
+/**
+ * Botón estándar del framework sobre primitivas puras de React Native (`Pressable`).
+ */
 export function Button({
   label,
   onPress,
@@ -30,46 +62,8 @@ export function Button({
 }: ButtonProps) {
   const theme = useFrameworkTheme();
   const isDisabled = disabled || loading;
-
-  const paddingV = size === 'sm' ? 8 : size === 'lg' ? 14 : 11;
-  const paddingH = size === 'sm' ? 12 : size === 'lg' ? 20 : 16;
-  const fontSize = size === 'sm' ? 13 : size === 'lg' ? 16 : 15;
-
-  const palette = (() => {
-    switch (variant) {
-      case 'secondary':
-        return {
-          bg: theme.colors.surfaceMuted,
-          border: theme.colors.border,
-          text: theme.colors.textPrimary
-        };
-      case 'outline':
-        return {
-          bg: 'transparent',
-          border: theme.colors.border,
-          text: theme.colors.textPrimary
-        };
-      case 'danger':
-        return {
-          bg: theme.colors.danger,
-          border: theme.colors.danger,
-          text: '#FFFFFF'
-        };
-      case 'ghost':
-        return {
-          bg: 'transparent',
-          border: 'transparent',
-          text: theme.colors.accent
-        };
-      case 'primary':
-      default:
-        return {
-          bg: theme.colors.accent,
-          border: theme.colors.accent,
-          text: theme.colors.textInverse
-        };
-    }
-  })();
+  const palette = BUTTON_VARIANT_PALETTES[variant](theme.colors);
+  const metrics = BUTTON_SIZE_METRICS[size];
 
   return (
     <Pressable
@@ -88,8 +82,8 @@ export function Button({
           borderColor: palette.border,
           borderWidth: variant === 'ghost' ? 0 : 1,
           borderRadius: theme.radius.md,
-          paddingVertical: paddingV,
-          paddingHorizontal: paddingH,
+          paddingVertical: metrics.paddingV,
+          paddingHorizontal: metrics.paddingH,
           opacity: isDisabled ? 0.5 : pressed ? 0.82 : 1,
           alignSelf: fullWidth ? 'stretch' : 'auto'
         },
@@ -104,7 +98,7 @@ export function Button({
       <Text
         style={{
           color: palette.text,
-          fontSize,
+          fontSize: metrics.fontSize,
           fontWeight: '600'
         }}
       >
@@ -113,4 +107,3 @@ export function Button({
     </Pressable>
   );
 }
-

@@ -4,16 +4,16 @@ Monorepo base diseñado para crear múltiples aplicaciones Android (Expo) y Web 
 
 ## Estructura del Monorepo
 
-- `packages/core`: Contratos puros en TypeScript (`IModel`, `IController`, `IView`, `IRepository`, `ISyncableRepository`, `ISqlDriver`, `IRemoteSyncTransport`).
+- `packages/core`: Contratos puros MVC (`IModel`, `IController`, `IView`, `BaseController`), contratos de datos (`IRepository`, `ISyncableRepository`, `ISqlDriver`, `IRemoteSyncTransport`), estrategia LWW (`LastWriteWinsConflictStrategy`) y concurrencia (`AsyncMutex`, `normalizeSqlParams`).
 - `packages/data`: `MigrationRunner`, `HybridSyncRepository` (local-first + sync bajo suscripción), `SqlEntityStoreDriver`, `WebLocalStorageEntityStore`, `HttpSyncTransport`.
 - `packages/data-libsql`: Adaptador `@libsql/client` para Node.js (`mode: 'local'` con archivo SQLite/libSQL o `mode: 'turso'` remoto).
-- `packages/server`: Backend Node.js reutilizable multi-app (sync, entitlements, migraciones y acciones MVC).
-- `packages/react`: Hook `useMvcController` que conecta cualquier Vista React/Expo con cualquier `IController` mediante `IView`.
+- `packages/server`: Backend Node.js reutilizable multi-app compuesto por `createFrameworkServer` (Facade), `CloudSyncService` (Application Service), `SqlEntitlementProvider` y `router.ts` (Front Controller declarativo).
+- `packages/react`: Hook `useMvcController` (Adapter React <-> `IView`) y contexto `FrameworkProvider` / `useFrameworkEnvironment`.
 - `packages/ui`: Kit de diseño propio sobre primitivas puras de React Native (`AppShell`, `Card`, `Button`, `Slider`, `SwitchToggle`, `TextField`, `StorageStatusBar`, `ModalDialog`, `SegmentedControl`, tokens claro/oscuro).
 - `packages/expo-adapter`: Único paquete acoplado a `expo-sqlite` (implementando `ISqlDriver`) para facilitar futuras actualizaciones de Expo.
-- `packages/example-domain`: App de ejemplo **FocusScenes** (Model + Controller compartidos por Android y Web).
+- `packages/example-domain`: App de ejemplo **FocusScenes** (`IPresetModel`, `IPresetController`, `PresetModel`, `PresetController` y factoría compartida `createPresetStudioController`).
 - `apps/demo-backend`: Instancia de `@framework/server` configurable por variables de entorno (`local` vs `turso`).
-- `apps/demo-expo`: App Android con Expo usando `@framework/ui` + `@framework/expo-adapter`.
+- `apps/demo-expo`: App Android con Expo usando `@framework/ui`, `@framework/expo-adapter` y `createPresetStudioController`.
 - `apps/demo-web`: Segunda interfaz gráfica completamente distinta (Escritorio Web con React + HTML/CSS moderno) conectada al **mismo** Modelo y Controlador.
 
 ## Comandos rápidos
@@ -41,5 +41,4 @@ corepack pnpm dev:web
 corepack pnpm dev:expo
 ```
 
-Consulta [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para ver cómo añadir una nueva aplicación o actualizar Expo SDK.
-
+Consulta [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para ver todos los patrones de diseño, cómo añadir una nueva aplicación o actualizar Expo SDK.

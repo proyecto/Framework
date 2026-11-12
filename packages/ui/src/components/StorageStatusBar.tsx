@@ -11,9 +11,9 @@ export interface StorageStatusBarProps {
 }
 
 /**
- * Standardized Cloud/Local indicator shared across every app built on the framework.
- * Users simply see "Local (Solo este dispositivo)" vs "Nube sincronizada (Pro)" without
- * exposing Turso internals.
+ * Barra estandarizada de estado Local / Nube compartida por todas las apps del framework.
+ * Muestra lenguaje comprensible para el usuario final ("Solo local (Gratis)" vs "Nube Pro activa")
+ * ocultando por completo detalles internos de Turso o SQLite.
  */
 export function StorageStatusBar({
   status,
@@ -101,4 +101,3 @@ export function StorageStatusBar({
     </View>
   );
 }
-

@@ -1,5 +1,10 @@
+/** Preferencia de esquema visual del usuario o del sistema operativo. */
 export type ThemeScheme = 'light' | 'dark' | 'system';
 
+/**
+ * Contrato de **Design Tokens** compartido por todas las aplicaciones construidas
+ * con `@framework/ui`, garantizando idéntica estética, espaciados y jerarquía tipográfica.
+ */
 export interface FrameworkTheme {
   scheme: 'light' | 'dark';
   colors: {
@@ -44,6 +49,7 @@ export interface FrameworkTheme {
   };
 }
 
+/** Métricas geométricas compartidas entre tema claro y oscuro. */
 const SHARED_METRICS = {
   spacing: {
     xs: 4,
@@ -116,4 +122,3 @@ export const DARK_THEME: FrameworkTheme = {
   },
   ...SHARED_METRICS
 };
-

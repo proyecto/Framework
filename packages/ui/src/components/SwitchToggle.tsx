@@ -9,6 +9,7 @@ export interface SwitchToggleProps {
   onValueChange: (next: boolean) => void;
 }
 
+/** Interruptor accesible reutilizable implementado sin componentes nativos dependientes de plataforma. */
 export function SwitchToggle({
   label,
   description,
@@ -79,4 +80,3 @@ export function SwitchToggle({
     </Pressable>
   );
 }
-

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import type { IPresetController } from '@framework/example-domain';
-import { useMvcController } from '@framework/react';
+import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 
 type ColorSchemeSetting = 'system' | 'light' | 'dark';
 
@@ -9,7 +9,7 @@ function readStoredScheme(): ColorSchemeSetting {
     const val = localStorage.getItem('color-scheme');
     if (val === 'light' || val === 'dark') return val;
   } catch {
-    // Ignore storage access restrictions.
+    // Ignora restricciones de acceso a localStorage en modo privado estricto.
   }
   return 'system';
 }
@@ -31,6 +31,10 @@ interface NativeRangeSliderProps {
   onChange: (next: number) => void;
 }
 
+/**
+ * Control deslizante nativo Web (`<input type="range">`) estilizado con variables CSS modernas
+ * y sincronización instantánea del borrador al arrastrar sin saturar al Controlador hasta confirmar.
+ */
 function NativeRangeSlider({
   label,
   value,
@@ -86,6 +90,10 @@ function NativeRangeSlider({
   );
 }
 
+/**
+ * Polyfill progresivo para `<dialog closedby="any">` en navegadores sin soporte nativo
+ * (detecta pulsación y liberación fuera del rectángulo visible del modal).
+ */
 function installClosedByFallback(dialog: HTMLDialogElement): () => void {
   if ('closedBy' in HTMLDialogElement.prototype) return () => {};
   const outside = (e: PointerEvent) => {
@@ -112,7 +120,12 @@ function installClosedByFallback(dialog: HTMLDialogElement): () => void {
   };
 }
 
+/**
+ * Segunda interfaz gráfica (React Web Desktop) conectada exactamente al mismo `IPresetController`
+ * y `PresetModel` que la aplicación Android Expo mediante el contrato `IView<PresetStudioViewState>`.
+ */
 export function WebStudioApp({ controller }: { controller: IPresetController }) {
+  const env = useFrameworkEnvironment();
   const [toast, setToast] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
@@ -124,16 +137,16 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
       : false
   );
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const pendingDeleteIdRef = useRef<string | null>(null);
-  pendingDeleteIdRef.current = pendingDeleteId;
 
+  // Ref sin estado React porque el ID pendiente no participa en el renderizado JSX.
+  const pendingDeleteIdRef = useRef<string | null>(null);
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const settingsHeadingId = useId();
   const deleteHeadingId = useId();
   const favoriteSwitchId = useId();
 
+  // Conecta la vista Web al Controlador MVC vía `useMvcController`.
   const state = useMvcController(controller, {
     onEvent: (event) => {
       setToast(event.message);
@@ -143,12 +156,14 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
     }
   });
 
+  // Polyfill bajo demanda para `<input type="checkbox" switch>`.
   useEffect(() => {
     if (!('switch' in HTMLInputElement.prototype)) {
       void import('input-switch-polyfill');
     }
   }, []);
 
+  // Escucha cambios de tema del sistema operativo y entre pestañas.
   useEffect(() => {
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = (e: MediaQueryListEvent) => setSystemIsDark(e.matches);
@@ -175,6 +190,7 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // Configura los cierres nativos de `<dialog>` reseteando `returnValue` para evitar fugas entre aperturas.
   useEffect(() => {
     const settingsEl = settingsDialogRef.current;
     const deleteEl = deleteDialogRef.current;
@@ -195,10 +211,10 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
         const choice = deleteEl.returnValue;
         deleteEl.returnValue = '';
         const targetId = pendingDeleteIdRef.current;
+        pendingDeleteIdRef.current = null;
         if (choice === 'delete' && targetId) {
           void controller.deletePreset(targetId);
         }
-        setPendingDeleteId(null);
       };
       deleteEl.addEventListener('close', onClose);
       cleanups.push(() => deleteEl.removeEventListener('close', onClose));
@@ -219,7 +235,7 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
         localStorage.setItem('color-scheme', next);
       }
     } catch {
-      // Ignore storage errors.
+      // Ignora errores de escritura en almacenamiento.
     }
   };
 
@@ -235,7 +251,9 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
     <div className="studio-shell">
       <header className="studio-topbar">
         <div className="studio-title-group">
-          <h1>FocusScenes · Escritorio Web</h1>
+          <h1>
+            {env.appName} · {env.platformName}
+          </h1>
           <p className="studio-subtitle">
             Vista Web alternativa conectada al mismo Modelo y Controlador MVC
           </p>
@@ -452,7 +470,7 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
                   type="button"
                   className="btn danger"
                   onClick={() => {
-                    setPendingDeleteId(selectedPreset.id);
+                    pendingDeleteIdRef.current = selectedPreset.id;
                     deleteDialogRef.current?.showModal();
                   }}
                 >
@@ -468,6 +486,7 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
         </main>
       </div>
 
+      {/* Modal nativo de configuración Local/Nube y Tema */}
       <dialog
         ref={settingsDialogRef}
         className="studio-dialog"
@@ -566,6 +585,7 @@ export function WebStudioApp({ controller }: { controller: IPresetController }) 
         </div>
       </dialog>
 
+      {/* Modal nativo de confirmación destructiva con foco inicial en Cancelar */}
       <dialog
         ref={deleteDialogRef}
         className="studio-dialog"

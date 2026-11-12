@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
+import type { FrameworkTheme } from '../tokens.js';
 
 export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
 
@@ -8,24 +9,22 @@ export interface BadgeProps {
   tone?: BadgeTone;
 }
 
+/** Estrategia de mapeo semántico entre tono de insignia y tokens de color del tema. */
+const BADGE_TONE_PALETTES: Record<
+  BadgeTone,
+  (colors: FrameworkTheme['colors']) => { bg: string; text: string }
+> = {
+  neutral: (c) => ({ bg: c.surfaceMuted, text: c.textSecondary }),
+  accent: (c) => ({ bg: c.accentSoft, text: c.accentText }),
+  success: (c) => ({ bg: c.successSoft, text: c.success }),
+  warning: (c) => ({ bg: c.warningSoft, text: c.warning }),
+  danger: (c) => ({ bg: c.dangerSoft, text: c.danger })
+};
+
+/** Etiqueta compacta para mostrar estado del plan (`PRO`/`GRATIS`), sincronización o escena activa. */
 export function Badge({ label, tone = 'neutral' }: BadgeProps) {
   const theme = useFrameworkTheme();
-
-  const palette = (() => {
-    switch (tone) {
-      case 'accent':
-        return { bg: theme.colors.accentSoft, text: theme.colors.accentText };
-      case 'success':
-        return { bg: theme.colors.successSoft, text: theme.colors.success };
-      case 'warning':
-        return { bg: theme.colors.warningSoft, text: theme.colors.warning };
-      case 'danger':
-        return { bg: theme.colors.dangerSoft, text: theme.colors.danger };
-      case 'neutral':
-      default:
-        return { bg: theme.colors.surfaceMuted, text: theme.colors.textSecondary };
-    }
-  })();
+  const palette = BADGE_TONE_PALETTES[tone](theme.colors);
 
   return (
     <View
@@ -60,6 +59,7 @@ export interface SegmentedControlProps<T extends string> {
   onChange: (next: T) => void;
 }
 
+/** Control segmentado reutilizable (p. ej. interruptor Local vs Nube o selector de tema). */
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -108,4 +108,3 @@ export function SegmentedControl<T extends string>({
     </View>
   );
 }
-

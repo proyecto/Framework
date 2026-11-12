@@ -1,38 +1,74 @@
-import { createClient, type Client, type InValue } from '@libsql/client';
+import { createClient, type Client, type InValue, type Transaction } from '@libsql/client';
 import {
+  AsyncMutex,
   FrameworkError,
+  normalizeSqlParams,
   type ISqlDriver,
   type ISqlTransaction,
   type SqlExecuteResult,
   type SqlValue
 } from '@framework/core';
 
+/**
+ * Configuración discriminada para instanciar libSQL en modo local (archivo o memoria)
+ * o en modo remoto apuntando a un cluster **Turso**.
+ */
 export type LibSqlDriverConfig =
   | {
       mode: 'local';
-      /** e.g. 'file:./data/framework.db' or ':memory:' */
+      /** Ej. `'file:./data/framework.db'` o `':memory:'` */
       url: string;
     }
   | {
       mode: 'turso';
-      /** e.g. 'libsql://your-db-org.turso.io' */
+      /** Ej. `'libsql://mi-org.turso.io'` */
       url: string;
       authToken: string;
     };
 
-function normalizeArgs(params?: SqlValue[]): InValue[] {
-  if (!params || params.length === 0) return [];
-  return params.map((value) => {
-    if (typeof value === 'boolean') return value ? 1 : 0;
-    return value;
-  });
+/**
+ * Adapta un `Client` o una `Transaction` de `@libsql/client` al contrato uniforme `ISqlTransaction`,
+ * evitando duplicar la conversión de filas y `lastInsertRowId` entre operaciones directas y transacciones.
+ */
+function wrapLibSqlExecutor(executor: Pick<Client | Transaction, 'execute'>): ISqlTransaction {
+  return {
+    execute: async (sql: string, params?: SqlValue[]): Promise<SqlExecuteResult> => {
+      const res = await executor.execute({
+        sql,
+        args: normalizeSqlParams(params) as InValue[]
+      });
+      return {
+        rowsAffected: res.rowsAffected,
+        lastInsertRowId:
+          res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : undefined
+      };
+    },
+    query: async <TRow = Record<string, unknown>>(
+      sql: string,
+      params?: SqlValue[]
+    ): Promise<TRow[]> => {
+      const res = await executor.execute({
+        sql,
+        args: normalizeSqlParams(params) as InValue[]
+      });
+      return res.rows.map((row) => ({ ...row }) as unknown as TRow);
+    }
+  };
 }
 
+/**
+ * Patrón: **Adapter (`@libsql/client` -> `ISqlDriver`)**.
+ *
+ * Permite que el mismo código del servidor y de los repositorios funcione tanto con un
+ * archivo SQLite/libSQL local como contra Turso en producción sin modificar ni una consulta SQL.
+ * Emplea `AsyncMutex` para serializar escrituras locales y activar `WAL + busy_timeout`.
+ */
 export class LibSqlDriver implements ISqlDriver {
   readonly driverName: string;
   private readonly client: Client;
+  private readonly rootExecutor: ISqlTransaction;
+  private readonly writeMutex = new AsyncMutex();
   private initPromise: Promise<void> | null = null;
-  private writeQueue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly config: LibSqlDriverConfig) {
     if (config.mode === 'turso') {
@@ -61,8 +97,11 @@ export class LibSqlDriver implements ISqlDriver {
         url: config.url
       });
     }
+
+    this.rootExecutor = wrapLibSqlExecutor(this.client);
   }
 
+  /** Configura pragmas de durabilidad y concurrencia una sola vez en archivos locales. */
   initialize(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = (async () => {
@@ -79,25 +118,9 @@ export class LibSqlDriver implements ISqlDriver {
     return this.initPromise;
   }
 
-  private enqueueWrite<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.writeQueue.catch(() => undefined).then(fn);
-    this.writeQueue = next;
-    return next;
-  }
-
   async execute(sql: string, params?: SqlValue[]): Promise<SqlExecuteResult> {
     await this.initialize();
-    return this.enqueueWrite(async () => {
-      const res = await this.client.execute({
-        sql,
-        args: normalizeArgs(params)
-      });
-      return {
-        rowsAffected: res.rowsAffected,
-        lastInsertRowId:
-          res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : undefined
-      };
-    });
+    return this.writeMutex.run(() => this.rootExecutor.execute(sql, params));
   }
 
   async query<TRow = Record<string, unknown>>(
@@ -105,37 +128,14 @@ export class LibSqlDriver implements ISqlDriver {
     params?: SqlValue[]
   ): Promise<TRow[]> {
     await this.initialize();
-    const res = await this.client.execute({
-      sql,
-      args: normalizeArgs(params)
-    });
-    return res.rows.map((row) => ({ ...row }) as unknown as TRow);
+    return this.rootExecutor.query<TRow>(sql, params);
   }
 
   async transaction<T>(fn: (tx: ISqlTransaction) => Promise<T>): Promise<T> {
     await this.initialize();
-    return this.enqueueWrite(async () => {
+    return this.writeMutex.run(async () => {
       const tx = await this.client.transaction('write');
-      const wrapped: ISqlTransaction = {
-        execute: async (sql, params) => {
-          const res = await tx.execute({
-            sql,
-            args: normalizeArgs(params)
-          });
-          return {
-            rowsAffected: res.rowsAffected,
-            lastInsertRowId:
-              res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : undefined
-          };
-        },
-        query: async <TRow = Record<string, unknown>>(sql: string, params?: SqlValue[]) => {
-          const res = await tx.execute({
-            sql,
-            args: normalizeArgs(params)
-          });
-          return res.rows.map((row) => ({ ...row }) as unknown as TRow);
-        }
-      };
+      const wrapped = wrapLibSqlExecutor(tx);
 
       try {
         const result = await fn(wrapped);
@@ -155,16 +155,20 @@ export class LibSqlDriver implements ISqlDriver {
   }
 }
 
+/**
+ * Patrón: **Factory Method** para crear una instancia tipada de `LibSqlDriver`.
+ */
 export function createLibSqlDriver(config: LibSqlDriverConfig): LibSqlDriver {
   return new LibSqlDriver(config);
 }
 
 /**
- * Helper to create a LibSqlDriver from standard environment variables:
- * - STORAGE_DRIVER=local|turso (default: local)
- * - LIBSQL_LOCAL_URL=file:./data/framework.db
- * - TURSO_DATABASE_URL=libsql://...
- * - TURSO_AUTH_TOKEN=...
+ * Patrón: **Factory Method por Configuración (Environment-driven)**.
+ * Cambia entre libSQL local y Turso en la nube leyendo únicamente variables de entorno:
+ * - `STORAGE_DRIVER=local|turso` (por defecto `local`)
+ * - `LIBSQL_LOCAL_URL=file:./data/framework.db`
+ * - `TURSO_DATABASE_URL=libsql://...`
+ * - `TURSO_AUTH_TOKEN=...`
  */
 export function createLibSqlDriverFromEnv(
   env: Record<string, string | undefined> = process.env

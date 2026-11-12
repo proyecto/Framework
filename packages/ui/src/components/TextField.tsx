@@ -10,6 +10,7 @@ export interface TextFieldProps {
   multiline?: boolean;
 }
 
+/** Campo de texto estándar del Design System con etiqueta superior y validación visual inline. */
 export function TextField({
   label,
   value,
@@ -62,4 +63,3 @@ export function TextField({
     </View>
   );
 }
-

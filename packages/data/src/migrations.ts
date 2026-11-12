@@ -1,5 +1,13 @@
-import type { ISqlDriver, SqlMigration } from '@framework/core';
+import { AsyncMutex, type ISqlDriver, type SqlMigration } from '@framework/core';
 
+/**
+ * Migraciones locales estándar creadas automáticamente en cada dispositivo
+ * (Android Expo SQLite o libSQL local).
+ *
+ * - `_fw_kv`: metadatos de configuración y estado de sincronización (plan, modo, cursor).
+ * - `_fw_local_entities`: caché local-first serializada por entidad y `record_id`, con estado
+ *   `sync_status` (`pending` o `synced`) y soporte de borrado lógico (`deleted_at`).
+ */
 export const FRAMEWORK_LOCAL_MIGRATIONS: SqlMigration[] = [
   {
     version: 1,
@@ -26,21 +34,33 @@ export const FRAMEWORK_LOCAL_MIGRATIONS: SqlMigration[] = [
   }
 ];
 
-const driverQueues = new WeakMap<ISqlDriver, Promise<unknown>>();
+/** Registro débil (WeakMap) que asocia un `AsyncMutex` único por cada instancia de driver SQL. */
+const driverMutexes = new WeakMap<ISqlDriver, AsyncMutex>();
 
-function runSerializedOnDriver<T>(driver: ISqlDriver, task: () => Promise<T>): Promise<T> {
-  const previous = driverQueues.get(driver) ?? Promise.resolve();
-  const next = previous.catch(() => undefined).then(task);
-  driverQueues.set(driver, next);
-  return next;
+function getMutexForDriver(driver: ISqlDriver): AsyncMutex {
+  let mutex = driverMutexes.get(driver);
+  if (!mutex) {
+    mutex = new AsyncMutex();
+    driverMutexes.set(driver, mutex);
+  }
+  return mutex;
 }
 
+/**
+ * Ejecutor idempotente y transaccional de migraciones SQL versionadas.
+ *
+ * Patrón: **Command Sequence + Concurrency Monitor (`AsyncMutex`)**.
+ * Serializa cualquier corrida de migraciones sobre el mismo `ISqlDriver` para evitar
+ * bloqueos concurrentes cuando varios repositorios o stores arrancan en paralelo.
+ */
 export class MigrationRunner {
   constructor(private readonly driver: ISqlDriver) {}
 
   async run(migrations: SqlMigration[]): Promise<number[]> {
-    return runSerializedOnDriver(this.driver, async () => {
+    return getMutexForDriver(this.driver).run(async () => {
       await this.driver.initialize();
+
+      // Tabla de control de versiones aplicadas en esta base de datos.
       await this.driver.execute(
         `CREATE TABLE IF NOT EXISTS _fw_migrations (
           version INTEGER PRIMARY KEY,
@@ -55,6 +75,7 @@ export class MigrationRunner {
       const appliedSet = new Set(appliedRows.map((row) => Number(row.version)));
       const newlyApplied: number[] = [];
 
+      // Se aplican estrictamente en orden ascendente de versión dentro de transacciones atómicas.
       const sorted = [...migrations].sort((a, b) => a.version - b.version);
       for (const migration of sorted) {
         if (appliedSet.has(migration.version)) continue;
@@ -75,4 +96,30 @@ export class MigrationRunner {
       return newlyApplied;
     });
   }
+}
+
+/**
+ * Patrón: **Lazy Memoized Initializer**.
+ * Reutilizado por `SqlKeyValueStore` y `SqlEntityStoreDriver` para ejecutar las migraciones
+ * una sola vez bajo demanda. Si la inicialización falla transitoriamente, limpia la promesa
+ * en caché para permitir reintentos posteriores sin dejar el store bloqueado.
+ */
+export function createMigrationInitializer(
+  driver: ISqlDriver,
+  migrations: SqlMigration[] = FRAMEWORK_LOCAL_MIGRATIONS
+): () => Promise<void> {
+  let readyPromise: Promise<void> | null = null;
+
+  return () => {
+    if (!readyPromise) {
+      readyPromise = new MigrationRunner(driver)
+        .run(migrations)
+        .then(() => undefined)
+        .catch((err) => {
+          readyPromise = null;
+          throw err;
+        });
+    }
+    return readyPromise;
+  };
 }
