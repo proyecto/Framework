@@ -11,6 +11,8 @@ import {
 import type { IServerEntitlementProvider } from './schema.js';
 import type { CloudSyncService } from './syncService.js';
 
+export const DEFAULT_MAX_BODY_BYTES = 1_048_576;
+
 export interface ServerRouterDependencies {
   driver: ISqlDriver;
   entitlements: IServerEntitlementProvider;
@@ -18,6 +20,7 @@ export interface ServerRouterDependencies {
   appModules: ReadonlyMap<string, RegisteredAppModule>;
   corsOrigins: string[];
   allowDemoPlanSwitch: boolean;
+  maxBodyBytes?: number;
 }
 
 interface RouteContext {
@@ -33,11 +36,24 @@ interface RouteDefinition {
   handler: (ctx: RouteContext) => Promise<void>;
 }
 
-/** Lee y parsea de forma segura el cuerpo JSON de una petición HTTP Node. */
-async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+/** Lee y parsea de forma segura el cuerpo JSON de una petición HTTP Node aplicando límite de tamaño. */
+async function readJsonBody(
+  req: IncomingMessage,
+  maxBodyBytes: number
+): Promise<unknown> {
   const chunks: Buffer[] = [];
+  let totalBytes = 0;
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.byteLength;
+    if (totalBytes > maxBodyBytes) {
+      throw new FrameworkError(
+        'VALIDATION_ERROR',
+        `El cuerpo de la petición excede el límite permitido (${maxBodyBytes} bytes).`,
+        413
+      );
+    }
+    chunks.push(buffer);
   }
   const raw = Buffer.concat(chunks).toString('utf8').trim();
   if (!raw) return {};
@@ -79,6 +95,7 @@ function applyCors(
 export function createServerRequestHandler(
   deps: ServerRouterDependencies
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+  const maxBodyBytes = deps.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   const routes: RouteDefinition[] = [
     {
       method: 'GET',
@@ -114,7 +131,7 @@ export function createServerRequestHandler(
           );
         }
         const appId = decodeURIComponent(params[0] ?? '');
-        const body = (await readJsonBody(req)) as { userId?: string; plan?: UserPlan };
+        const body = (await readJsonBody(req, maxBodyBytes)) as { userId?: string; plan?: UserPlan };
         const userId = body.userId?.trim() || 'default-user';
         const plan: UserPlan = body.plan === 'pro' ? 'pro' : 'free';
         const status = await deps.entitlements.setEntitlement(appId, userId, plan);
@@ -126,7 +143,7 @@ export function createServerRequestHandler(
       pattern: /^\/api\/v1\/apps\/([^/]+)\/sync$/,
       handler: async ({ req, res, params }) => {
         const appId = decodeURIComponent(params[0] ?? '');
-        const body = (await readJsonBody(req)) as Partial<SyncPushRequest>;
+        const body = (await readJsonBody(req, maxBodyBytes)) as Partial<SyncPushRequest>;
         const pullResponse = await deps.syncService.sync(appId, body);
         sendJson(res, 200, pullResponse);
       }
@@ -158,7 +175,7 @@ export function createServerRequestHandler(
           );
         }
 
-        const body = await readJsonBody(req);
+        const body = await readJsonBody(req, maxBodyBytes);
         const query: Record<string, string> = {};
         for (const [k, v] of url.searchParams.entries()) {
           query[k] = v;

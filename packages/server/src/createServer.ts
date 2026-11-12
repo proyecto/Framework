@@ -26,6 +26,7 @@ export interface FrameworkServerOptions {
   conflictStrategy?: IConflictResolutionStrategy;
   corsOrigins?: string[];
   allowDemoPlanSwitch?: boolean;
+  maxBodyBytes?: number;
 }
 
 /** Controlador de ciclo de vida del servidor Node.js reutilizable. */
@@ -94,7 +95,8 @@ export async function createFrameworkServer(
     syncService,
     appModules,
     corsOrigins: options.corsOrigins ?? ['*'],
-    allowDemoPlanSwitch: options.allowDemoPlanSwitch ?? true
+    allowDemoPlanSwitch: options.allowDemoPlanSwitch ?? true,
+    maxBodyBytes: options.maxBodyBytes
   });
 
   // 3. Gestión de socket HTTP Node.js (`start` / `stop`).

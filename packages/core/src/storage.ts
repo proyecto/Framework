@@ -10,6 +10,7 @@ export type SyncStatus = 'pending' | 'synced';
 /** Tipos de valor soportados en parámetros SQL parametrizados de forma portable. */
 export type SqlValue = string | number | boolean | null | Uint8Array;
 
+/** Resultado devuelto por sentencias SQL de escritura (`INSERT`, `UPDATE`, `DELETE`, DDL). */
 export interface SqlExecuteResult {
   rowsAffected: number;
   lastInsertRowId?: string | number;

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { CloudEntitlementError, ValidationError } from './errors.js';
 import { BaseController, type IView } from './mvc.js';
 import { AsyncMutex, normalizeSqlParams } from './sqlUtils.js';
-import { LastWriteWinsConflictStrategy } from './syncStrategy.js';
+import {
+  ExistingWinsConflictStrategy,
+  IncomingWinsConflictStrategy,
+  LastWriteWinsConflictStrategy
+} from './syncStrategy.js';
 
 interface CounterState {
   count: number;
@@ -22,7 +27,7 @@ class CounterController extends BaseController<CounterState> {
   }
 }
 
-describe('BaseController MVC view propagation', () => {
+describe('BaseController MVC view propagation & lifecycle', () => {
   it('pushes state snapshots and view events to multiple attached IView implementations', async () => {
     const controller = new CounterController();
     const viewAStates: number[] = [];
@@ -49,36 +54,67 @@ describe('BaseController MVC view propagation', () => {
     expect(viewBStates).toEqual([0, 1, 2]);
     expect(events).toEqual(['Incrementado']);
 
-    detachB();
+    // Al hacer dispose, las vistas ya no reciben actualizaciones posteriores.
     controller.dispose();
+    controller.increment();
+    expect(viewBStates).toEqual([0, 1, 2]);
+    detachB();
+  });
+
+  it('exposes structured error codes and HTTP status codes', () => {
+    const valErr = new ValidationError('Campo inválido');
+    const entErr = new CloudEntitlementError();
+
+    expect(valErr.code).toBe('VALIDATION_ERROR');
+    expect(valErr.statusCode).toBe(400);
+    expect(entErr.code).toBe('ENTITLEMENT_REQUIRED');
+    expect(entErr.statusCode).toBe(402);
   });
 });
 
-describe('LastWriteWinsConflictStrategy & sqlUtils', () => {
-  it('resolves LWW comparisons deterministically by timestamp and version', () => {
-    const strategy = new LastWriteWinsConflictStrategy();
+describe('Conflict resolution strategies & sqlUtils', () => {
+  it('resolves LWW, IncomingWins y ExistingWins según contrato IConflictResolutionStrategy', () => {
+    const lww = new LastWriteWinsConflictStrategy();
+    const incomingWins = new IncomingWinsConflictStrategy();
+    const existingWins = new ExistingWinsConflictStrategy();
 
-    expect(strategy.shouldAcceptIncoming({ updatedAt: '2026-01-01T00:00:00Z', version: 1 }, null)).toBe(true);
+    expect(lww.shouldAcceptIncoming({ updatedAt: '2026-01-01T00:00:00Z', version: 1 }, null)).toBe(true);
     expect(
-      strategy.shouldAcceptIncoming(
+      lww.shouldAcceptIncoming(
         { updatedAt: '2026-01-02T00:00:00Z', version: 1 },
         { updatedAt: '2026-01-01T00:00:00Z', version: 9 }
       )
     ).toBe(true);
     expect(
-      strategy.shouldAcceptIncoming(
+      lww.shouldAcceptIncoming(
         { updatedAt: '2026-01-01T00:00:00Z', version: 2 },
         { updatedAt: '2026-01-01T00:00:00Z', version: 2 },
         { acceptEqualVersion: false }
       )
     ).toBe(false);
     expect(
-      strategy.shouldAcceptIncoming(
+      lww.shouldAcceptIncoming(
         { updatedAt: '2026-01-01T00:00:00Z', version: 2 },
         { updatedAt: '2026-01-01T00:00:00Z', version: 2 },
         { acceptEqualVersion: true }
       )
     ).toBe(true);
+
+    expect(
+      incomingWins.shouldAcceptIncoming(
+        { updatedAt: '2025-01-01T00:00:00Z', version: 1 },
+        { updatedAt: '2026-01-01T00:00:00Z', version: 5 }
+      )
+    ).toBe(true);
+    expect(
+      existingWins.shouldAcceptIncoming(
+        { updatedAt: '2026-01-01T00:00:00Z', version: 9 },
+        { updatedAt: '2025-01-01T00:00:00Z', version: 1 }
+      )
+    ).toBe(false);
+    expect(existingWins.shouldAcceptIncoming({ updatedAt: '2026-01-01T00:00:00Z', version: 1 }, null)).toBe(
+      true
+    );
   });
 
   it('serializes async operations strictly in FIFO order via AsyncMutex and normalizes booleans', async () => {

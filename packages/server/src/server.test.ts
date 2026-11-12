@@ -22,7 +22,11 @@ import {
   PresetModel,
   type PresetEntity
 } from '@framework/example-domain';
-import { createFrameworkServer, type FrameworkServerInstance } from './index.js';
+import {
+  SqlEntitlementProvider,
+  createFrameworkServer,
+  type FrameworkServerInstance
+} from './index.js';
 
 function createServerFetch(server: FrameworkServerInstance): typeof fetch {
   return async (input, init) => {
@@ -238,5 +242,142 @@ describe('@framework/server + LibSQL local/cloud sync end-to-end', () => {
 
     mobileController.dispose();
     webController.dispose();
+  });
+
+  it('enforces HTTP security boundaries (403, 400, 413, 404) and LWW conflict protection on server', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-sec-test-'));
+    const serverDbPath = path.join(tmpDir, 'server-sec.db');
+
+    const server: FrameworkServerInstance = await createFrameworkServer({
+      port: 0,
+      host: '127.0.0.1',
+      database: { mode: 'local', url: `file:${serverDbPath}` },
+      apps: [EXAMPLE_SERVER_MODULE],
+      allowDemoPlanSwitch: false,
+      maxBodyBytes: 512
+    });
+    cleanups.push(async () => {
+      await server.stop();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    const fetchImpl = createServerFetch(server);
+    const baseUrl = 'http://localhost';
+
+    // 403 cuando allowDemoPlanSwitch está deshabilitado
+    const forbiddenRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/entitlements`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: 'u1', plan: 'pro' })
+      }
+    );
+    expect(forbiddenRes.status).toBe(403);
+
+    // 400 si el JSON está corrupto
+    const invalidJsonRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/sync`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{invalid-json'
+      }
+    );
+    expect(invalidJsonRes.status).toBe(400);
+
+    // 400 si falta userId en sync
+    const missingUserRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/sync`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ deviceId: 'd1', changes: [] })
+      }
+    );
+    expect(missingUserRes.status).toBe(400);
+
+    // 413 si el cuerpo excede maxBodyBytes
+    const tooLargeRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/sync`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: 'u1', deviceId: 'd1', changes: 'x'.repeat(600) })
+      }
+    );
+    expect(tooLargeRes.status).toBe(413);
+
+    // 404 para acción o ruta inexistente
+    const missingActionRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/actions/unknown-action`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: 'u1' })
+      }
+    );
+    expect(missingActionRes.status).toBe(404);
+
+    const missingRouteRes = await fetchImpl(`${baseUrl}/api/v1/does-not-exist`);
+    expect(missingRouteRes.status).toBe(404);
+
+    // LWW en servidor: habilitamos plan pro vía SqlEntitlementProvider y verificamos que un push antiguo no sobrescribe uno más nuevo
+    await new SqlEntitlementProvider(server.driver).setEntitlement(EXAMPLE_APP_ID, 'u-lww', 'pro');
+
+    const newerPush = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/sync`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'u-lww',
+          deviceId: 'd-new',
+          changes: [
+            {
+              entity: PRESET_ENTITY_NAME,
+              recordId: 'r-1',
+              payload: { id: 'r-1', name: 'Newer' },
+              version: 2,
+              updatedAt: '2026-01-02T00:00:00.000Z',
+              deletedAt: null
+            }
+          ]
+        })
+      }
+    );
+    expect(newerPush.status).toBe(200);
+    expect(((await newerPush.json()) as { acceptedCount: number }).acceptedCount).toBe(1);
+
+    const stalePush = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/sync`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'u-lww',
+          deviceId: 'd-stale',
+          changes: [
+            {
+              entity: PRESET_ENTITY_NAME,
+              recordId: 'r-1',
+              payload: { id: 'r-1', name: 'Stale' },
+              version: 5,
+              updatedAt: '2026-01-01T00:00:00.000Z',
+              deletedAt: null
+            }
+          ]
+        })
+      }
+    );
+    expect(stalePush.status).toBe(200);
+    expect(((await stalePush.json()) as { acceptedCount: number }).acceptedCount).toBe(0);
+
+    const listRes = await fetchImpl(
+      `${baseUrl}/api/v1/apps/${EXAMPLE_APP_ID}/entities/${PRESET_ENTITY_NAME}?userId=u-lww`
+    );
+    const listJson = (await listRes.json()) as { items: Array<{ name: string }> };
+    expect(listJson.items).toHaveLength(1);
+    expect(listJson.items[0]?.name).toBe('Newer');
   });
 });

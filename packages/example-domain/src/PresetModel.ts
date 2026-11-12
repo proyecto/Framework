@@ -13,10 +13,42 @@ import type {
   UpdatePresetInput
 } from './contracts.js';
 
+/** Límites canónicos de cada slider del dominio FocusScenes (evita números mágicos repetidos). */
+export const PRESET_LIMITS = {
+  ambientLevel: { min: 0, max: 100, defaultValue: 60 },
+  warmthLevel: { min: 0, max: 100, defaultValue: 50 },
+  focusMinutes: { min: 5, max: 120, defaultValue: 30 }
+} as const;
+
 /** Normaliza valores numéricos de sliders asegurando rango entero seguro dentro del dominio. */
 function clampNumber(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/** Normaliza los tres valores numéricos de una escena respetando `PRESET_LIMITS`. */
+function normalizePresetSliders(values: {
+  ambientLevel?: number;
+  warmthLevel?: number;
+  focusMinutes?: number;
+}): { ambientLevel: number; warmthLevel: number; focusMinutes: number } {
+  return {
+    ambientLevel: clampNumber(
+      values.ambientLevel ?? PRESET_LIMITS.ambientLevel.defaultValue,
+      PRESET_LIMITS.ambientLevel.min,
+      PRESET_LIMITS.ambientLevel.max
+    ),
+    warmthLevel: clampNumber(
+      values.warmthLevel ?? PRESET_LIMITS.warmthLevel.defaultValue,
+      PRESET_LIMITS.warmthLevel.min,
+      PRESET_LIMITS.warmthLevel.max
+    ),
+    focusMinutes: clampNumber(
+      values.focusMinutes ?? PRESET_LIMITS.focusMinutes.defaultValue,
+      PRESET_LIMITS.focusMinutes.min,
+      PRESET_LIMITS.focusMinutes.max
+    )
+  };
 }
 
 /** Genera IDs portables sin acoplar el dominio ni a `node:crypto` ni al DOM del navegador. */
@@ -103,9 +135,7 @@ export class PresetModel implements IPresetModel {
             id: createUuidLike(),
             name: seed.name,
             notes: seed.notes ?? '',
-            ambientLevel: clampNumber(seed.ambientLevel ?? 50, 0, 100),
-            warmthLevel: clampNumber(seed.warmthLevel ?? 50, 0, 100),
-            focusMinutes: clampNumber(seed.focusMinutes ?? 25, 5, 120),
+            ...normalizePresetSliders(seed),
             isFavorite: i === 0,
             isActive: i === 0,
             createdAt: now,
@@ -134,9 +164,7 @@ export class PresetModel implements IPresetModel {
       id: createUuidLike(),
       name: cleanName,
       notes: (input.notes ?? '').trim(),
-      ambientLevel: clampNumber(input.ambientLevel ?? 60, 0, 100),
-      warmthLevel: clampNumber(input.warmthLevel ?? 50, 0, 100),
-      focusMinutes: clampNumber(input.focusMinutes ?? 30, 5, 120),
+      ...normalizePresetSliders(input),
       isFavorite: false,
       isActive: this.presets.length === 0,
       createdAt: now,
@@ -160,22 +188,17 @@ export class PresetModel implements IPresetModel {
       throw new ValidationError('El nombre de la escena no puede quedar vacío.');
     }
 
+    const normalizedSliders = normalizePresetSliders({
+      ambientLevel: patch.ambientLevel ?? current.ambientLevel,
+      warmthLevel: patch.warmthLevel ?? current.warmthLevel,
+      focusMinutes: patch.focusMinutes ?? current.focusMinutes
+    });
+
     const updated: PresetEntity = {
       ...current,
       name: nextName,
       notes: patch.notes !== undefined ? patch.notes.trim() : current.notes,
-      ambientLevel:
-        patch.ambientLevel !== undefined
-          ? clampNumber(patch.ambientLevel, 0, 100)
-          : current.ambientLevel,
-      warmthLevel:
-        patch.warmthLevel !== undefined
-          ? clampNumber(patch.warmthLevel, 0, 100)
-          : current.warmthLevel,
-      focusMinutes:
-        patch.focusMinutes !== undefined
-          ? clampNumber(patch.focusMinutes, 5, 120)
-          : current.focusMinutes,
+      ...normalizedSliders,
       isFavorite: patch.isFavorite ?? current.isFavorite,
       isActive: patch.isActive ?? current.isActive
     };

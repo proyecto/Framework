@@ -38,3 +38,33 @@ export class LastWriteWinsConflictStrategy implements IConflictResolutionStrateg
   }
 }
 
+/**
+ * Estrategia alternativa (**Open/Closed Principle**): ante conflicto o registro existente,
+ * prioriza siempre el cambio entrante (útil en clientes solo-lectura sincronizados desde nube).
+ */
+export class IncomingWinsConflictStrategy implements IConflictResolutionStrategy {
+  readonly name = 'incoming-wins';
+
+  shouldAcceptIncoming(
+    _incoming: SyncVersionComparable,
+    _existing: SyncVersionComparable | null | undefined,
+    _options?: { acceptEqualVersion?: boolean }
+  ): boolean {
+    return true;
+  }
+}
+
+/**
+ * Estrategia alternativa (**Open/Closed Principle**): conserva el registro ya existente
+ * si existe y solo inserta registros nuevos (útil en caches locales inmutables o append-only).
+ */
+export class ExistingWinsConflictStrategy implements IConflictResolutionStrategy {
+  readonly name = 'existing-wins';
+
+  shouldAcceptIncoming(
+    _incoming: SyncVersionComparable,
+    existing: SyncVersionComparable | null | undefined
+  ): boolean {
+    return !existing;
+  }
+}

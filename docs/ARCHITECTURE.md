@@ -72,5 +72,22 @@ Para actualizar Expo en todas tus apps a la vez:
 node scripts/upgrade-expo.mjs --expo=~59.0.0
 corepack pnpm install
 corepack pnpm --filter @framework/demo-expo exec npx expo install --fix
-corepack pnpm typecheck && corepack pnpm test
+corepack pnpm check
 ```
+
+## 6. Automatización de calidad, arquitectura, documentación y scaffolding
+
+1. **Verificación de arquitectura SOLID / DIP (`corepack pnpm verify:arch`)**:
+   - Script [scripts/verify-architecture.mjs](../scripts/verify-architecture.mjs) que valida automáticamente mediante el AST de TypeScript:
+     - `@framework/core` no importa dependencias externas (ni Node, ni React, ni SQL).
+     - Los paquetes de dominio (`*-domain`) permanecen agnósticos de plataforma/UI/BD.
+     - `expo-sqlite` solo se importa en `@framework/expo-adapter` y `@libsql/client` solo en `@framework/data-libsql`.
+     - Las versiones compartidas en `packages/*` y `apps/*` usan `"catalog:"` o `"workspace:*"`.
+     - Todo símbolo público exportado en `@framework/core` mantiene su JSDoc.
+2. **Documentación viva generada desde el AST (`corepack pnpm docs:generate` / `docs:check`)**:
+   - [scripts/generate-api-docs.mjs](../scripts/generate-api-docs.mjs) extrae interfaces, clases, métodos y JSDoc de todos los paquetes y genera [docs/API_REFERENCE.md](API_REFERENCE.md).
+3. **Generador de nuevas aplicaciones MVC (`corepack pnpm create:app`)**:
+   - [scripts/create-app.mjs](../scripts/create-app.mjs) crea un nuevo dominio en `packages/<slug>-domain` siguiendo automáticamente todas las interfaces MVC (`contracts`, `Model`, `Controller`, `factory`, `mvc.test.ts`).
+4. **Quality Gate unificado (`corepack pnpm check`) e Integración Continua**:
+   - Ejecuta en cadena `build` → `typecheck` → `test` → `verify:arch` → `docs:check`.
+   - Automatizado en cada push/PR mediante [.github/workflows/ci.yml](../.github/workflows/ci.yml), junto con [.vscode/settings.json](../.vscode/settings.json) para fijar el TypeScript SDK del workspace en el IDE.

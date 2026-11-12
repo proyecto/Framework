@@ -14,6 +14,7 @@ import {
   type UserPlan
 } from '@framework/core';
 import type { IEntityStoreDriver } from './entityStore.js';
+import { SyncMetadataStore } from './syncMetadata.js';
 
 export interface HybridSyncRepositoryOptions {
   appId: string;
@@ -33,16 +34,11 @@ export interface HybridSyncRepositoryOptions {
 /**
  * Repositorio local-first con respaldo opcional en la nube (**Patrón Repository + Observer + Strategy**).
  *
- * Garantías de diseño:
- * 1. **Modo Local (`plan: 'free'` o `mode: 'local'`)**:
- *    Lee y escribe únicamente en `IEntityStoreDriver` local (SQLite en Android / localStorage en Web).
- *    Nunca realiza tráfico de red ni guarda registros fuera del dispositivo.
- * 2. **Modo Nube (`plan: 'pro'` y `mode: 'cloud'`)**:
- *    Sigue escribiendo primero en local (offline-first, respuesta instantánea en UI) y después
- *    empuja los registros `pending` hacia el servidor mediante `IRemoteSyncTransport`.
- * 3. **Coalescing Single-Flight**:
- *    Si llegan múltiples peticiones simultáneas de `syncNow()`, comparten la misma promesa `inFlightSync`
- *    para evitar duplicar rondas HTTP concurrentes.
+ * Cumple **SRP** delegando:
+ * - Persistencia de entidades locales -> `IEntityStoreDriver`
+ * - Persistencia de metadatos (`mode`, `plan`, `cursor`) -> `SyncMetadataStore`
+ * - Resolución de conflictos -> `IConflictResolutionStrategy`
+ * - Comunicación remota -> `IRemoteSyncTransport`
  */
 export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepository<T> {
   readonly entityName: string;
@@ -51,11 +47,9 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
   private readonly userId: string;
   private readonly deviceId: string;
   private readonly store: IEntityStoreDriver;
-  private readonly kv: IKeyValueStore;
+  private readonly metadata: SyncMetadataStore;
   private readonly transport?: IRemoteSyncTransport;
   private readonly conflictStrategy: IConflictResolutionStrategy;
-  private readonly defaultMode: StorageMode;
-  private readonly defaultPlan: UserPlan;
   private readonly autoSyncInCloudMode: boolean;
 
   private readonly statusListeners = new Set<(status: StorageStatus) => void>();
@@ -69,34 +63,15 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     this.deviceId = options.deviceId;
     this.entityName = options.entityName;
     this.store = options.store;
-    this.kv = options.kv;
     this.transport = options.transport;
     this.conflictStrategy = options.conflictStrategy ?? new LastWriteWinsConflictStrategy();
-    this.defaultMode = options.defaultMode ?? 'local';
-    this.defaultPlan = options.defaultPlan ?? 'free';
     this.autoSyncInCloudMode = options.autoSyncInCloudMode ?? true;
-  }
-
-  private kvKey(suffix: string): string {
-    return `repo:${this.appId}:${this.userId}:${this.entityName}:${suffix}`;
-  }
-
-  private async readMode(): Promise<StorageMode> {
-    const raw = await this.kv.get(this.kvKey('mode'));
-    return raw === 'cloud' || raw === 'local' ? raw : this.defaultMode;
-  }
-
-  private async readPlan(): Promise<UserPlan> {
-    const raw = await this.kv.get(this.kvKey('plan'));
-    return raw === 'pro' || raw === 'free' ? raw : this.defaultPlan;
-  }
-
-  private async readCursor(): Promise<string | null> {
-    return this.kv.get(this.kvKey('cursor'));
-  }
-
-  private async readLastSyncedAt(): Promise<string | null> {
-    return this.kv.get(this.kvKey('lastSyncedAt'));
+    this.metadata = new SyncMetadataStore({
+      kv: options.kv,
+      namespacePrefix: `repo:${options.appId}:${options.userId}:${options.entityName}`,
+      defaultMode: options.defaultMode ?? 'local',
+      defaultPlan: options.defaultPlan ?? 'free'
+    });
   }
 
   /** Recalcula y difunde el estado de almacenamiento a todos los observadores (Modelo/UI). */
@@ -137,10 +112,10 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
 
   async getStorageStatus(): Promise<StorageStatus> {
     const [mode, plan, pendingChanges, lastSyncedAt] = await Promise.all([
-      this.readMode(),
-      this.readPlan(),
+      this.metadata.getMode(),
+      this.metadata.getPlan(),
       this.getPendingCount(),
-      this.readLastSyncedAt()
+      this.metadata.getLastSyncedAt()
     ]);
 
     return {
@@ -215,24 +190,24 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
       }
     }
 
-    await this.kv.set(this.kvKey('plan'), plan);
+    await this.metadata.setPlan(plan);
     if (plan === 'free') {
       // Al bajar a plan gratuito forzamos vuelta inmediata a modo solo local.
-      await this.kv.set(this.kvKey('mode'), 'local');
+      await this.metadata.setMode('local');
     }
     this.lastSyncError = null;
     return this.notifyStatus();
   }
 
   async setStorageMode(mode: StorageMode): Promise<StorageStatus> {
-    const plan = await this.readPlan();
+    const plan = await this.metadata.getPlan();
     if (mode === 'cloud' && plan !== 'pro') {
       throw new CloudEntitlementError(
         'Activa el plan Pro para guardar y sincronizar tus datos en la nube.'
       );
     }
 
-    await this.kv.set(this.kvKey('mode'), mode);
+    await this.metadata.setMode(mode);
     this.lastSyncError = null;
     await this.notifyStatus();
 
@@ -274,7 +249,10 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
    * 6. Actualiza el nuevo cursor monotónico y timestamp de última sincronización.
    */
   private async executeSync(): Promise<SyncReport> {
-    const [mode, plan] = await Promise.all([this.readMode(), this.readPlan()]);
+    const [mode, plan] = await Promise.all([
+      this.metadata.getMode(),
+      this.metadata.getPlan()
+    ]);
     if (mode !== 'cloud' || plan !== 'pro') {
       throw new CloudEntitlementError(
         'La sincronización en la nube solo está disponible en modo Nube con plan Pro.'
@@ -294,8 +272,8 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
     try {
       const entitlement = await this.transport.checkEntitlement(this.appId, this.userId);
       if (!entitlement.cloudSyncAllowed) {
-        await this.kv.set(this.kvKey('plan'), 'free');
-        await this.kv.set(this.kvKey('mode'), 'local');
+        await this.metadata.setPlan('free');
+        await this.metadata.setMode('local');
         throw new CloudEntitlementError(
           'Tu suscripción en el servidor no autoriza la sincronización en la nube.'
         );
@@ -318,7 +296,7 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
         deletedAt: entry.entity.deletedAt
       }));
 
-      const sinceCursor = await this.readCursor();
+      const sinceCursor = await this.metadata.getCursor();
       const response = await this.transport.sync({
         appId: this.appId,
         userId: this.userId,
@@ -346,8 +324,8 @@ export class HybridSyncRepository<T extends EntityBase> implements ISyncableRepo
       }
 
       const syncedAt = new Date().toISOString();
-      await this.kv.set(this.kvKey('cursor'), response.serverCursor);
-      await this.kv.set(this.kvKey('lastSyncedAt'), syncedAt);
+      await this.metadata.setCursor(response.serverCursor);
+      await this.metadata.setLastSyncedAt(syncedAt);
 
       return {
         pushed: pushedSnapshot.length,

@@ -25,10 +25,21 @@ corepack pnpm install
 # Compilar paquetes core
 corepack pnpm build
 
-# Verificar tipos en todo el monorepo
-corepack pnpm typecheck
+# Verificar tipos, tests, reglas SOLID y documentación (Quality Gate completo)
+corepack pnpm check
 
-# Ejecutar tests (MVC + integración servidor/sync libSQL)
+# Generar referencia automática de API (docs/API_REFERENCE.md)
+corepack pnpm docs:generate
+
+# Validar fronteras arquitectónicas SOLID / MVC / Catalog
+corepack pnpm verify:arch
+
+# Crear el esqueleto MVC de una nueva app en packages/<nombre>-domain
+corepack pnpm create:app -- --name=mi-app --title="Mi App" --entity=nota
+
+# Compilar / Typecheck / Test por separado
+corepack pnpm build
+corepack pnpm typecheck
 corepack pnpm test
 
 # Arrancar backend reutilizable (por defecto libSQL local; usa STORAGE_DRIVER=turso para Turso)
@@ -41,4 +52,4 @@ corepack pnpm dev:web
 corepack pnpm dev:expo
 ```
 
-Consulta [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para ver todos los patrones de diseño, cómo añadir una nueva aplicación o actualizar Expo SDK.
+Consulta [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para ver todos los patrones de diseño, cómo añadir una nueva aplicación o actualizar Expo SDK, y [docs/API_REFERENCE.md](docs/API_REFERENCE.md) para ver toda la API pública autogenerada.
