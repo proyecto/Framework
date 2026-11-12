@@ -15,6 +15,10 @@
     "dev:backend": "pnpm --filter @framework/demo-backend dev",
     "dev:web": "pnpm --filter @framework/demo-web dev",
     "dev:expo": "pnpm --filter @framework/demo-expo start",
+    "dev:expo:web": "pnpm --filter @framework/demo-expo web",
+    "dev:base-web": "pnpm --filter @framework/base-web dev",
+    "dev:base-expo": "pnpm --filter @framework/base-expo start",
+    "dev:base-expo:web": "pnpm --filter @framework/base-expo web",
     "upgrade:expo": "node scripts/upgrade-expo.mjs"
   },
   "engines": {

@@ -48,6 +48,10 @@ export function PresetStudioScreen({
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [draftApiUrl, setDraftApiUrl] = useState(apiBaseUrl);
 
+  useEffect(() => {
+    setDraftApiUrl(apiBaseUrl);
+  }, [apiBaseUrl]);
+
   // Suscripción reactiva al Controlador usando el contrato IView.
   const state = useMvcController(controller, {
     onEvent: (event) => {

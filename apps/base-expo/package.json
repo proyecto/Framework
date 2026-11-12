@@ -1,0 +1,34 @@
+{
+  "name": "@framework/base-expo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plantilla base canónica para aplicaciones Android Expo del framework: fija límites visuales, tokens y estructura MVC.",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "web": "expo start --web",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "catalog:",
+    "@framework/core": "workspace:",
+    "@framework/data": "workspace:",
+    "@framework/expo-adapter": "workspace:",
+    "@framework/react": "workspace:",
+    "@framework/ui": "workspace:",
+    "expo": "catalog:",
+    "expo-sqlite": "catalog:",
+    "expo-status-bar": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "catalog:",
+    "react-native-web": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}
+

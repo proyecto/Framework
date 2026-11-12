@@ -3,6 +3,7 @@
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
     "types": []
   },
   "include": ["index.ts", "App.tsx", "src"]

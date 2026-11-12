@@ -184,7 +184,6 @@ export function Slider({
         </View>
 
         <View
-          pointerEvents="none"
           style={{
             position: 'absolute',
             left: thumbLeft,
@@ -193,7 +192,8 @@ export function Slider({
             borderRadius: theme.radius.full,
             backgroundColor: theme.colors.accent,
             borderWidth: 3,
-            borderColor: theme.colors.surface
+            borderColor: theme.colors.surface,
+            pointerEvents: 'none'
           }}
         />
       </View>

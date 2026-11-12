@@ -1,11 +1,25 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  initialWindowMetrics
+} from 'react-native-safe-area-context';
 import { EXAMPLE_APP_ID } from '@framework/example-domain';
 import { FrameworkProvider } from '@framework/react';
 import { FrameworkThemeProvider, type ThemeScheme } from '@framework/ui';
 import { createExpoAppController } from './src/bootstrap';
 import { PresetStudioScreen } from './src/PresetStudioScreen';
+
+const DEFAULT_API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (Platform.OS === 'web' ? 'http://127.0.0.1:4000' : 'http://10.0.2.2:4000');
+
+const WEB_FALLBACK_METRICS = {
+  frame: { x: 0, y: 0, width: 0, height: 0 },
+  insets: { top: 0, right: 0, bottom: 0, left: 0 }
+};
 
 /**
  * Raíz de la aplicación Android Expo.
@@ -14,9 +28,7 @@ import { PresetStudioScreen } from './src/PresetStudioScreen';
  */
 export default function App() {
   const [themePreference, setThemePreference] = useState<ThemeScheme>('system');
-  const [apiBaseUrl, setApiBaseUrl] = useState(
-    process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:4000'
-  );
+  const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
 
   const controller = useMemo(
     () => createExpoAppController({ apiBaseUrl }),
@@ -30,12 +42,12 @@ export default function App() {
   }, [controller]);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics ?? WEB_FALLBACK_METRICS}>
       <FrameworkProvider
         environment={{
           appId: EXAMPLE_APP_ID,
           appName: 'FocusScenes',
-          platformName: 'Expo Android'
+          platformName: Platform.OS === 'web' ? 'Expo Web' : 'Expo Android'
         }}
       >
         <FrameworkThemeProvider preference={themePreference}>

@@ -28,13 +28,16 @@ jobs:
       - name: Run full framework verification gate (build, typecheck, test, architecture, docs)
         run: corepack pnpm check
 
-      - name: Build demo applications (Web & Node backend)
+      - name: Build web, base apps & Node backend
         run: |
+          corepack pnpm --filter @framework/base-web build
           corepack pnpm --filter @framework/demo-web build
           corepack pnpm --filter @framework/demo-backend build
 
-      - name: Export Expo Android bundle
+      - name: Export Expo Android bundles (base & demo)
         env:
           EXPO_NO_TELEMETRY: '1'
-        run: corepack pnpm --filter @framework/demo-expo exec expo export --platform android --output-dir /tmp/demo-expo-bundle
+        run: |
+          corepack pnpm --filter @framework/base-expo exec expo export --platform android --output-dir /tmp/base-expo-bundle
+          corepack pnpm --filter @framework/demo-expo exec expo export --platform android --output-dir /tmp/demo-expo-bundle
 
