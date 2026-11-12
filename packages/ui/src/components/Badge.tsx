@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
-import type { FrameworkTheme } from '../tokens.js';
+import { textTypographyStyle, type FrameworkTheme } from '../tokens.js';
 
 export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
 
@@ -39,7 +39,7 @@ export function Badge({ label, tone = 'neutral' }: BadgeProps) {
         style={{
           color: palette.text,
           fontSize: theme.typography.captionSize,
-          fontWeight: '700'
+          ...textTypographyStyle(theme, 'bold')
         }}
       >
         {label}
@@ -97,7 +97,7 @@ export function SegmentedControl<T extends string>({
               style={{
                 color: active ? theme.colors.textPrimary : theme.colors.textSecondary,
                 fontSize: theme.typography.captionSize + 1,
-                fontWeight: active ? '700' : '500'
+                ...textTypographyStyle(theme, active ? 'bold' : 'medium')
               }}
             >
               {opt.label}

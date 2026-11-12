@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
+import { textTypographyStyle } from '../tokens.js';
 import { Button } from './Button.js';
+import { GoogleIcon, type GoogleIconName } from './Icon.js';
 
 export interface ModalDialogProps {
   visible: boolean;
@@ -55,7 +57,7 @@ export function ModalDialog({
             style={{
               color: theme.colors.textPrimary,
               fontSize: theme.typography.headingSize + 1,
-              fontWeight: '700'
+              ...textTypographyStyle(theme, 'bold')
             }}
           >
             {title}
@@ -64,7 +66,8 @@ export function ModalDialog({
             <Text
               style={{
                 color: theme.colors.textSecondary,
-                fontSize: theme.typography.bodySize
+                fontSize: theme.typography.bodySize,
+                ...textTypographyStyle(theme, 'regular')
               }}
             >
               {description}
@@ -98,6 +101,8 @@ export function ModalDialog({
 export interface AppShellTab<T extends string> {
   id: T;
   label: string;
+  /** Icono opcional de Google Material Icons mostrado encima de la etiqueta de la pestaña. */
+  icon?: GoogleIconName;
 }
 
 export interface AppShellProps<T extends string> {
@@ -156,7 +161,7 @@ export function AppShell<T extends string>({
             style={{
               color: theme.colors.textPrimary,
               fontSize: theme.typography.titleSize - 2,
-              fontWeight: '800'
+              ...textTypographyStyle(theme, 'extrabold')
             }}
           >
             {appName}
@@ -165,7 +170,8 @@ export function AppShell<T extends string>({
             <Text
               style={{
                 color: theme.colors.textSecondary,
-                fontSize: theme.typography.captionSize
+                fontSize: theme.typography.captionSize,
+                ...textTypographyStyle(theme, 'regular')
               }}
             >
               {subtitle}
@@ -189,7 +195,7 @@ export function AppShell<T extends string>({
             style={{
               color: theme.colors.accentText,
               fontSize: theme.typography.captionSize + 1,
-              fontWeight: '600'
+              ...textTypographyStyle(theme, 'semibold')
             }}
           >
             {toastMessage}
@@ -233,14 +239,23 @@ export function AppShell<T extends string>({
                   paddingVertical: theme.spacing.sm + 2,
                   borderRadius: theme.radius.md,
                   alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 3,
                   backgroundColor: active ? theme.colors.accentSoft : 'transparent'
                 }}
               >
+                {tab.icon ? (
+                  <GoogleIcon
+                    name={tab.icon}
+                    size={18}
+                    color={active ? theme.colors.accentText : theme.colors.textSecondary}
+                  />
+                ) : null}
                 <Text
                   style={{
                     color: active ? theme.colors.accentText : theme.colors.textSecondary,
-                    fontSize: theme.typography.bodySize - 1,
-                    fontWeight: active ? '700' : '500'
+                    fontSize: tab.icon ? theme.typography.captionSize : theme.typography.bodySize - 1,
+                    ...textTypographyStyle(theme, active ? 'bold' : 'medium')
                   }}
                 >
                   {tab.label}

@@ -16,7 +16,8 @@ export const APP_LAYOUT_BOUNDS = {
   defaultSliderStep: 5,
   /** Reglas inmutables del sistema de diseño mostradas en la guía interna de la app base. */
   designRules: [
-    'Colores, bordes, tipografía y espaciados proceden únicamente de `useFrameworkTheme()` (`@framework/ui`).',
+    'Colores, bordes, tipografía Google Fonts (`Inter`) y espaciados proceden únicamente de `useFrameworkTheme()` (`@framework/ui`).',
+    'Todos los iconos usan Google Material Icons a través de `<GoogleIcon />` o la prop `icon` de `Button`/`Card`/`AppShell`.',
     'Todos los controles interactivos usan componentes estándar de `@framework/ui` (prohibidas librerías UI nativas externas).',
     'Toda acción destructiva exige confirmación explícita mediante `ModalDialog`.',
     'Las vistas consumen exclusivamente `IController<TState>` vía `useMvcController` (MVC estricto).'

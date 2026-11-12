@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
+import { textTypographyStyle } from '../tokens.js';
 
 export interface SwitchToggleProps {
   label: string;
@@ -40,7 +41,7 @@ export function SwitchToggle({
           style={{
             color: theme.colors.textPrimary,
             fontSize: theme.typography.bodySize,
-            fontWeight: '600'
+            ...textTypographyStyle(theme, 'semibold')
           }}
         >
           {label}
@@ -49,7 +50,8 @@ export function SwitchToggle({
           <Text
             style={{
               color: theme.colors.textSecondary,
-              fontSize: theme.typography.captionSize
+              fontSize: theme.typography.captionSize,
+              ...textTypographyStyle(theme, 'regular')
             }}
           >
             {description}

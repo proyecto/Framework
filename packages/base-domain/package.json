@@ -1,0 +1,29 @@
+{
+  "name": "@framework/base-domain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dominio MVC canónico compartido entre la App Base Expo (@framework/base-expo) y Web (@framework/base-web).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@framework/core": "workspace:",
+    "@framework/data": "workspace:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

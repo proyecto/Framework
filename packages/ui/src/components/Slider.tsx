@@ -7,6 +7,7 @@ import {
   type LayoutChangeEvent
 } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
+import { textTypographyStyle } from '../tokens.js';
 
 export interface SliderProps {
   label: string;
@@ -135,7 +136,7 @@ export function Slider({
           style={{
             color: theme.colors.textPrimary,
             fontSize: theme.typography.bodySize,
-            fontWeight: '500'
+            ...textTypographyStyle(theme, 'medium')
           }}
         >
           {label}
@@ -144,8 +145,8 @@ export function Slider({
           style={{
             color: theme.colors.accentText,
             fontSize: theme.typography.bodySize,
-            fontWeight: '700',
-            fontVariant: ['tabular-nums']
+            fontVariant: ['tabular-nums'],
+            ...textTypographyStyle(theme, 'bold')
           }}
         >
           {activeValue}

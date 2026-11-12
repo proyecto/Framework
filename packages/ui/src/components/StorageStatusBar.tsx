@@ -1,8 +1,10 @@
 import type { StorageStatus } from '@framework/core';
 import { Text, View } from 'react-native';
-import { useFrameworkTheme } from '../ThemeProvider.js';
+import { useFrameworkIconRenderer, useFrameworkTheme } from '../ThemeProvider.js';
+import { textTypographyStyle } from '../tokens.js';
 import { Badge } from './Badge.js';
 import { Button } from './Button.js';
+import { GoogleIcon } from './Icon.js';
 
 export interface StorageStatusBarProps {
   status: StorageStatus;
@@ -21,6 +23,7 @@ export function StorageStatusBar({
   onManagePress
 }: StorageStatusBarProps) {
   const theme = useFrameworkTheme();
+  const hasIconRenderer = Boolean(useFrameworkIconRenderer());
 
   const tone = status.lastSyncError
     ? 'danger'
@@ -53,11 +56,27 @@ export function StorageStatusBar({
           gap: theme.spacing.sm
         }}
       >
-        <Badge label={badgeLabel} tone={tone} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
+          {hasIconRenderer ? (
+            <GoogleIcon
+              name={
+                status.lastSyncError
+                  ? 'warning-amber'
+                  : status.cloudEnabled
+                    ? 'cloud-queue'
+                    : 'cloud-off'
+              }
+              size="sm"
+              tone={tone === 'neutral' ? 'secondary' : tone}
+            />
+          ) : null}
+          <Badge label={badgeLabel} tone={tone} />
+        </View>
         <Text
           style={{
             color: theme.colors.textSecondary,
-            fontSize: theme.typography.captionSize
+            fontSize: theme.typography.captionSize,
+            ...textTypographyStyle(theme, 'regular')
           }}
         >
           {status.cloudEnabled
@@ -72,7 +91,8 @@ export function StorageStatusBar({
         <Text
           style={{
             color: theme.colors.danger,
-            fontSize: theme.typography.captionSize
+            fontSize: theme.typography.captionSize,
+            ...textTypographyStyle(theme, 'regular')
           }}
         >
           {status.lastSyncError}
@@ -84,6 +104,7 @@ export function StorageStatusBar({
           <Button
             size="sm"
             variant="secondary"
+            icon={hasIconRenderer ? 'sync' : undefined}
             label="Sincronizar"
             loading={status.isSyncing}
             onPress={onSyncPress}
@@ -93,6 +114,7 @@ export function StorageStatusBar({
           <Button
             size="sm"
             variant="outline"
+            icon={hasIconRenderer ? 'cloud-upload' : undefined}
             label={status.cloudEnabled ? 'Gestionar nube' : 'Activar copia en la nube'}
             onPress={onManagePress}
           />

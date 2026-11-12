@@ -11,7 +11,7 @@
     "web": {
       "bundler": "metro"
     },
-    "plugins": ["expo-sqlite"]
+    "plugins": ["expo-sqlite", "expo-font"]
   }
 }
 

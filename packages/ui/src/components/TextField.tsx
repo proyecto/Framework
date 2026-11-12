@@ -1,5 +1,6 @@
 import { Text, TextInput, View } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
+import { textTypographyStyle } from '../tokens.js';
 
 export interface TextFieldProps {
   label: string;
@@ -27,7 +28,7 @@ export function TextField({
         style={{
           color: theme.colors.textPrimary,
           fontSize: theme.typography.captionSize,
-          fontWeight: '600'
+          ...textTypographyStyle(theme, 'semibold')
         }}
       >
         {label}
@@ -47,14 +48,16 @@ export function TextField({
           paddingHorizontal: theme.spacing.md,
           paddingVertical: theme.spacing.sm + 2,
           fontSize: theme.typography.bodySize,
-          minHeight: multiline ? 76 : 44
+          minHeight: multiline ? 76 : 44,
+          ...textTypographyStyle(theme, 'regular')
         }}
       />
       {error ? (
         <Text
           style={{
             color: theme.colors.danger,
-            fontSize: theme.typography.captionSize
+            fontSize: theme.typography.captionSize,
+            ...textTypographyStyle(theme, 'regular')
           }}
         >
           {error}

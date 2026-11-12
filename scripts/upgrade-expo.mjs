@@ -11,8 +11,11 @@ const sdkArg = args.find((a) => a.startsWith('--expo='));
 console.log('=== Framework Expo Centralized Catalog ===');
 const trackedKeys = [
   'expo',
+  'expo-font',
   'expo-sqlite',
   'expo-status-bar',
+  '@expo/vector-icons',
+  '@expo-google-fonts/inter',
   'react',
   'react-dom',
   'react-native',

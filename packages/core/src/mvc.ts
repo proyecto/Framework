@@ -1,3 +1,5 @@
+import { CloudEntitlementError, getErrorMessage } from './errors.js';
+
 /**
  * Tipos de eventos efímeros que el Controlador envía hacia las Vistas sin ensuciar
  * el snapshot persistente de estado (`TState`).
@@ -55,6 +57,70 @@ export interface IController<TState, TEvent = ViewEvent> {
 export interface IModel {
   subscribe(listener: () => void): () => void;
   dispose?(): void;
+}
+
+/**
+ * Implementación base reutilizable del patrón **Observer + Resource Registry** para Modelos (`IModel`).
+ *
+ * Elimina el boilerplate repetido de `Set<() => void>`, `subscribe`, `notify` y limpieza de
+ * suscripciones secundarias (por ejemplo, `repository.subscribeStatus(...)`) en todos los
+ * dominios del framework.
+ */
+export abstract class ObservableModel implements IModel {
+  private readonly listeners = new Set<() => void>();
+  private readonly cleanups: Array<() => void> = [];
+
+  /** Registra una función de limpieza (como la desuscripción del repositorio) para `dispose()`. */
+  protected registerCleanup(cleanup: () => void): void {
+    this.cleanups.push(cleanup);
+  }
+
+  /** Suscribe un observador (normalmente un `IController`) a los cambios del Modelo. */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  /** Notifica de forma segura a todos los observadores suscritos. */
+  protected notify(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  /** Libera suscripciones internas y vacía los observadores al destruir el Modelo. */
+  dispose(): void {
+    while (this.cleanups.length > 0) {
+      const cleanup = this.cleanups.pop();
+      cleanup?.();
+    }
+    this.listeners.clear();
+  }
+}
+
+/**
+ * Estado mínimo requerido por `StatefulMvcController` para gestionar de forma uniforme
+ * indicadores de carga y errores de comando sin duplicar lógica en cada controlador.
+ */
+export interface AsyncCommandState {
+  busy: boolean;
+  errorMessage: string | null;
+}
+
+/**
+ * Opciones declarativas del patrón **Command Wrapper / Template Method** en `StatefulMvcController`.
+ */
+export interface CommandExecutionOptions<TResult, TEvent = ViewEvent> {
+  /** Si es `true` (por defecto), activa `state.busy` mientras dura la operación. */
+  trackBusy?: boolean;
+  /** Emite un evento de error (`upgrade-required` / `error`) a la vista cuando la tarea falla. */
+  emitErrorEvent?: boolean;
+  /** Fuerza `syncStateFromModel()` también en la rama de error (p. ej. para mostrar `lastSyncError`). */
+  syncAfterError?: boolean;
+  /** Factoría opcional del evento emitido cuando el comando concluye satisfactoriamente. */
+  onSuccess?: (result: TResult) => TEvent | void;
 }
 
 /**
@@ -137,5 +203,102 @@ export abstract class BaseController<TState, TEvent = ViewEvent>
   dispose(): void {
     this.disposed = true;
     this.views.clear();
+  }
+}
+
+/**
+ * Extensión especializada de `BaseController` (**Patrón Template Method + Command Executor**)
+ * para controladores de aplicación conectados a un `IModel`.
+ *
+ * Centraliza:
+ * - Vinculación reactiva al Modelo (`bindModel`) con liberación automática en `dispose()`.
+ * - Ejecución segura de comandos asíncronos (`executeCommand`) con manejo automático de
+ *   `busy`, `errorMessage`, re-sincronización y mapeo de `CloudEntitlementError -> upgrade-required`.
+ */
+export abstract class StatefulMvcController<
+  TState extends AsyncCommandState,
+  TEvent = ViewEvent
+> extends BaseController<TState, TEvent> {
+  private readonly modelCleanups: Array<() => void> = [];
+  private boundModel: IModel | null = null;
+
+  /**
+   * Suscribe este controlador al `model` para ejecutar `syncStateFromModel()` ante cada cambio
+   * y registra su limpieza automática en `dispose()`.
+   */
+  protected bindModel(model: IModel): void {
+    this.boundModel = model;
+    const unsub = model.subscribe(() => {
+      void this.syncStateFromModel();
+    });
+    this.modelCleanups.push(unsub);
+  }
+
+  /** Proyecta el snapshot actualizado desde el Modelo hacia el estado visible del Controlador. */
+  protected abstract syncStateFromModel(): Promise<void>;
+
+  /** Traduce errores capturados al canal de eventos de vista; sobreescribible si `TEvent` difiere de `ViewEvent`. */
+  protected mapErrorToViewEvent(error: unknown, message: string): TEvent {
+    const type: ViewEventType =
+      error instanceof CloudEntitlementError ? 'upgrade-required' : 'error';
+    return { type, message } as unknown as TEvent;
+  }
+
+  /**
+   * Ejecuta un comando asíncrono del controlador de forma uniforme, eliminando bloques
+   * `try/catch/busy/sync` duplicados en cada dominio.
+   */
+  protected async executeCommand<TResult = void>(
+    options: CommandExecutionOptions<TResult, TEvent>,
+    task: () => Promise<TResult>
+  ): Promise<TResult | undefined> {
+    const trackBusy = options.trackBusy ?? true;
+    const emitErrorEvent = options.emitErrorEvent ?? true;
+
+    this.setState(
+      (trackBusy ? { busy: true, errorMessage: null } : { errorMessage: null }) as Partial<TState>
+    );
+
+    try {
+      const result = await task();
+      await this.syncStateFromModel();
+      if (trackBusy) {
+        this.setState({ busy: false } as Partial<TState>);
+      }
+      const successEvent = options.onSuccess?.(result);
+      if (successEvent) {
+        this.emitViewEvent(successEvent);
+      }
+      return result;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (options.syncAfterError) {
+        await this.syncStateFromModel();
+      }
+      this.setState(
+        (trackBusy
+          ? { busy: false, errorMessage: message }
+          : { errorMessage: message }) as Partial<TState>
+      );
+      if (emitErrorEvent) {
+        this.emitViewEvent(this.mapErrorToViewEvent(error, message));
+      }
+      return undefined;
+    }
+  }
+
+  /** Limpia el último mensaje de error visible en la UI. */
+  clearError(): void {
+    this.setState({ errorMessage: null } as Partial<TState>);
+  }
+
+  /** Desuscribe el Modelo enlazado, invoca `model.dispose()` si existe y limpia las vistas. */
+  override dispose(): void {
+    while (this.modelCleanups.length > 0) {
+      this.modelCleanups.pop()?.();
+    }
+    this.boundModel?.dispose?.();
+    this.boundModel = null;
+    super.dispose();
   }
 }

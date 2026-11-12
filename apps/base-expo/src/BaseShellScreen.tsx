@@ -12,6 +12,7 @@ import {
   StorageStatusBar,
   SwitchToggle,
   TextField,
+  textTypographyStyle,
   useFrameworkTheme,
   type ThemeScheme
 } from '@framework/ui';
@@ -93,9 +94,9 @@ export function BaseShellScreen({
       subtitle={`App Base · ${env.platformName}`}
       toastMessage={toast}
       tabs={[
-        { id: 'workspace', label: 'Estructura' },
-        { id: 'controls', label: 'Controles UI' },
-        { id: 'bounds', label: 'Límites & Nube' }
+        { id: 'workspace', label: 'Estructura', icon: 'dashboard' },
+        { id: 'controls', label: 'Controles UI', icon: 'tune' },
+        { id: 'bounds', label: 'Límites & Nube', icon: 'cloud-queue' }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -118,17 +119,25 @@ export function BaseShellScreen({
           <Card
             title="1. Lista maestra estandarizada"
             subtitle="Toda app parte de una lista seleccionable dentro de Card con filtro superior"
+            icon="view-list"
             rightSlot={
               <Button
                 size="sm"
                 variant={state.onlyEnabledFilter ? 'primary' : 'outline'}
+                icon="filter-list"
                 label={state.onlyEnabledFilter ? 'Solo activos' : 'Todos'}
                 onPress={() => controller.setOnlyEnabledFilter(!state.onlyEnabledFilter)}
               />
             }
           >
             {visibleItems.length === 0 ? (
-              <Text style={{ color: theme.colors.textSecondary }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
                 Sin elementos visibles. Añade uno nuevo en el bloque inferior.
               </Text>
             ) : (
@@ -140,7 +149,8 @@ export function BaseShellScreen({
                       key={item.id}
                       size="sm"
                       variant={selected ? 'primary' : 'secondary'}
-                      label={`${item.isPrimary ? '★ ' : ''}${item.title} (${item.level}%)`}
+                      icon={item.isPrimary ? 'star' : 'star-outline'}
+                      label={`${item.title} (${item.level}%)`}
                       onPress={() => controller.selectItem(item.id)}
                       fullWidth
                     />
@@ -153,6 +163,7 @@ export function BaseShellScreen({
           <Card
             title="2. Formulario de entrada acotado"
             subtitle="Los campos usan exclusivamente TextField y un botón primario al pie"
+            icon="add-circle-outline"
           >
             <TextField
               label="Título del elemento"
@@ -168,6 +179,7 @@ export function BaseShellScreen({
               placeholder="Opcional"
             />
             <Button
+              icon="add-circle-outline"
               label="Crear elemento"
               loading={state.busy}
               onPress={() => void handleCreate()}
@@ -181,6 +193,7 @@ export function BaseShellScreen({
         selectedItem ? (
           <Card
             highlighted={selectedItem.isPrimary}
+            icon="tune"
             title={selectedItem.title}
             subtitle={selectedItem.description || 'Inspector de controles canónicos'}
             rightSlot={
@@ -210,6 +223,7 @@ export function BaseShellScreen({
               <Button
                 size="sm"
                 variant="primary"
+                icon="star"
                 label={selectedItem.isPrimary ? 'Es principal' : 'Marcar principal'}
                 disabled={selectedItem.isPrimary}
                 onPress={() => void controller.markAsPrimary(selectedItem.id)}
@@ -218,14 +232,21 @@ export function BaseShellScreen({
               <Button
                 size="sm"
                 variant="danger"
+                icon="delete-outline"
                 label="Eliminar"
                 onPress={() => setDeleteTargetId(selectedItem.id)}
               />
             </View>
           </Card>
         ) : (
-          <Card title="Sin elemento seleccionado">
-            <Text style={{ color: theme.colors.textSecondary }}>
+          <Card icon="info-outline" title="Sin elemento seleccionado">
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.bodySize,
+                ...textTypographyStyle(theme, 'regular')
+              }}
+            >
               Crea o selecciona un elemento en la pestaña Estructura para inspeccionar sus controles.
             </Text>
           </Card>
@@ -235,6 +256,7 @@ export function BaseShellScreen({
       {activeTab === 'bounds' ? (
         <>
           <Card
+            icon="info-outline"
             title="Límites del Design System"
             subtitle="Reglas obligatorias para que todas las apps compartan el mismo aspecto"
           >
@@ -244,7 +266,8 @@ export function BaseShellScreen({
                   key={index}
                   style={{
                     color: theme.colors.textSecondary,
-                    fontSize: theme.typography.captionSize + 1
+                    fontSize: theme.typography.captionSize + 1,
+                    ...textTypographyStyle(theme, 'regular')
                   }}
                 >
                   {`${index + 1}. ${rule}`}
@@ -254,7 +277,7 @@ export function BaseShellScreen({
                 style={{
                   color: theme.colors.accentText,
                   fontSize: theme.typography.captionSize,
-                  fontWeight: '700'
+                  ...textTypographyStyle(theme, 'bold')
                 }}
               >
                 {`Máx. pestañas inferiores: ${APP_LAYOUT_BOUNDS.maxBottomTabs} · Máx. acciones al pie de tarjeta: ${APP_LAYOUT_BOUNDS.maxCardFooterActions}`}
@@ -262,7 +285,7 @@ export function BaseShellScreen({
             </View>
           </Card>
 
-          <Card title="Almacenamiento Local / Nube">
+          <Card icon="cloud-queue" title="Almacenamiento Local / Nube">
             <SegmentedControl
               value={state.storage.mode}
               options={[
@@ -273,6 +296,7 @@ export function BaseShellScreen({
             />
             {state.storage.plan === 'free' ? (
               <Button
+                icon="cloud-upload"
                 label="Activar Plan Pro y Nube"
                 loading={state.busy}
                 onPress={() => void controller.upgradeToProAndEnableCloud()}
@@ -281,6 +305,7 @@ export function BaseShellScreen({
             ) : (
               <Button
                 variant="outline"
+                icon="cloud-off"
                 label="Volver a Plan Gratis (Solo local)"
                 loading={state.busy}
                 onPress={() => void controller.downgradeToFree()}
@@ -289,7 +314,7 @@ export function BaseShellScreen({
             )}
           </Card>
 
-          <Card title="Tema y Servidor">
+          <Card icon="palette" title="Tema y Servidor">
             <SegmentedControl<ThemeScheme>
               value={themePreference}
               options={[
@@ -308,6 +333,7 @@ export function BaseShellScreen({
             <Button
               size="sm"
               variant="secondary"
+              icon="link"
               label="Aplicar URL"
               onPress={() => onApiBaseUrlChange(draftApiUrl.trim())}
             />

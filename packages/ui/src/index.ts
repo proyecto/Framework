@@ -4,6 +4,7 @@
  */
 export * from './tokens.js';
 export * from './ThemeProvider.js';
+export * from './components/Icon.js';
 export * from './components/Button.js';
 export * from './components/Slider.js';
 export * from './components/SwitchToggle.js';

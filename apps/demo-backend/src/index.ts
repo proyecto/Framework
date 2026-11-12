@@ -1,3 +1,4 @@
+import { BASE_SERVER_MODULE } from '@framework/base-domain';
 import { createLibSqlDriverFromEnv } from '@framework/data-libsql';
 import { EXAMPLE_SERVER_MODULE } from '@framework/example-domain';
 import { createFrameworkServer } from '@framework/server';
@@ -19,7 +20,7 @@ const server = await createFrameworkServer({
   port,
   host,
   driver,
-  apps: [EXAMPLE_SERVER_MODULE]
+  apps: [EXAMPLE_SERVER_MODULE, BASE_SERVER_MODULE]
 });
 
 const url = await server.start();

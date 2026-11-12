@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@framework/base-domain": "workspace:",
     "@framework/core": "workspace:",
     "@framework/data": "workspace:",
     "@framework/react": "workspace:",

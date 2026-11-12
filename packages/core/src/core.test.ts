@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CloudEntitlementError, ValidationError } from './errors.js';
-import { BaseController, type IView } from './mvc.js';
+import {
+  BaseController,
+  ObservableModel,
+  StatefulMvcController,
+  type AsyncCommandState,
+  type IView,
+  type ViewEvent
+} from './mvc.js';
 import { AsyncMutex, normalizeSqlParams } from './sqlUtils.js';
 import {
   ExistingWinsConflictStrategy,
@@ -134,5 +141,101 @@ describe('Conflict resolution strategies & sqlUtils', () => {
     await Promise.all([first, second]);
     expect(order).toEqual(['start-1', 'end-1', 'start-2', 'end-2']);
     expect(normalizeSqlParams(['abc', true, false, 42, null])).toEqual(['abc', 1, 0, 42, null]);
+  });
+});
+
+interface TaskState extends AsyncCommandState {
+  value: number;
+}
+
+class SampleObservableModel extends ObservableModel {
+  value = 0;
+  cleaned = false;
+
+  constructor() {
+    super();
+    this.registerCleanup(() => {
+      this.cleaned = true;
+    });
+  }
+
+  setValue(next: number): void {
+    this.value = next;
+    this.notify();
+  }
+}
+
+class SampleStatefulController extends StatefulMvcController<TaskState, ViewEvent> {
+  syncCalls = 0;
+
+  constructor(private readonly model: SampleObservableModel) {
+    super({ value: model.value, busy: false, errorMessage: null });
+    this.bindModel(model);
+  }
+
+  protected async syncStateFromModel(): Promise<void> {
+    this.syncCalls += 1;
+    this.setState({ value: this.model.value });
+  }
+
+  async init(): Promise<void> {
+    await this.syncStateFromModel();
+    this.markInitialized();
+  }
+
+  async runSuccess(next: number): Promise<void> {
+    await this.executeCommand(
+      { onSuccess: (res) => ({ type: 'toast', message: `ok:${res}` }) },
+      async () => {
+        this.model.setValue(next);
+        return next;
+      }
+    );
+  }
+
+  async runProRequired(): Promise<void> {
+    await this.executeCommand({ syncAfterError: true }, async () => {
+      throw new CloudEntitlementError('Upgrade needed');
+    });
+  }
+
+  async runGenericFailure(): Promise<void> {
+    await this.executeCommand({ trackBusy: false }, async () => {
+      throw new ValidationError('Invalid input');
+    });
+  }
+}
+
+describe('ObservableModel & StatefulMvcController pattern helpers', () => {
+  it('propagates model notifications, executes commands with error mapping and cleans up on dispose', async () => {
+    const model = new SampleObservableModel();
+    const controller = new SampleStatefulController(model);
+    const events: ViewEvent[] = [];
+
+    controller.attachView({
+      render: () => {},
+      onEvent: (evt) => events.push(evt)
+    });
+
+    await controller.init();
+    await controller.runSuccess(42);
+    expect(controller.getState()).toEqual({ value: 42, busy: false, errorMessage: null });
+
+    const callsBeforeProError = controller.syncCalls;
+    await controller.runProRequired();
+    expect(controller.syncCalls).toBeGreaterThan(callsBeforeProError);
+    expect(controller.getState().errorMessage).toBe('Upgrade needed');
+    expect(controller.getState().busy).toBe(false);
+
+    await controller.runGenericFailure();
+    expect(controller.getState().errorMessage).toBe('Invalid input');
+
+    controller.clearError();
+    expect(controller.getState().errorMessage).toBeNull();
+
+    expect(events.map((e) => e.type)).toEqual(['toast', 'upgrade-required', 'error']);
+
+    controller.dispose();
+    expect(model.cleaned).toBe(true);
   });
 });

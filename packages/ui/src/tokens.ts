@@ -1,5 +1,46 @@
+import type { TextStyle } from 'react-native';
+
 /** Preferencia de esquema visual del usuario o del sistema operativo. */
 export type ThemeScheme = 'light' | 'dark' | 'system';
+
+/** Pesos tipográficos semánticos soportados por el Design System. */
+export type ThemeFontWeight = 'regular' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+
+/**
+ * Familias tipográficas cargadas en tiempo de ejecución (por ejemplo, Google Fonts `Inter`).
+ * En React Native Android cada archivo `.ttf` representa un peso concreto, por lo que si está
+ * definido `fontFamily` se aplica directamente sin colisionar con `fontWeight`.
+ */
+export interface ThemeFontFamilies {
+  regular?: string;
+  medium?: string;
+  semibold?: string;
+  bold?: string;
+  extrabold?: string;
+}
+
+const FALLBACK_WEIGHT_VALUES: Record<ThemeFontWeight, NonNullable<TextStyle['fontWeight']>> = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extrabold: '800'
+};
+
+/**
+ * Resuelve el estilo tipográfico (`fontFamily` de Google Fonts si fue inyectado por la app,
+ * o `fontWeight` nativo de respaldo si se usa el tema por defecto).
+ */
+export function textTypographyStyle(
+  theme: FrameworkTheme,
+  weight: ThemeFontWeight = 'regular'
+): TextStyle {
+  const customFamily = theme.typography.fonts?.[weight] ?? theme.typography.fonts?.regular;
+  if (customFamily) {
+    return { fontFamily: customFamily };
+  }
+  return { fontWeight: FALLBACK_WEIGHT_VALUES[weight] };
+}
 
 /**
  * Contrato de **Design Tokens** compartido por todas las aplicaciones construidas
@@ -46,6 +87,7 @@ export interface FrameworkTheme {
     headingSize: number;
     bodySize: number;
     captionSize: number;
+    fonts?: ThemeFontFamilies;
   };
 }
 

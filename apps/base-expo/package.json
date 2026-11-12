@@ -11,13 +11,17 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "catalog:",
     "@expo/metro-runtime": "catalog:",
+    "@expo/vector-icons": "catalog:",
+    "@framework/base-domain": "workspace:",
     "@framework/core": "workspace:",
     "@framework/data": "workspace:",
     "@framework/expo-adapter": "workspace:",
     "@framework/react": "workspace:",
     "@framework/ui": "workspace:",
     "expo": "catalog:",
+    "expo-font": "catalog:",
     "expo-sqlite": "catalog:",
     "expo-status-bar": "catalog:",
     "react": "catalog:",

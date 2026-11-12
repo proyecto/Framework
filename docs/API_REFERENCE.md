@@ -7,14 +7,204 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 
 ## Índice de paquetes
 
-- [`@framework/core`](#frameworkcore) (41 símbolos exportados)
+- [`@framework/base-domain`](#frameworkbase-domain) (12 símbolos exportados)
+- [`@framework/core`](#frameworkcore) (45 símbolos exportados)
 - [`@framework/data`](#frameworkdata) (17 símbolos exportados)
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (32 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (45 símbolos exportados)
+
+## `@framework/base-domain`
+
+Dominio MVC canónico compartido entre la App Base Expo (@framework/base-expo) y Web (@framework/base-web).
+
+### `BASE_APP_ID`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+
+```ts
+const BASE_APP_ID
+```
+
+### `BASE_ENTITY_NAME`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+
+```ts
+const BASE_ENTITY_NAME
+```
+
+### `BaseWorkspaceItem`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+- Descripción: Entidad genérica mínima de la App Base que hereda auditoría, versión y tombstone.
+
+```ts
+interface BaseWorkspaceItem extends EntityBase
+```
+
+Miembros públicos:
+- `title: string`
+- `description: string`
+- `level: number`
+- `enabled: boolean`
+- `isPrimary: boolean`
+
+### `CreateBaseItemInput`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+- Descripción: Datos de entrada validados para crear un nuevo elemento en la App Base.
+
+```ts
+interface CreateBaseItemInput
+```
+
+Miembros públicos:
+- `title: string`
+- `description?: string`
+- `level?: number`
+
+### `BaseAppViewState`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+- Descripción: Snapshot inmutable proyectado hacia cualquier `IView` (Expo Android / React Web).
+
+```ts
+interface BaseAppViewState extends AsyncCommandState
+```
+
+Miembros públicos:
+- `items: BaseWorkspaceItem[]`
+- `selectedItemId: string | null`
+- `onlyEnabledFilter: boolean`
+- `loading: boolean`
+- `storage: StorageStatus`
+
+### `IBaseAppModel`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+- Descripción: Contrato del Modelo (M) de la App Base.
+
+```ts
+interface IBaseAppModel extends IModel
+```
+
+Miembros públicos:
+- `getItemsSnapshot(): BaseWorkspaceItem[]`
+- `loadItems(): Promise<BaseWorkspaceItem[]>`
+- `createItem(input: CreateBaseItemInput): Promise<BaseWorkspaceItem>`
+- `updateItem(id: string, patch: Partial< Pick<BaseWorkspaceItem, 'title' | 'description' | 'level' | 'enabled' | 'isPrimary'> >): Promise<BaseWorkspaceItem>`
+- `deleteItem(id: string): Promise<void>`
+- `getStorageStatus(): Promise<StorageStatus>`
+- `setPlan(plan: UserPlan): Promise<StorageStatus>`
+- `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
+- `syncNow(): Promise<SyncReport>`
+
+### `IBaseAppController`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+- Descripción: Contrato del Controlador (C) consumido de forma idéntica por `@framework/base-expo` y `@framework/base-web`.
+
+```ts
+interface IBaseAppController extends IController<BaseAppViewState, ViewEvent>
+```
+
+Miembros públicos:
+- `selectItem(id: string | null): void`
+- `setOnlyEnabledFilter(enabledOnly: boolean): void`
+- `createItem(input: CreateBaseItemInput): Promise<void>`
+- `updateLevel(id: string, level: number): Promise<void>`
+- `toggleEnabled(id: string): Promise<void>`
+- `markAsPrimary(id: string): Promise<void>`
+- `deleteItem(id: string): Promise<void>`
+- `upgradeToProAndEnableCloud(): Promise<void>`
+- `downgradeToFree(): Promise<void>`
+- `setStorageMode(mode: StorageMode): Promise<void>`
+- `syncNow(): Promise<void>`
+- `clearError(): void`
+
+### `BASE_SERVER_MODULE`
+
+- Origen: `packages/base-domain/src/contracts.ts`
+- Descripción: Descriptor opcional para registrar `base-template` en el servidor reutilizable `@framework/server`.
+
+```ts
+const BASE_SERVER_MODULE: RegisteredAppModule
+```
+
+### `BaseAppModel`
+
+- Origen: `packages/base-domain/src/BaseAppModel.ts`
+- Descripción: Implementación del **Modelo (M)** de la App Base (`IBaseAppModel`). Patrones aplicados: - **Observer (`ObservableModel`)**: Hereda suscripción y limpieza automática del repositorio. - **Repository (`ISyncableRepository`)**: Totalmente agnóstico de `expo-sqlite`, `localStorage` o Turso.
+
+```ts
+class BaseAppModel extends ObservableModel implements IBaseAppModel
+```
+
+Miembros públicos:
+- `constructor(private readonly repository: ISyncableRepository<BaseWorkspaceItem>)`
+- `getItemsSnapshot(): BaseWorkspaceItem[]`
+- `loadItems(): Promise<BaseWorkspaceItem[]>`
+- `createItem(input: CreateBaseItemInput): Promise<BaseWorkspaceItem>`
+- `updateItem(id: string, patch: Partial< Pick<BaseWorkspaceItem, 'title' | 'description' | 'level' | 'enabled' | 'isPrimary'> >): Promise<BaseWorkspaceItem>`
+- `deleteItem(id: string): Promise<void>`
+- `getStorageStatus(): Promise<StorageStatus>`
+- `setPlan(plan: UserPlan): Promise<StorageStatus>`
+- `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
+- `syncNow(): Promise<SyncReport>`
+
+### `BaseAppController`
+
+- Origen: `packages/base-domain/src/BaseAppController.ts`
+- Descripción: Controlador MVC de referencia para la App Base (`IBaseAppController`). Hereda de `StatefulMvcController` (**Template Method + Command Executor + Observer**) para compartir exactamente la misma lógica entre `@framework/base-expo` y `@framework/base-web`.
+
+```ts
+class BaseAppController extends StatefulMvcController<BaseAppViewState, ViewEvent> implements IBaseAppController
+```
+
+Miembros públicos:
+- `constructor(private readonly model: IBaseAppModel)`
+- `init(): Promise<void>`
+- `selectItem(id: string | null): void`
+- `setOnlyEnabledFilter(enabledOnly: boolean): void`
+- `createItem(input: CreateBaseItemInput): Promise<void>`
+- `updateLevel(id: string, level: number): Promise<void>`
+- `toggleEnabled(id: string): Promise<void>`
+- `markAsPrimary(id: string): Promise<void>`
+- `deleteItem(id: string): Promise<void>`
+- `upgradeToProAndEnableCloud(): Promise<void>`
+- `downgradeToFree(): Promise<void>`
+- `setStorageMode(mode: StorageMode): Promise<void>`
+- `syncNow(): Promise<void>`
+
+### `CreateBaseAppControllerOptions`
+
+- Origen: `packages/base-domain/src/factory.ts`
+
+```ts
+interface CreateBaseAppControllerOptions
+```
+
+Miembros públicos:
+- `store: IEntityStoreDriver`
+- `kv: IKeyValueStore`
+- `deviceId: string`
+- `userId?: string`
+- `apiBaseUrl?: string`
+- `transport?: IRemoteSyncTransport`
+- `conflictStrategy?: IConflictResolutionStrategy`
+
+### `createBaseAppController`
+
+- Origen: `packages/base-domain/src/factory.ts`
+- Descripción: Patrón: **Abstract Factory / Composition Root** compartida para la App Base en todas las plataformas (`@framework/base-expo`, `@framework/base-web` y tests automatizados).
+
+```ts
+function createBaseAppController(options: CreateBaseAppControllerOptions): IBaseAppController
+```
 
 ## `@framework/core`
 
@@ -138,6 +328,47 @@ Miembros públicos:
 - `subscribe(listener: () => void): () => void`
 - `dispose?(): void`
 
+### `ObservableModel`
+
+- Origen: `packages/core/src/mvc.ts`
+- Descripción: Implementación base reutilizable del patrón **Observer + Resource Registry** para Modelos (`IModel`). Elimina el boilerplate repetido de `Set<() => void>`, `subscribe`, `notify` y limpieza de suscripciones secundarias (por ejemplo, `repository.subscribeStatus(...)`) en todos los dominios del framework.
+
+```ts
+abstract class ObservableModel implements IModel
+```
+
+Miembros públicos:
+- `subscribe(listener: () => void): () => void`
+- `dispose(): void`
+
+### `AsyncCommandState`
+
+- Origen: `packages/core/src/mvc.ts`
+- Descripción: Estado mínimo requerido por `StatefulMvcController` para gestionar de forma uniforme indicadores de carga y errores de comando sin duplicar lógica en cada controlador.
+
+```ts
+interface AsyncCommandState
+```
+
+Miembros públicos:
+- `busy: boolean`
+- `errorMessage: string | null`
+
+### `CommandExecutionOptions`
+
+- Origen: `packages/core/src/mvc.ts`
+- Descripción: Opciones declarativas del patrón **Command Wrapper / Template Method** en `StatefulMvcController`.
+
+```ts
+interface CommandExecutionOptions<TResult, TEvent = ViewEvent>
+```
+
+Miembros públicos:
+- `trackBusy?: boolean`
+- `emitErrorEvent?: boolean`
+- `syncAfterError?: boolean`
+- `onSuccess?: (result: TResult) => TEvent | void`
+
 ### `BaseController`
 
 - Origen: `packages/core/src/mvc.ts`
@@ -152,6 +383,19 @@ Miembros públicos:
 - `init(): Promise<void>`
 - `getState(): TState`
 - `attachView(view: IView<TState, TEvent>): () => void`
+- `dispose(): void`
+
+### `StatefulMvcController`
+
+- Origen: `packages/core/src/mvc.ts`
+- Descripción: Extensión especializada de `BaseController` (**Patrón Template Method + Command Executor**) para controladores de aplicación conectados a un `IModel`. Centraliza: - Vinculación reactiva al Modelo (`bindModel`) con liberación automática en `dispose()`. - Ejecución segura de comandos asíncronos (`executeCommand`) con manejo automático de `busy`, `errorMessage`, re-sincronización y mapeo de `CloudEntitlementError -> upgrade-required`.
+
+```ts
+abstract class StatefulMvcController<TState extends AsyncCommandState, TEvent = ViewEvent> extends BaseController<TState, TEvent>
+```
+
+Miembros públicos:
+- `clearError(): void`
 - `dispose(): void`
 
 ### `StorageMode`
@@ -1030,12 +1274,11 @@ const PRESET_LIMITS
 - Descripción: Implementación del **Modelo (M)** de FocusScenes (`IPresetModel`). Responsabilidades exclusivas: - Validar invariantes del dominio (nombres no vacíos, rangos válidos en sliders, escena activa única). - Siembra inicial idempotente consultando incluso registros borrados (`includeDeleted: true`) para no resucitar escenas que el usuario eliminó voluntariamente. - Delegar persistencia y sincronización exclusivamente al contrato `ISyncableRepository<PresetEntity>`. - Reenviar eventos de cambio hacia los controladores mediante el patrón **Observer**.
 
 ```ts
-class PresetModel implements IPresetModel
+class PresetModel extends ObservableModel implements IPresetModel
 ```
 
 Miembros públicos:
 - `constructor(private readonly repository: ISyncableRepository<PresetEntity>)`
-- `subscribe(listener: () => void): () => void`
 - `getPresetsSnapshot(): PresetEntity[]`
 - `loadPresets(): Promise<PresetEntity[]>`
 - `createPreset(input: CreatePresetInput): Promise<PresetEntity>`
@@ -1045,15 +1288,14 @@ Miembros públicos:
 - `setPlan(plan: UserPlan): Promise<StorageStatus>`
 - `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
 - `syncNow(): Promise<SyncReport>`
-- `dispose(): void`
 
 ### `PresetController`
 
 - Origen: `packages/example-domain/src/PresetController.ts`
-- Descripción: Implementación del **Controlador (C)** de FocusScenes (`IPresetController`). Patrones aplicados: - **MVC Mediator**: Coordina `IPresetModel` y propaga snapshots inmutables a cualquier `IView`. - **Observer**: Escucha cambios del Modelo (`model.subscribe`) y mantiene sincronizada la UI. - **Template / Command Wrapper (`executeCommand`)**: Unifica gestión de `busy`, limpieza de errores, refresco del estado y mapeo uniforme de `CloudEntitlementError -> upgrade-required`.
+- Descripción: Implementación del **Controlador (C)** de FocusScenes (`IPresetController`). Patrones aplicados: - **MVC Mediator**: Coordina `IPresetModel` y propaga snapshots inmutables a cualquier `IView`. - **Observer + Template Method (`StatefulMvcController`)**: Hereda `bindModel`, `executeCommand` y `clearError` desde `@framework/core`, evitando duplicar lógica de `busy`, errores o limpieza.
 
 ```ts
-class PresetController extends BaseController<PresetStudioViewState, ViewEvent> implements IPresetController
+class PresetController extends StatefulMvcController<PresetStudioViewState, ViewEvent> implements IPresetController
 ```
 
 Miembros públicos:
@@ -1072,8 +1314,6 @@ Miembros públicos:
 - `downgradeToFree(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`
 - `syncNow(): Promise<void>`
-- `clearError(): void`
-- `dispose(): void`
 
 ### `PresetStudioFactoryOptions`
 
@@ -1334,6 +1574,40 @@ async function createFrameworkServer(options: FrameworkServerOptions = {}): Prom
 type ThemeScheme = 'light' | 'dark' | 'system'
 ```
 
+### `ThemeFontWeight`
+
+- Origen: `packages/ui/src/tokens.ts`
+- Descripción: Pesos tipográficos semánticos soportados por el Design System.
+
+```ts
+type ThemeFontWeight = 'regular' | 'medium' | 'semibold' | 'bold' | 'extrabold'
+```
+
+### `ThemeFontFamilies`
+
+- Origen: `packages/ui/src/tokens.ts`
+- Descripción: Familias tipográficas cargadas en tiempo de ejecución (por ejemplo, Google Fonts `Inter`). En React Native Android cada archivo `.ttf` representa un peso concreto, por lo que si está definido `fontFamily` se aplica directamente sin colisionar con `fontWeight`.
+
+```ts
+interface ThemeFontFamilies
+```
+
+Miembros públicos:
+- `regular?: string`
+- `medium?: string`
+- `semibold?: string`
+- `bold?: string`
+- `extrabold?: string`
+
+### `textTypographyStyle`
+
+- Origen: `packages/ui/src/tokens.ts`
+- Descripción: Resuelve el estilo tipográfico (`fontFamily` de Google Fonts si fue inyectado por la app, o `fontWeight` nativo de respaldo si se usa el tema por defecto).
+
+```ts
+function textTypographyStyle(theme: FrameworkTheme, weight: ThemeFontWeight = 'regular'): TextStyle
+```
+
 ### `FrameworkTheme`
 
 - Origen: `packages/ui/src/tokens.ts`
@@ -1348,7 +1622,7 @@ Miembros públicos:
 - `colors: { background: string; surface: string; surfaceElevated: string; surfaceMuted: string; border: string; textPrimary: string; textSecondary: string; textInverse: string; accent: string; accentSoft: string; accentText: string; success: string; successSoft: string; warning: string; warningSoft: string; danger: string; dangerSoft: string; trackInactive: string; }`
 - `spacing: { xs: number; sm: number; md: number; lg: number; xl: number; xxl: number; }`
 - `radius: { sm: number; md: number; lg: number; full: number; }`
-- `typography: { titleSize: number; headingSize: number; bodySize: number; captionSize: number; }`
+- `typography: { titleSize: number; headingSize: number; bodySize: number; captionSize: number; fonts?: ThemeFontFamilies; }`
 
 ### `LIGHT_THEME`
 
@@ -1366,6 +1640,29 @@ const LIGHT_THEME: FrameworkTheme
 const DARK_THEME: FrameworkTheme
 ```
 
+### `IconRenderParams`
+
+- Origen: `packages/ui/src/ThemeProvider.tsx`
+- Descripción: Argumentos estandarizados recibidos por el adaptador de iconos inyectado en el tema.
+
+```ts
+interface IconRenderParams
+```
+
+Miembros públicos:
+- `name: string`
+- `size: number`
+- `color: string`
+
+### `IconRenderer`
+
+- Origen: `packages/ui/src/ThemeProvider.tsx`
+- Descripción: Estrategia/Adaptador de renderizado de iconos (**Dependency Inversion Principle**). Permite que `@framework/ui` permanezca desacoplado de `@expo/vector-icons` mientras cada app Expo inyecta su implementación concreta de Google Material Icons.
+
+```ts
+type IconRenderer = (params: IconRenderParams) => ReactNode
+```
+
 ### `FrameworkThemeProviderProps`
 
 - Origen: `packages/ui/src/ThemeProvider.tsx`
@@ -1378,15 +1675,17 @@ Miembros públicos:
 - `preference?: ThemeScheme`
 - `customLightTheme?: FrameworkTheme`
 - `customDarkTheme?: FrameworkTheme`
+- `fontFamilies?: ThemeFontFamilies`
+- `iconRenderer?: IconRenderer`
 - `children: ReactNode`
 
 ### `FrameworkThemeProvider`
 
 - Origen: `packages/ui/src/ThemeProvider.tsx`
-- Descripción: Proveedor de tema del Design System (`LIGHT_THEME` / `DARK_THEME`). Soporta selección automática según sistema operativo (`preference = 'system'`) o forzado explícito.
+- Descripción: Proveedor de tema del Design System (`LIGHT_THEME` / `DARK_THEME`). Soporta selección automática según sistema operativo (`preference = 'system'`), inyección de fuentes Google (`fontFamilies`) e inyección de renderizador de iconos (`iconRenderer`).
 
 ```ts
-function FrameworkThemeProvider({ preference = 'system', customLightTheme = LIGHT_THEME, customDarkTheme = DARK_THEME, children }: FrameworkThemeProviderProps)
+function FrameworkThemeProvider({ preference = 'system', customLightTheme = LIGHT_THEME, customDarkTheme = DARK_THEME, fontFamilies, iconRenderer, children }: FrameworkThemeProviderProps)
 ```
 
 ### `useFrameworkTheme`
@@ -1396,6 +1695,81 @@ function FrameworkThemeProvider({ preference = 'system', customLightTheme = LIGH
 
 ```ts
 function useFrameworkTheme(): FrameworkTheme
+```
+
+### `useFrameworkIconRenderer`
+
+- Origen: `packages/ui/src/ThemeProvider.tsx`
+- Descripción: Devuelve el adaptador de iconos configurado en `FrameworkThemeProvider`, si existe.
+
+```ts
+function useFrameworkIconRenderer(): IconRenderer | undefined
+```
+
+### `GoogleIconSize`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+
+```ts
+type GoogleIconSize = 'sm' | 'md' | 'lg'
+```
+
+### `GoogleIconTone`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+
+```ts
+type GoogleIconTone = | 'primary' | 'secondary' | 'accent' | 'success' | 'warning' | 'danger' | 'inverse'
+```
+
+### `GoogleIconName`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+- Descripción: Sugerencias de nombres estándar de Google Material Icons usados con más frecuencia (acepta además cualquier nombre válido de https://fonts.google.com/icons).
+
+```ts
+type GoogleIconName = | 'dashboard' | 'tune' | 'cloud-queue' | 'cloud-upload' | 'cloud-off' | 'filter-list' | 'add-circle-outline' | 'delete-outline' | 'star' | 'star-outline' | 'palette' | 'link' | 'sync' | 'check-circle' | 'info-outline' | 'warning-amber' | 'settings' | (string & {})
+```
+
+### `GoogleIconProps`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+
+```ts
+interface GoogleIconProps
+```
+
+Miembros públicos:
+- `name: GoogleIconName`
+- `size?: GoogleIconSize | number`
+- `tone?: GoogleIconTone`
+- `color?: string`
+- `style?: ViewStyle`
+
+### `GoogleIcon`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+- Descripción: Componente estandarizado de iconos Google (`MaterialIcons`) del Design System. Delega el dibujado real en el `iconRenderer` inyectado por `FrameworkThemeProvider` (patrón **Adapter / Strategy**), evitando que `@framework/ui` dependa directamente de `@expo/vector-icons`.
+
+```ts
+function GoogleIcon({ name, size = 'md', tone = 'primary', color, style }: GoogleIconProps)
+```
+
+### `Icon`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+- Descripción: Alias corto de `GoogleIcon` para mayor comodidad en vistas.
+
+```ts
+const Icon
+```
+
+### `IconProps`
+
+- Origen: `packages/ui/src/components/Icon.tsx`
+
+```ts
+type IconProps = GoogleIconProps
 ```
 
 ### `ButtonVariant`
@@ -1429,6 +1803,7 @@ Miembros públicos:
 - `size?: ButtonSize`
 - `disabled?: boolean`
 - `loading?: boolean`
+- `icon?: GoogleIconName`
 - `leftSlot?: ReactNode`
 - `fullWidth?: boolean`
 - `style?: ViewStyle`
@@ -1439,7 +1814,7 @@ Miembros públicos:
 - Descripción: Botón estándar del framework sobre primitivas puras de React Native (`Pressable`).
 
 ```ts
-function Button({ label, onPress, variant = 'primary', size = 'md', disabled = false, loading = false, leftSlot, fullWidth = false, style }: ButtonProps)
+function Button({ label, onPress, variant = 'primary', size = 'md', disabled = false, loading = false, icon, leftSlot, fullWidth = false, style }: ButtonProps)
 ```
 
 ### `SliderProps`
@@ -1505,6 +1880,7 @@ interface CardProps
 Miembros públicos:
 - `title?: string`
 - `subtitle?: string`
+- `icon?: GoogleIconName`
 - `rightSlot?: ReactNode`
 - `children: ReactNode`
 - `highlighted?: boolean`
@@ -1513,10 +1889,10 @@ Miembros públicos:
 ### `Card`
 
 - Origen: `packages/ui/src/components/Card.tsx`
-- Descripción: Tarjeta contenedora estándar con soporte opcional de cabecera, slot derecho y borde destacado.
+- Descripción: Tarjeta contenedora estándar con soporte opcional de cabecera, icono, slot derecho y borde destacado.
 
 ```ts
-function Card({ title, subtitle, rightSlot, children, highlighted = false, style }: CardProps)
+function Card({ title, subtitle, icon, rightSlot, children, highlighted = false, style }: CardProps)
 ```
 
 ### `TextFieldProps`
@@ -1668,6 +2044,7 @@ interface AppShellTab<T extends string>
 Miembros públicos:
 - `id: T`
 - `label: string`
+- `icon?: GoogleIconName`
 
 ### `AppShellProps`
 

@@ -4,7 +4,9 @@ import {
   HybridSyncRepository,
   InMemoryEntityStoreDriver,
   MemoryKeyValueStore,
-  MigrationRunner
+  MigrationRunner,
+  WebLocalStorageEntityStore,
+  WebStorageKeyValueStore
 } from './index.js';
 import type {
   EntityBase,
@@ -285,5 +287,57 @@ describe('MigrationRunner & HttpSyncTransport reliability', () => {
       code: 'NETWORK_ERROR',
       statusCode: 503
     });
+  });
+
+  it('persists entities and kv metadata in Web localStorage adapters with namespace isolation', async () => {
+    const backing = new Map<string, string>();
+    const originalStorage = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => backing.get(k) ?? null,
+        setItem: (k: string, v: string) => {
+          backing.set(k, v);
+        },
+        removeItem: (k: string) => {
+          backing.delete(k);
+        }
+      }
+    });
+
+    try {
+      const storeA = new WebLocalStorageEntityStore('app_a');
+      const storeB = new WebLocalStorageEntityStore('app_b');
+      const kv = new WebStorageKeyValueStore('app_a_kv');
+
+      const entity: SampleItem = {
+        id: 'w-1',
+        title: 'Local Web',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        deletedAt: null,
+        version: 1
+      };
+
+      await storeA.upsert('items', entity, 'pending');
+      expect(await storeA.countPending('items')).toBe(1);
+      expect(await storeB.list('items')).toHaveLength(0);
+
+      // markSynced con versión distinta no limpia pending; con versión exacta sí.
+      await storeA.markSynced('items', [{ id: 'w-1', version: 99 }]);
+      expect(await storeA.countPending('items')).toBe(1);
+      await storeA.markSynced('items', [{ id: 'w-1', version: 1 }]);
+      expect(await storeA.countPending('items')).toBe(0);
+
+      await kv.set('mode', 'local');
+      expect(await kv.get('mode')).toBe('local');
+      await kv.remove('mode');
+      expect(await kv.get('mode')).toBeNull();
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: originalStorage
+      });
+    }
   });
 });

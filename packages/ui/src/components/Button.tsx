@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View, type ViewStyle } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
-import type { FrameworkTheme } from '../tokens.js';
+import { textTypographyStyle, type FrameworkTheme } from '../tokens.js';
+import { GoogleIcon, type GoogleIconName } from './Icon.js';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -13,6 +14,8 @@ export interface ButtonProps {
   size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;
+  /** Nombre opcional de icono Google Material Icons mostrado a la izquierda del texto. */
+  icon?: GoogleIconName;
   leftSlot?: ReactNode;
   fullWidth?: boolean;
   style?: ViewStyle;
@@ -56,6 +59,7 @@ export function Button({
   size = 'md',
   disabled = false,
   loading = false,
+  icon,
   leftSlot,
   fullWidth = false,
   style
@@ -64,6 +68,7 @@ export function Button({
   const isDisabled = disabled || loading;
   const palette = BUTTON_VARIANT_PALETTES[variant](theme.colors);
   const metrics = BUTTON_SIZE_METRICS[size];
+  const iconSize = size === 'lg' ? 18 : 16;
 
   return (
     <Pressable
@@ -93,13 +98,16 @@ export function Button({
       {loading ? (
         <ActivityIndicator size="small" color={palette.text} />
       ) : (
-        leftSlot && <View>{leftSlot}</View>
+        <>
+          {icon ? <GoogleIcon name={icon} size={iconSize} color={palette.text} /> : null}
+          {leftSlot ? <View>{leftSlot}</View> : null}
+        </>
       )}
       <Text
         style={{
           color: palette.text,
           fontSize: metrics.fontSize,
-          fontWeight: '600'
+          ...textTypographyStyle(theme, 'semibold')
         }}
       >
         {label}

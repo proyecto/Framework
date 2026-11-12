@@ -1,4 +1,5 @@
 import {
+  ObservableModel,
   ValidationError,
   type ISyncableRepository,
   type StorageMode,
@@ -88,29 +89,17 @@ const DEFAULT_SEED_PRESETS: CreatePresetInput[] = [
  * - Delegar persistencia y sincronización exclusivamente al contrato `ISyncableRepository<PresetEntity>`.
  * - Reenviar eventos de cambio hacia los controladores mediante el patrón **Observer**.
  */
-export class PresetModel implements IPresetModel {
+export class PresetModel extends ObservableModel implements IPresetModel {
   private presets: PresetEntity[] = [];
-  private readonly listeners = new Set<() => void>();
-  private readonly unsubRepoStatus: () => void;
   private seededOnce = false;
 
   constructor(private readonly repository: ISyncableRepository<PresetEntity>) {
-    this.unsubRepoStatus = this.repository.subscribeStatus(() => {
-      this.notify();
-    });
-  }
-
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  private notify(): void {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    super();
+    this.registerCleanup(
+      this.repository.subscribeStatus(() => {
+        this.notify();
+      })
+    );
   }
 
   getPresetsSnapshot(): PresetEntity[] {
@@ -244,10 +233,5 @@ export class PresetModel implements IPresetModel {
     const report = await this.repository.syncNow();
     await this.loadPresets();
     return report;
-  }
-
-  dispose(): void {
-    this.unsubRepoStatus();
-    this.listeners.clear();
   }
 }
