@@ -142,6 +142,20 @@ export function bumpAppVersion(appName, options = {}) {
     fs.writeFileSync(appJsonPath, JSON.stringify(appData, null, 2) + '\n', 'utf8');
   }
 
+  // Obtiene la versión de la plantilla canónica base-expo
+  let baseVersion = next.version;
+  const basePkgPath = path.join(appsDir, 'base-expo', 'package.json');
+  if (appName !== 'base-expo' && fs.existsSync(basePkgPath)) {
+    try {
+      const basePkg = JSON.parse(fs.readFileSync(basePkgPath, 'utf8'));
+      if (basePkg.version) {
+        baseVersion = basePkg.version;
+      }
+    } catch {
+      // Ignora errores de lectura y usa fallback
+    }
+  }
+
   // 3. Genera src/version.ts exportando las constantes tipadas
   const versionFileContent = `/**
  * Archivo generado automáticamente por scripts/bump-version.mjs.
@@ -150,6 +164,7 @@ export function bumpAppVersion(appName, options = {}) {
 export const APP_VERSION = '${next.version}';
 export const APP_BUILD = ${next.versionCode};
 export const APP_RELEASE_DATE = '${next.releaseDate}';
+export const BASE_VERSION = '${baseVersion}';
 `;
   fs.mkdirSync(path.dirname(versionTsPath), { recursive: true });
   fs.writeFileSync(versionTsPath, versionFileContent, 'utf8');

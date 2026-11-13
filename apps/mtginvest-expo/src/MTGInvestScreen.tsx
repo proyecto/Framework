@@ -23,7 +23,7 @@ import {
   type IMtginvestController,
   MTG_SETS
 } from './mvc';
-import { APP_VERSION } from './version';
+import { APP_VERSION, BASE_VERSION } from './version';
 
 export type MTGTab = 'main' | 'settings';
 
@@ -359,12 +359,6 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      headerRight={
-        <Badge
-          label={`v${APP_VERSION}`}
-          tone="accent"
-        />
-      }
     >
       {activeTab === 'main' ? (
         <>
@@ -1140,7 +1134,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
 
           <Card
             title="Acerca de MTGInvest"
-            subtitle={`Versión ${APP_VERSION}`}
+            subtitle="Gestor de Inversiones MTG"
             icon="info"
           >
             <Text
@@ -1153,6 +1147,21 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
               Aplicación de gestión y valoración bursátil de inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.
             </Text>
           </Card>
+
+          {/* Última línea de la pestaña Ajustes: versiones de la base y de la aplicación */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              paddingTop: theme.spacing.md,
+              paddingBottom: theme.spacing.xl
+            }}
+          >
+            <Badge label={`base v${BASE_VERSION}`} tone="neutral" />
+            <Badge label={`app v${APP_VERSION}`} tone="accent" />
+          </View>
         </View>
       ) : null}
     </AppShell>
