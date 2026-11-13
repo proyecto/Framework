@@ -1,4 +1,6 @@
 export * from './contracts.js';
+export * from './scryfall.js';
+export * from './ScryfallApiClient.js';
 export * from './MtginvestModel.js';
 export * from './MtginvestController.js';
 export * from './factory.js';

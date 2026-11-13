@@ -12,6 +12,8 @@ import type {
   IMtginvestModel,
   MtginvestViewState
 } from './contracts.js';
+import type { IScryfallApiClient } from './scryfall.js';
+import { ScryfallApiClient } from './ScryfallApiClient.js';
 
 const INITIAL_STATE: MtginvestViewState = {
   items: [],
@@ -34,10 +36,15 @@ export class MtginvestController
   extends BaseController<MtginvestViewState, ViewEvent>
   implements IMtginvestController
 {
+  public readonly scryfallClient: IScryfallApiClient;
   private readonly unsubModel: () => void;
 
-  constructor(private readonly model: IMtginvestModel) {
+  constructor(
+    private readonly model: IMtginvestModel,
+    scryfallClient?: IScryfallApiClient
+  ) {
     super(INITIAL_STATE);
+    this.scryfallClient = scryfallClient ?? new ScryfallApiClient();
     this.unsubModel = this.model.subscribe(() => {
       void this.syncStateFromModel();
     });
@@ -98,13 +105,24 @@ export class MtginvestController
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
       >
     >
   ): Promise<void> {
     await this.executeCommand(true, async () => {
       await this.model.updateCard(id, patch);
     });
+  }
+
+  async getCardImageUrl(card: CardEntity): Promise<string | null> {
+    if (card.imageUrl) {
+      return card.imageUrl;
+    }
+    const resolved = await this.scryfallClient.resolveCardImageUrl(card);
+    if (resolved) {
+      void this.model.updateCard(card.id, { imageUrl: resolved }).catch(() => {});
+    }
+    return resolved;
   }
 
   async updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void> {

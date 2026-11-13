@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 import {
   AppShell,
@@ -164,6 +164,8 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
   const [editBuyPrice, setEditBuyPrice] = useState('');
   const [editCurrentPrice, setEditCurrentPrice] = useState('');
   const [editCondition, setEditCondition] = useState('NM');
+  const [cardArtUrl, setCardArtUrl] = useState<string | null>(null);
+  const [loadingArt, setLoadingArt] = useState(false);
 
   // Estado para la barra de búsqueda y ordenación del tab principal
   const [searchQuery, setSearchQuery] = useState('');
@@ -308,6 +310,49 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
     setEditBuyPrice(String(card.previousPrice));
     setEditCurrentPrice(String(card.currentPrice));
     setEditCondition(card.condition ?? 'NM');
+
+    // Arte de la carta desde Scryfall
+    if (card.imageUrl) {
+      setCardArtUrl(card.imageUrl);
+      setLoadingArt(false);
+    } else {
+      setCardArtUrl(null);
+      setLoadingArt(true);
+      void controller
+        .getCardImageUrl(card)
+        .then((url) => {
+          setCardArtUrl(url);
+          setLoadingArt(false);
+        })
+        .catch(() => {
+          setCardArtUrl(null);
+          setLoadingArt(false);
+        });
+    }
+  };
+
+  const handleRefreshArt = async () => {
+    if (!editingCard) return;
+    setLoadingArt(true);
+    try {
+      const url = await controller.scryfallClient.resolveCardImageUrl({
+        title: editTitle,
+        nameEn: editNameEn || undefined,
+        editionCode: editEditionCode || undefined,
+        language: editLanguage
+      });
+      setCardArtUrl(url);
+      if (url) {
+        setToast('Arte actualizado desde Scryfall.');
+      } else {
+        setToast('No se encontró arte en Scryfall para estos datos.');
+      }
+    } catch {
+      setCardArtUrl(null);
+      setToast('Error al conectar con Scryfall.');
+    } finally {
+      setLoadingArt(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -329,7 +374,8 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       quantity: qty,
       currentPrice: current,
       previousPrice: previous,
-      condition: editCondition.trim() || undefined
+      condition: editCondition.trim() || undefined,
+      imageUrl: cardArtUrl ?? editingCard.imageUrl
     });
 
     setEditingCard(null);
@@ -921,6 +967,89 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
             onConfirm={() => void handleSaveEdit()}
           >
             <View style={{ gap: theme.spacing.sm }}>
+              {/* Arte de la carta obtenido desde Scryfall */}
+              <View
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderRadius: theme.radius.md,
+                  padding: theme.spacing.sm,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  minHeight: 180
+                }}
+              >
+                {loadingArt ? (
+                  <View style={{ alignItems: 'center', gap: theme.spacing.xs, paddingVertical: theme.spacing.lg }}>
+                    <ActivityIndicator size="small" color={theme.colors.accent} />
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'medium')
+                      }}
+                    >
+                      Buscando arte en Scryfall...
+                    </Text>
+                  </View>
+                ) : cardArtUrl ? (
+                  <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+                    <Image
+                      source={{ uri: cardArtUrl }}
+                      style={{
+                        width: 154,
+                        height: 215,
+                        borderRadius: 8,
+                        backgroundColor: theme.colors.surface
+                      }}
+                      resizeMode="contain"
+                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <Badge label="Scryfall API" tone="accent" />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Recargar arte desde Scryfall"
+                        onPress={() => void handleRefreshArt()}
+                        hitSlop={6}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      >
+                        <GoogleIcon name="refresh" size={14} color={theme.colors.textSecondary} />
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.captionSize,
+                            ...textTypographyStyle(theme, 'regular')
+                          }}
+                        >
+                          Actualizar
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={{ alignItems: 'center', gap: theme.spacing.xs, paddingVertical: theme.spacing.md }}>
+                    <GoogleIcon name="image-not-supported" size={28} color={theme.colors.textSecondary} />
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      Sin arte disponible en Scryfall
+                    </Text>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon="search"
+                      label="Buscar en Scryfall"
+                      onPress={() => void handleRefreshArt()}
+                    />
+                  </View>
+                )}
+              </View>
+
               <TextField
                 label="Nombre de la carta (ES)"
                 placeholder="Ej. Ángel de Serra"

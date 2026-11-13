@@ -224,6 +224,7 @@ export class MtginvestModel implements IMtginvestModel {
       currentPrice,
       previousPrice,
       condition: input.condition ?? 'NM',
+      imageUrl: input.imageUrl?.trim() || undefined,
       isFavorite: false,
       createdAt: now,
       updatedAt: now,
@@ -239,7 +240,7 @@ export class MtginvestModel implements IMtginvestModel {
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
       >
     >
   ): Promise<CardEntity> {
@@ -264,6 +265,7 @@ export class MtginvestModel implements IMtginvestModel {
       currentPrice: patch.currentPrice !== undefined ? Number(patch.currentPrice) : current.currentPrice,
       previousPrice: patch.previousPrice !== undefined ? Number(patch.previousPrice) : current.previousPrice,
       condition: patch.condition !== undefined ? patch.condition : current.condition,
+      imageUrl: patch.imageUrl !== undefined ? (patch.imageUrl?.trim() || undefined) : current.imageUrl,
       updatedAt: new Date().toISOString()
     };
 

@@ -9,6 +9,7 @@ import type {
   UserPlan,
   ViewEvent
 } from '@framework/core';
+import type { IScryfallApiClient } from './scryfall.js';
 
 export const APP_ID = 'mtginvest';
 export const ENTITY_NAME = 'cards';
@@ -27,6 +28,7 @@ export interface CardEntity extends EntityBase {
   previousPrice: number;      // Valor anterior de referencia o compra (€)
   condition?: string;         // Estado (NM, LP, EX, PL, PO)
   isFavorite: boolean;
+  imageUrl?: string;          // URL del arte/carta resuelta desde Scryfall
 }
 
 export interface CreateCardInput {
@@ -39,6 +41,7 @@ export interface CreateCardInput {
   currentPrice?: number;
   previousPrice?: number;
   condition?: string;
+  imageUrl?: string;
 }
 
 /** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad. */
@@ -75,7 +78,7 @@ export interface IMtginvestModel extends IModel {
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
       >
     >
   ): Promise<CardEntity>;
@@ -91,16 +94,18 @@ export interface IMtginvestModel extends IModel {
 
 /** Contrato del Controlador (C). */
 export interface IMtginvestController extends IController<MtginvestViewState, ViewEvent> {
+  readonly scryfallClient: IScryfallApiClient;
   createItem(input: CreateCardInput): Promise<void>;
   updateCard(
     id: string,
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
       >
     >
   ): Promise<void>;
+  getCardImageUrl(card: CardEntity): Promise<string | null>;
   updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>;
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<void>;

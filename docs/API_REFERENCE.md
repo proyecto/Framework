@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (19 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (30 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (59 símbolos exportados)
@@ -1412,6 +1412,7 @@ Miembros públicos:
 - `previousPrice: number`
 - `condition?: string`
 - `isFavorite: boolean`
+- `imageUrl?: string`
 
 ### `CreateCardInput`
 
@@ -1431,6 +1432,7 @@ Miembros públicos:
 - `currentPrice?: number`
 - `previousPrice?: number`
 - `condition?: string`
+- `imageUrl?: string`
 
 ### `calculateCardReturn`
 
@@ -1470,7 +1472,7 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<CardEntity[]>`
@@ -1490,8 +1492,10 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 ```
 
 Miembros públicos:
+- `scryfallClient: IScryfallApiClient`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<void>`
+- `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
@@ -1510,6 +1514,174 @@ Miembros públicos:
 const SERVER_MODULE: RegisteredAppModule
 ```
 
+### `ScryfallImageUris`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Descripción: Tipos e interfaces oficiales para la integración con la API de Scryfall (https://scryfall.com/docs/api). Diseñado según los principios SOLID (ISP - Interface Segregation Principle y DIP - Dependency Inversion) para permitir desacoplamiento y extensibilidad futura (precios de mercado, autocompletado, legalidades y arte).
+
+```ts
+interface ScryfallImageUris
+```
+
+Miembros públicos:
+- `small?: string`
+- `normal?: string`
+- `large?: string`
+- `png?: string`
+- `artCrop?: string`
+- `borderCrop?: string`
+
+### `ScryfallCardFace`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallCardFace
+```
+
+Miembros públicos:
+- `name: string`
+- `manaCost?: string`
+- `typeLine?: string`
+- `oracleText?: string`
+- `imageUris?: ScryfallImageUris`
+
+### `ScryfallPrices`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallPrices
+```
+
+Miembros públicos:
+- `eur?: string | null`
+- `eurFoil?: string | null`
+- `usd?: string | null`
+- `usdFoil?: string | null`
+- `tix?: string | null`
+
+### `ScryfallCardData`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallCardData
+```
+
+Miembros públicos:
+- `id: string`
+- `name: string`
+- `printedName?: string`
+- `lang: string`
+- `set: string`
+- `setName?: string`
+- `collectorNumber: string`
+- `scryfallUri?: string`
+- `rarity?: string`
+- `manaCost?: string`
+- `typeLine?: string`
+- `oracleText?: string`
+- `imageUris?: ScryfallImageUris`
+- `cardFaces?: ScryfallCardFace[]`
+- `prices?: ScryfallPrices`
+
+### `ScryfallSearchResult`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallSearchResult
+```
+
+Miembros públicos:
+- `totalCards: number`
+- `hasMore: boolean`
+- `nextPage?: string`
+- `data: ScryfallCardData[]`
+
+### `ScryfallNamedQuery`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallNamedQuery
+```
+
+Miembros públicos:
+- `exact?: string`
+- `fuzzy?: string`
+- `set?: string`
+
+### `ScryfallSearchOptions`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallSearchOptions
+```
+
+Miembros públicos:
+- `page?: number`
+- `unique?: 'cards' | 'art' | 'prints'`
+- `order?: 'name' | 'set' | 'released' | 'rarity' | 'color' | 'usd' | 'eur'`
+- `dir?: 'auto' | 'asc' | 'desc'`
+
+### `IScryfallApiClient`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Descripción: Interfaz de cliente API para Scryfall. Permite desacoplar cualquier llamada externa y mockearla en pruebas sin red.
+
+```ts
+interface IScryfallApiClient
+```
+
+Miembros públicos:
+- `getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null>`
+- `getCardBySetAndNumber(setCode: string, collectorNumber: string, lang?: string): Promise<ScryfallCardData | null>`
+- `searchCards(query: string, options?: ScryfallSearchOptions): Promise<ScryfallSearchResult>`
+- `autocompleteCardNames(query: string): Promise<string[]>`
+- `resolveCardImageUrl(card: { title: string; nameEn?: string; editionCode?: string; language?: string; }): Promise<string | null>`
+
+### `HttpFetchFn`
+
+- Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
+
+```ts
+type HttpFetchFn = ( input: string, init?: { headers?: Record<string, string> } ) => Promise<{ ok: boolean; status: number; json(): Promise<any>; }>
+```
+
+### `ScryfallClientConfig`
+
+- Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
+
+```ts
+interface ScryfallClientConfig
+```
+
+Miembros públicos:
+- `baseUrl?: string`
+- `userAgent?: string`
+- `rateLimitMs?: number`
+- `fetchFn?: HttpFetchFn`
+
+### `ScryfallApiClient`
+
+- Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
+- Descripción: Implementación canónica del cliente API de Scryfall (`IScryfallApiClient`). Cumple con las pautas de Scryfall (User-Agent amigable, 50-100ms de limitación de tasa y caché).
+
+```ts
+class ScryfallApiClient implements IScryfallApiClient
+```
+
+Miembros públicos:
+- `constructor(config: ScryfallClientConfig = {})`
+- `getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null>`
+- `getCardBySetAndNumber(setCode: string, collectorNumber: string, lang?: string): Promise<ScryfallCardData | null>`
+- `searchCards(query: string, options?: ScryfallSearchOptions): Promise<ScryfallSearchResult>`
+- `autocompleteCardNames(query: string): Promise<string[]>`
+- `resolveCardImageUrl(card: { title: string; nameEn?: string; editionCode?: string; language?: string; }): Promise<string | null>`
+
 ### `MtginvestModel`
 
 - Origen: `packages/mtginvest-domain/src/MtginvestModel.ts`
@@ -1527,7 +1699,7 @@ Miembros públicos:
 - `resetToSeed(): Promise<CardEntity[]>`
 - `importMissingSeeds(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `getStorageStatus(): Promise<StorageStatus>`
@@ -1545,10 +1717,12 @@ class MtginvestController extends BaseController<MtginvestViewState, ViewEvent> 
 ```
 
 Miembros públicos:
-- `constructor(private readonly model: IMtginvestModel)`
+- `scryfallClient: IScryfallApiClient`
+- `constructor(private readonly model: IMtginvestModel, scryfallClient?: IScryfallApiClient)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<void>`
+- `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`

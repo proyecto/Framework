@@ -7,7 +7,9 @@ import {
   findMtgSetByCode,
   findMtgSetByName,
   MTG_SETS,
+  ScryfallApiClient,
   SEED_CARDS,
+  type HttpFetchFn,
   type MtginvestViewState
 } from './index.js';
 
@@ -164,5 +166,120 @@ describe('MTGInvest MVC domain', () => {
     const revised = findMtgSetByName('Revised Edition');
     expect(revised).toBeDefined();
     expect(revised?.code).toBe('3ED');
+  });
+
+  it('integrates with Scryfall API client and resolves card images', async () => {
+    const mockResponses: Record<string, any> = {
+      'named?exact=Black%20Lotus': {
+        id: 'bl-uuid-1',
+        name: 'Black Lotus',
+        set: '2ed',
+        set_name: 'Unlimited Edition',
+        collector_number: '232',
+        image_uris: {
+          small: 'https://cards.scryfall.io/small/black-lotus.jpg',
+          normal: 'https://cards.scryfall.io/normal/black-lotus.jpg',
+          large: 'https://cards.scryfall.io/large/black-lotus.jpg'
+        },
+        prices: { eur: '9999.00', usd: '12000.00' }
+      },
+      'named?fuzzy=Serra%20Angel&set=2ed': {
+        id: 'serra-uuid-1',
+        name: 'Serra Angel',
+        set: '2ed',
+        collector_number: '39',
+        image_uris: {
+          normal: 'https://cards.scryfall.io/normal/serra-angel.jpg'
+        }
+      },
+      'autocomplete?q=Serra': {
+        data: ['Serra Angel', 'Serra Avatar']
+      },
+      'search?q=%21%22Serra%20Angel%22': {
+        total_cards: 1,
+        has_more: false,
+        data: [
+          {
+            id: 'serra-uuid-1',
+            name: 'Serra Angel',
+            set: '2ed',
+            collector_number: '39',
+            image_uris: {
+              normal: 'https://cards.scryfall.io/normal/serra-angel.jpg'
+            }
+          }
+        ]
+      }
+    };
+
+    const mockFetch: HttpFetchFn = async (input) => {
+      const url = String(input);
+      for (const [key, val] of Object.entries(mockResponses)) {
+        if (url.includes(key)) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => val
+          };
+        }
+      }
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({ status: 404, code: 'not_found' })
+      };
+    };
+
+    const client = new ScryfallApiClient({
+      rateLimitMs: 0,
+      fetchFn: mockFetch
+    });
+
+    // 1. getCardNamed
+    const card = await client.getCardNamed({ exact: 'Black Lotus' });
+    expect(card).toBeDefined();
+    expect(card?.name).toBe('Black Lotus');
+    expect(card?.imageUris?.normal).toBe('https://cards.scryfall.io/normal/black-lotus.jpg');
+    expect(card?.prices?.eur).toBe('9999.00');
+
+    // 2. autocompleteCardNames
+    const autocomplete = await client.autocompleteCardNames('Serra');
+    expect(autocomplete).toEqual(['Serra Angel', 'Serra Avatar']);
+
+    // 3. resolveCardImageUrl
+    const resolvedUrl = await client.resolveCardImageUrl({
+      title: 'Ángel de Serra',
+      nameEn: 'Serra Angel',
+      editionCode: '2ed'
+    });
+    expect(resolvedUrl).toBe('https://cards.scryfall.io/normal/serra-angel.jpg');
+
+    // 4. Controller getCardImageUrl y persistencia en modelo
+    const store = new InMemoryEntityStoreDriver();
+    const controller = createMtginvestController({
+      store,
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-device'
+    });
+    // Inyectamos el mock client en el controller
+    (controller as any).scryfallClient = client;
+
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    const serraCard = view.latest.items.find((c) => c.title === 'Ángel de Serra');
+    expect(serraCard).toBeDefined();
+    if (serraCard) {
+      expect(serraCard.imageUrl).toBeUndefined();
+      const imgUrl = await controller.getCardImageUrl(serraCard);
+      expect(imgUrl).toBe('https://cards.scryfall.io/normal/serra-angel.jpg');
+
+      // Comprobamos que si volvemos a consultar una carta con imageUrl ya guardada, la devuelve directamente
+      const cached = await controller.getCardImageUrl({ ...serraCard, imageUrl: 'https://custom-cache.jpg' });
+      expect(cached).toBe('https://custom-cache.jpg');
+    }
+
+    controller.dispose();
   });
 });
