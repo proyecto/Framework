@@ -64,6 +64,7 @@ describe('MTGInvest MVC domain', () => {
     expect(serraAngel).toBeDefined();
     expect(serraAngel?.currentPrice).toBe(72.22);
     expect(serraAngel?.previousPrice).toBe(29.79);
+    expect(serraAngel?.language).toBe('EN');
 
     // Permite dar de alta una nueva carta
     await controller.createItem({
@@ -71,6 +72,7 @@ describe('MTGInvest MVC domain', () => {
       nameEn: 'Mox Sapphire',
       edition: 'Unlimited Edition',
       editionCode: '2ed',
+      language: 'EN',
       previousPrice: 4500,
       currentPrice: 5100
     });
@@ -91,6 +93,7 @@ describe('MTGInvest MVC domain', () => {
         title: 'Mox Sapphire (Foil)',
         edition: 'Vintage Masters',
         editionCode: 'VMA',
+        language: 'ES',
         quantity: 2,
         currentPrice: 6200
       });
@@ -98,6 +101,7 @@ describe('MTGInvest MVC domain', () => {
       expect(edited?.title).toBe('Mox Sapphire (Foil)');
       expect(edited?.edition).toBe('Vintage Masters');
       expect(edited?.editionCode).toBe('VMA');
+      expect(edited?.language).toBe('ES');
       expect(edited?.quantity).toBe(2);
       expect(edited?.currentPrice).toBe(6200);
     }

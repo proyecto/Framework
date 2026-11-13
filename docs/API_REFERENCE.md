@@ -16,7 +16,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (19 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (57 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (59 símbolos exportados)
 
 ## `@framework/base-domain`
 
@@ -1406,6 +1406,7 @@ Miembros públicos:
 - `nameEn?: string`
 - `edition: string`
 - `editionCode?: string`
+- `language?: string`
 - `quantity: number`
 - `currentPrice: number`
 - `previousPrice: number`
@@ -1425,6 +1426,7 @@ Miembros públicos:
 - `nameEn?: string`
 - `edition?: string`
 - `editionCode?: string`
+- `language?: string`
 - `quantity?: number`
 - `currentPrice?: number`
 - `previousPrice?: number`
@@ -1468,7 +1470,7 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<CardEntity[]>`
@@ -1489,7 +1491,7 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 
 Miembros públicos:
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
@@ -1525,7 +1527,7 @@ Miembros públicos:
 - `resetToSeed(): Promise<CardEntity[]>`
 - `importMissingSeeds(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `getStorageStatus(): Promise<StorageStatus>`
@@ -1546,7 +1548,7 @@ Miembros públicos:
 - `constructor(private readonly model: IMtginvestModel)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
@@ -2503,4 +2505,30 @@ Miembros públicos:
 
 ```ts
 function Select<T = string>({ label, placeholder = 'Selecciona una opción...', value, options, onChange, disabled = false, error, searchable = true, searchPlaceholder = 'Buscar...', modalTitle, style }: SelectProps<T>)
+```
+
+### `SearchInputProps`
+
+- Origen: `packages/ui/src/components/SearchInput.tsx`
+
+```ts
+interface SearchInputProps
+```
+
+Miembros públicos:
+- `value: string`
+- `onChangeText: (text: string) => void`
+- `placeholder?: string`
+- `onClear?: () => void`
+- `autoFocus?: boolean`
+- `style?: ViewStyle`
+- `testID?: string`
+
+### `SearchInput`
+
+- Origen: `packages/ui/src/components/SearchInput.tsx`
+- Descripción: Campo de búsqueda reutilizable con icono de lupa integrado y botón de limpieza automática. Construido exclusivamente con primitivas estándar de React Native.
+
+```ts
+function SearchInput({ value, onChangeText, placeholder = 'Buscar...', onClear, autoFocus = false, style, testID }: SearchInputProps)
 ```

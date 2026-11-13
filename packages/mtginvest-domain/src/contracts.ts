@@ -21,6 +21,7 @@ export interface CardEntity extends EntityBase {
   nameEn?: string;            // Nombre original en inglés (ej. "Serra Angel")
   edition: string;            // Nombre de la edición (ej. "Unlimited Edition")
   editionCode?: string;       // Código del set (ej. "2ED", "3ED")
+  language?: string;          // Idioma de la carta (ej. "EN", "ES", "IT", "FR")
   quantity: number;           // Cantidad de cartas que se poseen (ej. 1, 4)
   currentPrice: number;       // Último valor de mercado registrado (€)
   previousPrice: number;      // Valor anterior de referencia o compra (€)
@@ -33,6 +34,7 @@ export interface CreateCardInput {
   nameEn?: string;
   edition?: string;
   editionCode?: string;
+  language?: string;
   quantity?: number;
   currentPrice?: number;
   previousPrice?: number;
@@ -73,7 +75,7 @@ export interface IMtginvestModel extends IModel {
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
       >
     >
   ): Promise<CardEntity>;
@@ -95,7 +97,7 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
       >
     >
   ): Promise<void>;

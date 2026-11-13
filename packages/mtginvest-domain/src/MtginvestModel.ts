@@ -66,6 +66,7 @@ export class MtginvestModel implements IMtginvestModel {
             nameEn: seed.nameEn,
             edition: seed.edition ?? 'Desconocida',
             editionCode: seed.editionCode,
+            language: seed.language ?? 'EN',
             quantity: Math.max(1, Number(seed.quantity ?? 1)),
             currentPrice: seed.currentPrice ?? 0,
             previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
@@ -95,6 +96,7 @@ export class MtginvestModel implements IMtginvestModel {
               nameEn: seed.nameEn,
               edition: seed.edition ?? 'Desconocida',
               editionCode: seed.editionCode,
+              language: seed.language ?? 'EN',
               quantity: Math.max(1, Number(seed.quantity ?? 1)),
               currentPrice: seed.currentPrice ?? 0,
               previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
@@ -107,15 +109,18 @@ export class MtginvestModel implements IMtginvestModel {
             });
           }
         }
-        // Aseguramos que las cartas existentes tengan cantidad definida (>= 1)
+        // Aseguramos que las cartas existentes tengan cantidad e idioma definidos
         for (const item of history) {
-          if (item.quantity === undefined || isNaN(item.quantity) || item.quantity < 1) {
-            const matchingSeed = SEED_CARDS.find(
-              (s) => s.title.trim().toLowerCase() === item.title.trim().toLowerCase()
-            );
+          const matchingSeed = SEED_CARDS.find(
+            (s) => s.title.trim().toLowerCase() === item.title.trim().toLowerCase()
+          );
+          const needsQty = item.quantity === undefined || isNaN(item.quantity) || item.quantity < 1;
+          const needsLang = !item.language;
+          if (needsQty || needsLang) {
             await this.repository.save({
               ...item,
-              quantity: matchingSeed?.quantity ?? 1,
+              quantity: needsQty ? (matchingSeed?.quantity ?? 1) : item.quantity,
+              language: needsLang ? (matchingSeed?.language ?? 'EN') : item.language,
               updatedAt: new Date().toISOString()
             });
           }
@@ -142,6 +147,7 @@ export class MtginvestModel implements IMtginvestModel {
         nameEn: seed.nameEn,
         edition: seed.edition ?? 'Desconocida',
         editionCode: seed.editionCode,
+        language: seed.language ?? 'EN',
         quantity: Math.max(1, Number(seed.quantity ?? 1)),
         currentPrice: seed.currentPrice ?? 0,
         previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
@@ -177,6 +183,7 @@ export class MtginvestModel implements IMtginvestModel {
           nameEn: seed.nameEn,
           edition: seed.edition ?? 'Desconocida',
           editionCode: seed.editionCode,
+          language: seed.language ?? 'EN',
           quantity: Math.max(1, Number(seed.quantity ?? 1)),
           currentPrice: seed.currentPrice ?? 0,
           previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
@@ -203,6 +210,7 @@ export class MtginvestModel implements IMtginvestModel {
     const currentPrice = Number(input.currentPrice ?? 0);
     const previousPrice = Number(input.previousPrice ?? currentPrice);
     const quantity = Math.max(1, Number(input.quantity ?? 1));
+    const language = (input.language?.trim().toUpperCase()) || 'EN';
     const now = new Date().toISOString();
 
     const created = await this.repository.save({
@@ -211,6 +219,7 @@ export class MtginvestModel implements IMtginvestModel {
       nameEn: input.nameEn?.trim(),
       edition: input.edition?.trim() || 'General',
       editionCode: input.editionCode?.trim(),
+      language,
       quantity,
       currentPrice,
       previousPrice,
@@ -230,7 +239,7 @@ export class MtginvestModel implements IMtginvestModel {
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
       >
     >
   ): Promise<CardEntity> {
@@ -250,6 +259,7 @@ export class MtginvestModel implements IMtginvestModel {
       nameEn: patch.nameEn !== undefined ? (patch.nameEn.trim() || undefined) : current.nameEn,
       edition: patch.edition !== undefined ? (patch.edition.trim() || current.edition) : current.edition,
       editionCode: patch.editionCode !== undefined ? (patch.editionCode.trim() || undefined) : current.editionCode,
+      language: patch.language !== undefined ? (patch.language.trim().toUpperCase() || 'EN') : (current.language ?? 'EN'),
       quantity: patch.quantity !== undefined ? Math.max(1, Number(patch.quantity)) : current.quantity,
       currentPrice: patch.currentPrice !== undefined ? Number(patch.currentPrice) : current.currentPrice,
       previousPrice: patch.previousPrice !== undefined ? Number(patch.previousPrice) : current.previousPrice,

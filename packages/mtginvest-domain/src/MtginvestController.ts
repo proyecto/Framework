@@ -98,7 +98,7 @@ export class MtginvestController
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
       >
     >
   ): Promise<void> {

@@ -34,6 +34,7 @@ import { Card } from './components/Card.js';
 import { GoogleIcon } from './components/Icon.js';
 import { Calendar, formatDateIso, parseDateIso } from './components/Calendar.js';
 import { Select } from './components/Select.js';
+import { SearchInput } from './components/SearchInput.js';
 import { SimpleLineChart } from './components/SimpleLineChart.js';
 import { Slider } from './components/Slider.js';
 import { StorageStatusBar } from './components/StorageStatusBar.js';
@@ -290,5 +291,21 @@ describe('@framework/ui design tokens & typography resolver', () => {
     expect(html).toContain('Edición');
     expect(html).toContain('Unlimited Edition');
     expect(html).toContain('2ED');
+  });
+
+  it('renders SearchInput with search icon and placeholder', () => {
+    const html = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'light',
+        children: createElement(SearchInput, {
+          value: 'Serra Angel',
+          placeholder: 'Buscar cartas...',
+          onChangeText: () => {}
+        })
+      })
+    );
+
+    expect(html).toContain('Buscar cartas...');
+    expect(html).toContain('Serra Angel');
   });
 });
