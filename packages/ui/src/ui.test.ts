@@ -26,7 +26,7 @@ vi.mock('react-native', () => {
   };
 });
 
-import { FrameworkThemeProvider } from './ThemeProvider.js';
+import { FrameworkThemeProvider, useFrameworkThemeContext } from './ThemeProvider.js';
 import { AppShell, ModalDialog } from './components/AppShell.js';
 import { Badge, SegmentedControl } from './components/Badge.js';
 import { Button } from './components/Button.js';
@@ -41,8 +41,11 @@ import { StorageStatusBar } from './components/StorageStatusBar.js';
 import { SwitchToggle } from './components/SwitchToggle.js';
 import { TextField } from './components/TextField.js';
 import {
+  CRIMSON_THEME,
   DARK_THEME,
   LIGHT_THEME,
+  OBSIDIAN_THEME,
+  THEME_PRESETS,
   textTypographyStyle,
   type FrameworkTheme
 } from './tokens.js';
@@ -62,6 +65,14 @@ describe('@framework/ui design tokens & typography resolver', () => {
     expect(LIGHT_THEME.colors.accent).toBeTruthy();
     expect(DARK_THEME.colors.background).toBeTruthy();
     expect(DARK_THEME.colors.accent).toBeTruthy();
+
+    // Temas estilizados adicionales (Carmesí estilo Todoist y Obsidiana estilo Obsidian)
+    expect(CRIMSON_THEME.scheme).toBe('light');
+    expect(CRIMSON_THEME.colors.accent).toBe('#DC4C3E');
+    expect(OBSIDIAN_THEME.scheme).toBe('dark');
+    expect(OBSIDIAN_THEME.colors.accent).toBe('#8B5CF6');
+    expect(THEME_PRESETS.crimson).toBe(CRIMSON_THEME);
+    expect(THEME_PRESETS.obsidian).toBe(OBSIDIAN_THEME);
   });
 
   it('resolves standard fontWeight when custom font families are not defined', () => {
@@ -136,6 +147,37 @@ describe('@framework/ui design tokens & typography resolver', () => {
     expect(renderedCalls.some((c) => c.name === 'save' && c.color === DARK_THEME.colors.textInverse)).toBe(
       true
     );
+  });
+
+  it('supports crimson and obsidian themes via FrameworkThemeProvider and useFrameworkThemeContext', () => {
+    function ThemeProbe() {
+      const { theme, preference, setPreference } = useFrameworkThemeContext();
+      return createElement(
+        'div',
+        { 'data-theme-scheme': theme.scheme, 'data-accent': theme.colors.accent, 'data-preference': preference },
+        createElement('button', { onClick: () => setPreference('obsidian') }, 'Switch')
+      );
+    }
+
+    const crimsonHtml = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'crimson',
+        children: createElement(ThemeProbe)
+      })
+    );
+    expect(crimsonHtml).toContain('data-theme-scheme="light"');
+    expect(crimsonHtml).toContain(`data-accent="${CRIMSON_THEME.colors.accent}"`);
+    expect(crimsonHtml).toContain('data-preference="crimson"');
+
+    const obsidianHtml = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'obsidian',
+        children: createElement(ThemeProbe)
+      })
+    );
+    expect(obsidianHtml).toContain('data-theme-scheme="dark"');
+    expect(obsidianHtml).toContain(`data-accent="${OBSIDIAN_THEME.colors.accent}"`);
+    expect(obsidianHtml).toContain('data-preference="obsidian"');
   });
 
   it('renders Card, Badge, SegmentedControl, Slider, SwitchToggle, TextField and ModalDialog without native linkage', () => {

@@ -1,7 +1,7 @@
 import type { TextStyle } from 'react-native';
 
 /** Preferencia de esquema visual del usuario o del sistema operativo. */
-export type ThemeScheme = 'light' | 'dark' | 'system';
+export type ThemeScheme = 'light' | 'dark' | 'crimson' | 'obsidian' | 'system';
 
 /** Pesos tipográficos semánticos soportados por el Design System. */
 export type ThemeFontWeight = 'regular' | 'medium' | 'semibold' | 'bold' | 'extrabold';
@@ -163,4 +163,70 @@ export const DARK_THEME: FrameworkTheme = {
     trackInactive: '#334155'
   },
   ...SHARED_METRICS
+};
+
+/**
+ * Tema Carmesí (estilo Todoist / productividad).
+ * Enfoque minimalista, limpio y cálido con fondo arena suave y enérgico acento rojo carmesí.
+ */
+export const CRIMSON_THEME: FrameworkTheme = {
+  scheme: 'light',
+  colors: {
+    background: '#FAF8F5',
+    surface: '#FFFFFF',
+    surfaceElevated: '#FFFFFF',
+    surfaceMuted: '#F1EFEA',
+    border: '#E5E1D8',
+    textPrimary: '#201E1D',
+    textSecondary: '#66625C',
+    textInverse: '#FFFFFF',
+    accent: '#DC4C3E',
+    accentSoft: '#FCEBE9',
+    accentText: '#B83226',
+    success: '#059669',
+    successSoft: '#D1FAE5',
+    warning: '#D97706',
+    warningSoft: '#FEF3C7',
+    danger: '#DC2626',
+    dangerSoft: '#FEE2E2',
+    trackInactive: '#D5D1C8'
+  },
+  ...SHARED_METRICS
+};
+
+/**
+ * Tema Obsidiana (estilo Obsidian / concentración profunda).
+ * Enfoque ultra oscuro con lienzo carbón profundo, bordes grafito y acentos púrpura/violeta.
+ */
+export const OBSIDIAN_THEME: FrameworkTheme = {
+  scheme: 'dark',
+  colors: {
+    background: '#111114',
+    surface: '#18181D',
+    surfaceElevated: '#202027',
+    surfaceMuted: '#24242D',
+    border: '#2D2D38',
+    textPrimary: '#F3F3F6',
+    textSecondary: '#9A9AA8',
+    textInverse: '#111114',
+    accent: '#8B5CF6',
+    accentSoft: '#2E1A47',
+    accentText: '#C4B5FD',
+    success: '#10B981',
+    successSoft: '#064E3B',
+    warning: '#F59E0B',
+    warningSoft: '#451A03',
+    danger: '#F87171',
+    dangerSoft: '#450A0A',
+    trackInactive: '#383846'
+  },
+  ...SHARED_METRICS
+};
+
+/** Mapa canónico de temas preconfigurados del framework. */
+export const THEME_PRESETS: Record<'light' | 'dark' | 'crimson' | 'obsidian', FrameworkTheme> = {
+  light: LIGHT_THEME,
+  dark: DARK_THEME,
+  crimson: CRIMSON_THEME,
+  obsidian: OBSIDIAN_THEME
 };

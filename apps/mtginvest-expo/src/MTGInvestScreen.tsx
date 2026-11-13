@@ -15,7 +15,9 @@ import {
   SimpleLineChart,
   TextField,
   textTypographyStyle,
-  useFrameworkTheme
+  useFrameworkTheme,
+  useFrameworkThemeContext,
+  type ThemeScheme
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
 import {
@@ -36,9 +38,199 @@ import { APP_VERSION, BASE_VERSION } from './version';
 
 export type MTGTab = 'main' | 'analytics' | 'settings';
 
+export type AppLanguage = 'es' | 'en';
+
 export interface MTGInvestScreenProps {
   controller: IMtginvestController;
+  themePreference?: ThemeScheme;
+  onThemePreferenceChange?: (next: ThemeScheme) => void;
+  languagePreference?: AppLanguage;
+  onLanguagePreferenceChange?: (next: AppLanguage) => void;
 }
+
+export interface LanguageOptionDef {
+  id: AppLanguage;
+  label: string;
+  nativeLabel: string;
+  badge: string;
+  description: string;
+}
+
+export const APP_LANGUAGE_OPTIONS: LanguageOptionDef[] = [
+  {
+    id: 'es',
+    label: 'Español',
+    nativeLabel: 'Español',
+    badge: 'ES',
+    description: 'Español (Castellano)'
+  },
+  {
+    id: 'en',
+    label: 'Inglés',
+    nativeLabel: 'English',
+    badge: 'EN',
+    description: 'English (US / Global)'
+  }
+];
+
+export const I18N_STRINGS = {
+  es: {
+    tabMain: 'Principal',
+    tabAnalytics: 'Gráficas',
+    tabSettings: 'Ajustes',
+    themeCardTitle: 'Aspecto y Tema',
+    themeCardSubtitle: 'Modo claro, modo oscuro y estilos de color',
+    themeDescription: 'Personaliza la interfaz eligiendo entre el modo claro, modo oscuro o temas con paletas adaptadas a tu flujo de trabajo.',
+    themeToast: (name: string) => `Tema cambiado a ${name}.`,
+    languageCardTitle: 'Idioma',
+    languageCardSubtitle: 'Español e Inglés',
+    languageDescription: 'Selecciona el idioma preferido para la navegación y elementos de la interfaz.',
+    languageToast: (name: string) => `Idioma cambiado a ${name}.`,
+    cardmarketCardTitle: 'Cotizaciones Cardmarket (vía Scryfall)',
+    syncDailySubtitle: 'Sincronización diaria por lote',
+    lastSyncSubtitle: (date: string) => `Última sincronización: ${date}`,
+    cardmarketDescription: 'Actualiza los precios en EUR de Cardmarket mediante el endpoint por lotes oficial de Scryfall (hasta 75 cartas en 1 sola llamada HTTP). Se ejecuta automáticamente una vez al día al abrir la aplicación para no saturar la API.',
+    syncButton: 'Actualizar cotizaciones ahora',
+    syncingButton: 'Actualizando cotizaciones...',
+    syncConsultingToast: 'Consultando cotizaciones de Cardmarket en Scryfall...',
+    syncDoneToast: (count: number) => `Cotizaciones actualizadas (${count} cartas revisadas).`,
+    inventoryCardTitle: 'Inventario y Catálogo Excel',
+    inventoryCardSubtitle: 'Sincronización y recarga de datos',
+    inventoryDescription: (count: number) => `Actualmente tienes ${count} referencia(s) en tu almacenamiento local. El catálogo del Excel incluye 57 cartas completas y 1.047 sets oficiales.`,
+    resetButton: 'Restablecer a las 57 cartas del Excel',
+    resetToast: 'Inventario restablecido a las 57 cartas del Excel.',
+    importMissingButton: 'Importar cartas faltantes',
+    importMissingToast: 'Cartas del Excel importadas.',
+    aboutCardTitle: 'Acerca de MTGInvest',
+    aboutCardSubtitle: 'Gestor de Inversiones MTG',
+    aboutDescription: 'Aplicación de gestión y valoración bursátil de inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.',
+    searchPlaceholder: 'Buscar por nombre, edición (ej. 2ED) o idioma...',
+    sortButton: 'Ordenar',
+    sortModalTitle: 'Ordenar cartas',
+    addCardButton: 'Añadir carta',
+    portfolioValue: 'Valor Cartera',
+    portfolioInvested: 'Inversión',
+    portfolioProfit: 'Plusvalía Neta',
+    portfolioRoi: 'ROI Global',
+    totalCards: 'Total Copias'
+  },
+  en: {
+    tabMain: 'Portfolio',
+    tabAnalytics: 'Analytics',
+    tabSettings: 'Settings',
+    themeCardTitle: 'Appearance & Theme',
+    themeCardSubtitle: 'Light, dark, and specialized color modes',
+    themeDescription: 'Customize the interface choosing between light mode, dark mode, or themes with palettes tailored to your workflow.',
+    themeToast: (name: string) => `Theme changed to ${name}.`,
+    languageCardTitle: 'Language',
+    languageCardSubtitle: 'Spanish & English',
+    languageDescription: 'Select your preferred display language for navigation and user interface elements.',
+    languageToast: (name: string) => `Language changed to ${name}.`,
+    cardmarketCardTitle: 'Cardmarket Prices (via Scryfall)',
+    syncDailySubtitle: 'Daily batch sync',
+    lastSyncSubtitle: (date: string) => `Last sync: ${date}`,
+    cardmarketDescription: 'Updates EUR prices from Cardmarket using Scryfall\'s official batch collection endpoint (up to 75 cards in a single HTTP call). Runs automatically once a day when opening the app to avoid rate limits.',
+    syncButton: 'Update prices now',
+    syncingButton: 'Updating prices...',
+    syncConsultingToast: 'Fetching Cardmarket quotes from Scryfall...',
+    syncDoneToast: (count: number) => `Quotes updated (${count} cards reviewed).`,
+    inventoryCardTitle: 'Inventory & Excel Catalog',
+    inventoryCardSubtitle: 'Data synchronization & reload',
+    inventoryDescription: (count: number) => `You currently have ${count} card item(s) in your local storage. The Excel catalog includes 57 complete seeds and 1,047 official sets.`,
+    resetButton: 'Reset to 57 Excel seed cards',
+    resetToast: 'Inventory reset to the 57 Excel seed cards.',
+    importMissingButton: 'Import missing cards',
+    importMissingToast: 'Missing Excel cards imported.',
+    aboutCardTitle: 'About MTGInvest',
+    aboutCardSubtitle: 'MTG Investment Manager',
+    aboutDescription: 'Magic: The Gathering investment tracking and valuation app built on the modular Framework architecture.',
+    searchPlaceholder: 'Search by card name, edition (e.g. 2ED), or language...',
+    sortButton: 'Sort',
+    sortModalTitle: 'Sort cards',
+    addCardButton: 'Add card',
+    portfolioValue: 'Portfolio Value',
+    portfolioInvested: 'Invested',
+    portfolioProfit: 'Net Profit',
+    portfolioRoi: 'Overall ROI',
+    totalCards: 'Total Copies'
+  }
+};
+
+export interface ThemeOptionDef {
+  id: ThemeScheme;
+  label: string;
+  badge: string;
+  description: string;
+  icon: GoogleIconName;
+  previewColors: {
+    bg: string;
+    surface: string;
+    accent: string;
+  };
+}
+
+export const THEME_OPTIONS: ThemeOptionDef[] = [
+  {
+    id: 'light',
+    label: 'Modo Claro',
+    badge: 'Clásico Azul',
+    description: 'Lienzo blanco luminoso con acentos azul zafiro',
+    icon: 'light-mode',
+    previewColors: {
+      bg: '#F4F6FA',
+      surface: '#FFFFFF',
+      accent: '#2563EB'
+    }
+  },
+  {
+    id: 'dark',
+    label: 'Modo Oscuro',
+    badge: 'Noche Profunda',
+    description: 'Fondo azul pizarra oscuro con acentos celestes de alto contraste',
+    icon: 'dark-mode',
+    previewColors: {
+      bg: '#0B1120',
+      surface: '#111827',
+      accent: '#38BDF8'
+    }
+  },
+  {
+    id: 'crimson',
+    label: 'Modo Carmesí',
+    badge: 'Productivo',
+    description: 'Estética minimalista y cálida con acento rojo rubí inspirada en apps de alta productividad',
+    icon: 'check-circle-outline',
+    previewColors: {
+      bg: '#FAF8F5',
+      surface: '#FFFFFF',
+      accent: '#DC4C3E'
+    }
+  },
+  {
+    id: 'obsidian',
+    label: 'Modo Obsidiana',
+    badge: 'Concentración',
+    description: 'Lienzo grafito ultra oscuro con sutiles acentos violeta para máxima concentración',
+    icon: 'auto-awesome',
+    previewColors: {
+      bg: '#111114',
+      surface: '#18181D',
+      accent: '#8B5CF6'
+    }
+  },
+  {
+    id: 'system',
+    label: 'Automático (Sistema)',
+    badge: 'Sistema',
+    description: 'Sigue automáticamente la preferencia clara u oscura configurada en tu dispositivo',
+    icon: 'settings-suggest',
+    previewColors: {
+      bg: '#E2E8F0',
+      surface: '#FFFFFF',
+      accent: '#64748B'
+    }
+  }
+];
 
 export type MtgSortKey =
   | 'price_desc'
@@ -134,8 +326,36 @@ export const LANGUAGE_OPTIONS: SelectOption<string>[] = [
  * cotización actual, valor anterior e indicador bursátil de tendencia (subiendo/bajando).
  * Permite añadir y editar cada carta pulsando sobre ella, con selector de ediciones MTG.
  */
-export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
-  const theme = useFrameworkTheme();
+export function MTGInvestScreen({
+  controller,
+  themePreference: propThemePreference,
+  onThemePreferenceChange,
+  languagePreference: propLanguagePreference,
+  onLanguagePreferenceChange
+}: MTGInvestScreenProps) {
+  const { theme, preference: contextPreference, setPreference } = useFrameworkThemeContext();
+  const activeThemePreference = propThemePreference ?? contextPreference;
+
+  const [internalLanguage, setInternalLanguage] = useState<AppLanguage>('es');
+  const activeLanguage = propLanguagePreference ?? internalLanguage;
+
+  const t = I18N_STRINGS[activeLanguage];
+
+  const handleSelectTheme = (newTheme: ThemeScheme) => {
+    setPreference(newTheme);
+    onThemePreferenceChange?.(newTheme);
+    const themeName =
+      THEME_OPTIONS.find((t) => t.id === newTheme)?.label ?? newTheme;
+    setToast(t.themeToast(themeName));
+  };
+
+  const handleSelectLanguage = (newLang: AppLanguage) => {
+    setInternalLanguage(newLang);
+    onLanguagePreferenceChange?.(newLang);
+    const langLabel = newLang === 'en' ? 'English' : 'Español';
+    setToast(I18N_STRINGS[newLang].languageToast(langLabel));
+  };
+
   const env = useFrameworkEnvironment();
   const [activeTab, setActiveTab] = useState<MTGTab>('main');
   const [toast, setToast] = useState<string | null>(null);
@@ -452,11 +672,11 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       subtitle={`Gestor de Inversiones MTG · ${env.platformName}`}
       toastMessage={toast}
       tabs={[
-        { id: 'main', label: 'Principal', icon: 'home' },
-        { id: 'analytics', label: 'Gráficas', icon: 'show-chart' },
+        { id: 'main', label: t.tabMain, icon: 'home' },
+        { id: 'analytics', label: t.tabAnalytics, icon: 'show-chart' },
         {
           id: APP_LAYOUT_BOUNDS.settingsTab.id,
-          label: APP_LAYOUT_BOUNDS.settingsTab.label,
+          label: t.tabSettings,
           icon: APP_LAYOUT_BOUNDS.settingsTab.icon
         }
       ]}
@@ -2070,12 +2290,229 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
 
       {activeTab === 'settings' ? (
         <View style={{ gap: theme.spacing.md }}>
+          {/* Selector de Tema y Aspecto Visual */}
           <Card
-            title="Cotizaciones Cardmarket (vía Scryfall)"
+            title={t.themeCardTitle}
+            subtitle={t.themeCardSubtitle}
+            icon="palette"
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                {t.themeDescription}
+              </Text>
+
+              {/* Opciones visuales interactivas con muestras de color */}
+              <View style={{ gap: theme.spacing.xs }}>
+                {THEME_OPTIONS.map((opt) => {
+                  const isSelected = activeThemePreference === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cambiar al ${opt.label}`}
+                      onPress={() => handleSelectTheme(opt.id)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: theme.spacing.sm,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: isSelected ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                        borderWidth: isSelected ? 1.5 : 1,
+                        borderColor: isSelected ? theme.colors.accent : theme.colors.border
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: theme.spacing.sm,
+                          flex: 1,
+                          marginRight: theme.spacing.sm
+                        }}
+                      >
+                        <GoogleIcon
+                          name={isSelected ? 'radio-button-checked' : 'radio-button-unchecked'}
+                          size={20}
+                          color={isSelected ? theme.colors.accent : theme.colors.textSecondary}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text
+                              style={{
+                                color: isSelected ? theme.colors.accentText : theme.colors.textPrimary,
+                                fontSize: theme.typography.bodySize,
+                                ...textTypographyStyle(theme, isSelected ? 'bold' : 'medium')
+                              }}
+                            >
+                              {opt.label}
+                            </Text>
+                            <Badge
+                              label={opt.badge}
+                              tone={isSelected ? 'accent' : 'neutral'}
+                            />
+                          </View>
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: theme.typography.captionSize,
+                              marginTop: 2,
+                              ...textTypographyStyle(theme, 'regular')
+                            }}
+                          >
+                            {opt.description}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Muestra de color (paleta de 3 círculos) */}
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          padding: 4,
+                          borderRadius: 20,
+                          backgroundColor: theme.colors.surface,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 7,
+                            backgroundColor: opt.previewColors.bg,
+                            borderWidth: 1,
+                            borderColor: '#D1D5DB'
+                          }}
+                        />
+                        <View
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 7,
+                            backgroundColor: opt.previewColors.surface,
+                            marginLeft: -3,
+                            borderWidth: 1,
+                            borderColor: '#9CA3AF'
+                          }}
+                        />
+                        <View
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 7,
+                            backgroundColor: opt.previewColors.accent,
+                            marginLeft: -3
+                          }}
+                        />
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </Card>
+
+          {/* Selector de Idioma */}
+          <Card
+            title={t.languageCardTitle}
+            subtitle={t.languageCardSubtitle}
+            icon="translate"
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                {t.languageDescription}
+              </Text>
+
+              {/* Opciones interactivas de Idioma */}
+              <View style={{ gap: theme.spacing.xs }}>
+                {APP_LANGUAGE_OPTIONS.map((opt) => {
+                  const isSelected = activeLanguage === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cambiar idioma a ${opt.label}`}
+                      onPress={() => handleSelectLanguage(opt.id)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: theme.spacing.sm,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: isSelected ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                        borderWidth: isSelected ? 1.5 : 1,
+                        borderColor: isSelected ? theme.colors.accent : theme.colors.border
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: theme.spacing.sm,
+                          flex: 1
+                        }}
+                      >
+                        <GoogleIcon
+                          name={isSelected ? 'radio-button-checked' : 'radio-button-unchecked'}
+                          size={20}
+                          color={isSelected ? theme.colors.accent : theme.colors.textSecondary}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text
+                              style={{
+                                color: isSelected ? theme.colors.accentText : theme.colors.textPrimary,
+                                fontSize: theme.typography.bodySize,
+                                ...textTypographyStyle(theme, isSelected ? 'bold' : 'medium')
+                              }}
+                            >
+                              {opt.label}
+                            </Text>
+                            <Badge
+                              label={opt.badge}
+                              tone={isSelected ? 'accent' : 'neutral'}
+                            />
+                          </View>
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: theme.typography.captionSize,
+                              marginTop: 2,
+                              ...textTypographyStyle(theme, 'regular')
+                            }}
+                          >
+                            {opt.description}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </Card>
+
+          <Card
+            title={t.cardmarketCardTitle}
             subtitle={
               state.lastPriceSyncDate
-                ? `Última sincronización: ${state.lastPriceSyncDate}`
-                : 'Sincronización diaria por lote'
+                ? t.lastSyncSubtitle(state.lastPriceSyncDate)
+                : t.syncDailySubtitle
             }
             icon="currency-exchange"
           >
@@ -2087,7 +2524,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                   ...textTypographyStyle(theme, 'regular')
                 }}
               >
-                Actualiza los precios en EUR de Cardmarket mediante el endpoint por lotes oficial de Scryfall (hasta 75 cartas en 1 sola llamada HTTP). Se ejecuta automáticamente una vez al día al abrir la aplicación para no saturar la API.
+                {t.cardmarketDescription}
               </Text>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
@@ -2095,12 +2532,12 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                   size="sm"
                   variant="primary"
                   icon="refresh"
-                  label={state.isSyncingPrices ? 'Actualizando cotizaciones...' : 'Actualizar cotizaciones ahora'}
+                  label={state.isSyncingPrices ? t.syncingButton : t.syncButton}
                   disabled={state.isSyncingPrices}
                   onPress={async () => {
-                    setToast('Consultando cotizaciones de Cardmarket en Scryfall...');
+                    setToast(t.syncConsultingToast);
                     const res = await controller.syncCardmarketPrices({ force: true });
-                    setToast(`Cotizaciones actualizadas (${res.updatedCount} cartas revisadas).`);
+                    setToast(t.syncDoneToast(res.updatedCount));
                   }}
                 />
               </View>
@@ -2108,8 +2545,8 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
           </Card>
 
           <Card
-            title="Inventario y Catálogo Excel"
-            subtitle="Sincronización y recarga de datos"
+            title={t.inventoryCardTitle}
+            subtitle={t.inventoryCardSubtitle}
             icon="settings-backup-restore"
           >
             <View style={{ gap: theme.spacing.md }}>
@@ -2120,7 +2557,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                   ...textTypographyStyle(theme, 'regular')
                 }}
               >
-                Actualmente tienes <Text style={{ color: theme.colors.textPrimary, ...textTypographyStyle(theme, 'bold') }}>{state.items.length}</Text> referencia(s) en tu almacenamiento local. El catálogo del Excel incluye 57 cartas completas y 1.047 sets oficiales.
+                {t.inventoryDescription(state.items.length)}
               </Text>
 
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
@@ -2128,20 +2565,20 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                   size="sm"
                   variant="primary"
                   icon="refresh"
-                  label="Restablecer a las 57 cartas del Excel"
+                  label={t.resetButton}
                   onPress={async () => {
                     await controller.resetToSeed();
-                    setToast('Inventario restablecido a las 57 cartas del Excel.');
+                    setToast(t.resetToast);
                   }}
                 />
                 <Button
                   size="sm"
                   variant="outline"
                   icon="cloud-download"
-                  label="Importar cartas faltantes"
+                  label={t.importMissingButton}
                   onPress={async () => {
                     await controller.importMissingSeeds();
-                    setToast('Cartas del Excel importadas.');
+                    setToast(t.importMissingToast);
                   }}
                 />
               </View>
@@ -2149,8 +2586,8 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
           </Card>
 
           <Card
-            title="Acerca de MTGInvest"
-            subtitle="Gestor de Inversiones MTG"
+            title={t.aboutCardTitle}
+            subtitle={t.aboutCardSubtitle}
             icon="info"
           >
             <Text
@@ -2160,7 +2597,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                 ...textTypographyStyle(theme, 'regular')
               }}
             >
-              Aplicación de gestión y valoración bursátil de inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.
+              {t.aboutDescription}
             </Text>
           </Card>
 

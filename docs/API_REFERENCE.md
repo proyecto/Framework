@@ -16,7 +16,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (51 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (59 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (63 símbolos exportados)
 
 ## `@framework/base-domain`
 
@@ -2266,7 +2266,7 @@ async function createFrameworkServer(options: FrameworkServerOptions = {}): Prom
 - Descripción: Preferencia de esquema visual del usuario o del sistema operativo.
 
 ```ts
-type ThemeScheme = 'light' | 'dark' | 'system'
+type ThemeScheme = 'light' | 'dark' | 'crimson' | 'obsidian' | 'system'
 ```
 
 ### `ThemeFontWeight`
@@ -2335,6 +2335,33 @@ const LIGHT_THEME: FrameworkTheme
 const DARK_THEME: FrameworkTheme
 ```
 
+### `CRIMSON_THEME`
+
+- Origen: `packages/ui/src/tokens.ts`
+- Descripción: Tema Carmesí (estilo Todoist / productividad). Enfoque minimalista, limpio y cálido con fondo arena suave y enérgico acento rojo carmesí.
+
+```ts
+const CRIMSON_THEME: FrameworkTheme
+```
+
+### `OBSIDIAN_THEME`
+
+- Origen: `packages/ui/src/tokens.ts`
+- Descripción: Tema Obsidiana (estilo Obsidian / concentración profunda). Enfoque ultra oscuro con lienzo carbón profundo, bordes grafito y acentos púrpura/violeta.
+
+```ts
+const OBSIDIAN_THEME: FrameworkTheme
+```
+
+### `THEME_PRESETS`
+
+- Origen: `packages/ui/src/tokens.ts`
+- Descripción: Mapa canónico de temas preconfigurados del framework.
+
+```ts
+const THEME_PRESETS: Record<'light' | 'dark' | 'crimson' | 'obsidian', FrameworkTheme>
+```
+
 ### `IconRenderParams`
 
 - Origen: `packages/ui/src/ThemeProvider.tsx`
@@ -2368,8 +2395,12 @@ interface FrameworkThemeProviderProps
 
 Miembros públicos:
 - `preference?: ThemeScheme`
+- `onPreferenceChange?: (preference: ThemeScheme) => void`
+- `initialPreference?: ThemeScheme`
 - `customLightTheme?: FrameworkTheme`
 - `customDarkTheme?: FrameworkTheme`
+- `customCrimsonTheme?: FrameworkTheme`
+- `customObsidianTheme?: FrameworkTheme`
 - `fontFamilies?: ThemeFontFamilies`
 - `iconRenderer?: IconRenderer`
 - `children: ReactNode`
@@ -2377,10 +2408,10 @@ Miembros públicos:
 ### `FrameworkThemeProvider`
 
 - Origen: `packages/ui/src/ThemeProvider.tsx`
-- Descripción: Proveedor de tema del Design System (`LIGHT_THEME` / `DARK_THEME`). Soporta selección automática según sistema operativo (`preference = 'system'`), inyección de fuentes Google (`fontFamilies`) e inyección de renderizador de iconos (`iconRenderer`).
+- Descripción: Proveedor de tema del Design System (`LIGHT_THEME`, `DARK_THEME`, `CRIMSON_THEME`, `OBSIDIAN_THEME`). Soporta selección automática según sistema operativo (`preference = 'system'`), temas estilizados de productividad (Carmesí / Obsidiana), cambio dinámico de tema, inyección de fuentes Google (`fontFamilies`) e inyección de renderizador de iconos (`iconRenderer`).
 
 ```ts
-function FrameworkThemeProvider({ preference = 'system', customLightTheme = LIGHT_THEME, customDarkTheme = DARK_THEME, fontFamilies, iconRenderer, children }: FrameworkThemeProviderProps)
+function FrameworkThemeProvider({ preference: controlledPreference, onPreferenceChange, initialPreference = 'system', customLightTheme = LIGHT_THEME, customDarkTheme = DARK_THEME, customCrimsonTheme = CRIMSON_THEME, customObsidianTheme = OBSIDIAN_THEME, fontFamilies, iconRenderer, children }: FrameworkThemeProviderProps)
 ```
 
 ### `useFrameworkTheme`
@@ -2390,6 +2421,15 @@ function FrameworkThemeProvider({ preference = 'system', customLightTheme = LIGH
 
 ```ts
 function useFrameworkTheme(): FrameworkTheme
+```
+
+### `useFrameworkThemeContext`
+
+- Origen: `packages/ui/src/ThemeProvider.tsx`
+- Descripción: Devuelve el contexto completo de temas: tema activo, preferencia actual y función reactiva `setPreference` para alternar entre claro, oscuro, carmesí u obsidiana.
+
+```ts
+function useFrameworkThemeContext(): { theme: FrameworkTheme; preference: ThemeScheme; setPreference: (preference: ThemeScheme) => void; }
 ```
 
 ### `useFrameworkIconRenderer`
