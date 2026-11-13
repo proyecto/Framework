@@ -19,12 +19,13 @@ import {
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
 import {
-  buildOneYearCardChart,
-  buildThreeMonthCardChart,
+  buildCardChart,
   calculateCardReturn,
   type CardEntity,
+  type ChartTimeframe,
   type IMtginvestController,
-  MTG_SETS
+  MTG_SETS,
+  TIMEFRAME_DESCRIPTIONS
 } from './mvc';
 import { APP_VERSION, BASE_VERSION } from './version';
 
@@ -169,7 +170,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
   const [editCondition, setEditCondition] = useState('NM');
   const [cardArtUrl, setCardArtUrl] = useState<string | null>(null);
   const [loadingArt, setLoadingArt] = useState(false);
-  const [chartTimeframe, setChartTimeframe] = useState<'1y' | '3m'>('1y');
+  const [chartTimeframe, setChartTimeframe] = useState<ChartTimeframe>('1A');
 
   // Estado para la barra de búsqueda y ordenación del tab principal
   const [searchQuery, setSearchQuery] = useState('');
@@ -287,10 +288,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       previousPrice: prevP
     };
 
-    if (chartTimeframe === '3m') {
-      return buildThreeMonthCardChart(cardSnapshot);
-    }
-    return buildOneYearCardChart(cardSnapshot);
+    return buildCardChart(cardSnapshot, chartTimeframe);
   }, [editingCard, editCurrentPrice, editBuyPrice, chartTimeframe]);
 
   const handleAddCard = async () => {
@@ -1165,55 +1163,54 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                 </View>
               </View>
 
-              {/* Gráfica con la evolución del precio de la carta en el último año */}
+              {/* Gráfica con la evolución del precio de la carta (1S, 1M, 3M, 6M, 1A) */}
               <View style={{ marginTop: theme.spacing.sm, gap: theme.spacing.xs }}>
+                {/* 1. Título y descripción */}
+                <View style={{ gap: 2, paddingHorizontal: 2 }}>
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: theme.typography.bodySize,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    Evolución del precio
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    {TIMEFRAME_DESCRIPTIONS[chartTimeframe]}
+                  </Text>
+                </View>
+
+                {/* 2. Selectores de fechas entre el texto y el gráfico: 1S, 1M, 3M, 6M, 1A */}
                 <View
                   style={{
                     flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingHorizontal: 2
+                    gap: 6,
+                    paddingHorizontal: 2,
+                    marginVertical: 4
                   }}
                 >
-                  <View style={{ gap: 2 }}>
-                    <Text
-                      style={{
-                        color: theme.colors.textPrimary,
-                        fontSize: theme.typography.bodySize,
-                        ...textTypographyStyle(theme, 'bold')
-                      }}
-                    >
-                      Evolución del precio
-                    </Text>
-                    <Text
-                      style={{
-                        color: theme.colors.textSecondary,
-                        fontSize: theme.typography.captionSize,
-                        ...textTypographyStyle(theme, 'regular')
-                      }}
-                    >
-                      {chartTimeframe === '1y'
-                        ? 'Último año (inicio en 0 hasta datos registrados)'
-                        : 'Últimos 3 meses (detalle Cardmarket)'}
-                    </Text>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
-                    <Button
-                      size="sm"
-                      variant={chartTimeframe === '1y' ? 'primary' : 'outline'}
-                      label="1 Año"
-                      onPress={() => setChartTimeframe('1y')}
-                    />
-                    <Button
-                      size="sm"
-                      variant={chartTimeframe === '3m' ? 'primary' : 'outline'}
-                      label="3 Meses"
-                      onPress={() => setChartTimeframe('3m')}
-                    />
-                  </View>
+                  {(['1S', '1M', '3M', '6M', '1A'] as const).map((tf) => {
+                    const isSelected = chartTimeframe === tf;
+                    return (
+                      <Button
+                        key={tf}
+                        size="sm"
+                        variant={isSelected ? 'primary' : 'outline'}
+                        label={tf}
+                        onPress={() => setChartTimeframe(tf)}
+                      />
+                    );
+                  })}
                 </View>
 
+                {/* 3. Gráfica */}
                 <View
                   style={{
                     backgroundColor: theme.colors.surfaceMuted,

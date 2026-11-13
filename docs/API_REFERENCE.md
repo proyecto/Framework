@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (38 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (45 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (59 símbolos exportados)
@@ -1786,6 +1786,66 @@ function buildOneYearCardChart(card: Pick<CardEntity, 'currentPrice' | 'previous
 
 ```ts
 function buildThreeMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>): CardChartSeriesData
+```
+
+### `ChartTimeframe`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+
+```ts
+type ChartTimeframe = '1S' | '1M' | '3M' | '6M' | '1A'
+```
+
+### `TIMEFRAME_LABELS`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+
+```ts
+const TIMEFRAME_LABELS: Record<ChartTimeframe, string>
+```
+
+### `TIMEFRAME_DESCRIPTIONS`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+
+```ts
+const TIMEFRAME_DESCRIPTIONS: Record<ChartTimeframe, string>
+```
+
+### `buildOneWeekCardChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Genera la serie de datos para los últimos 7 días (1S).
+
+```ts
+function buildOneWeekCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): CardChartSeriesData
+```
+
+### `buildOneMonthCardChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Genera la serie de datos para los últimos 30 días (1M).
+
+```ts
+function buildOneMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): CardChartSeriesData
+```
+
+### `buildSixMonthCardChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Genera la serie de datos para los últimos 6 meses (6M).
+
+```ts
+function buildSixMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): CardChartSeriesData
+```
+
+### `buildCardChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Función principal unificada para construir la gráfica según el rango temporal seleccionado.
+
+```ts
+function buildCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, timeframe: ChartTimeframe, referenceDate?: Date): CardChartSeriesData
 ```
 
 ### `MtginvestModel`

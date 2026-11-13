@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { IView, ViewEvent } from '@framework/core';
 import { InMemoryEntityStoreDriver, MemoryKeyValueStore } from '@framework/data';
 import {
+  buildCardChart,
   buildOneYearCardChart,
   buildThreeMonthCardChart,
   calculateCardReturn,
@@ -297,6 +298,25 @@ describe('MTGInvest MVC domain', () => {
     expect(chart3m.values.length).toBeGreaterThanOrEqual(3);
     expect(chart3m.values[0]).toBe(45.63);
     expect(chart3m.values[chart3m.values.length - 1]).toBe(72.22);
+
+    // Comprobamos los nuevos rangos temporales unificados (1S, 1M, 3M, 6M, 1A)
+    const ref = new Date('2026-11-13T00:00:00Z');
+    const chart1s = buildCardChart(cardWithHistory, '1S', ref);
+    expect(chart1s.labels.length).toBe(7);
+    expect(chart1s.values.length).toBe(7);
+    expect(chart1s.values[chart1s.values.length - 1]).toBe(72.22);
+
+    const chart1m = buildCardChart(cardWithHistory, '1M', ref);
+    expect(chart1m.labels.length).toBe(8);
+    expect(chart1m.values.length).toBe(8);
+
+    const chart6m = buildCardChart(cardWithHistory, '6M', ref);
+    expect(chart6m.labels.length).toBe(7);
+    expect(chart6m.values.length).toBe(7);
+    // Antes de septiembre 2026 debe ser 0
+    expect(chart6m.values[0]).toBe(0); // May '26
+    expect(chart6m.values[3]).toBe(0); // Ago '26
+    expect(chart6m.values[4]).toBe(45.63); // Sep '26
   });
 
   it('syncs Cardmarket prices via Scryfall batch collection endpoint and throttles daily', async () => {
