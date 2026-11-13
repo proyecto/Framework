@@ -14,9 +14,6 @@ Monorepo base diseñado para crear múltiples aplicaciones Android (Expo) y Web 
 - `packages/example-domain`: App de ejemplo **FocusScenes** (`IPresetModel`, `IPresetController`, `PresetModel`, `PresetController` y factoría compartida `createPresetStudioController`).
 - `apps/base-expo`: **App Base canónica Android (Expo)** que fija los límites visuales, tokens (`@framework/ui`) y estructura MVC de referencia para todas las apps móviles nuevas.
 - `apps/base-web`: **App Base canónica Web (React + CSS moderno)** que fija los límites de layout, tokens `@layer theme` equivalentes a `@framework/ui` y estructura MVC de escritorio.
-- `apps/demo-backend`: Instancia de `@framework/server` configurable por variables de entorno (`local` vs `turso`).
-- `apps/demo-expo`: App Android de ejemplo **FocusScenes** usando `@framework/ui`, `@framework/expo-adapter` y `createPresetStudioController`.
-- `apps/demo-web`: Segunda interfaz gráfica de **FocusScenes** (Escritorio Web) conectada al **mismo** Modelo y Controlador.
 
 ## Comandos rápidos
 
@@ -44,20 +41,10 @@ corepack pnpm build
 corepack pnpm typecheck
 corepack pnpm test
 
-# Arrancar las apps base de referencia (plantillas de límites visuales)
-corepack pnpm dev:base-web
-corepack pnpm dev:base-expo
-corepack pnpm dev:base-expo:web   # Probar base-expo directamente en navegador sin Android
-
-# Arrancar backend reutilizable (por defecto libSQL local; usa STORAGE_DRIVER=turso para Turso)
-corepack pnpm dev:backend
-
-# Arrancar interfaz Web alternativa
-corepack pnpm dev:web
-
-# Arrancar app Android Expo (o en navegador sin Android)
-corepack pnpm dev:expo
-corepack pnpm dev:expo:web
+# Arrancar las aplicaciones base
+corepack pnpm dev:web          # Arrancar base-web (Vite + React)
+corepack pnpm dev:expo         # Arrancar base-expo (Expo móvil)
+corepack pnpm dev:expo:web     # Probar base-expo en navegador web
 ```
 
 Consulta [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para ver todos los patrones de diseño, cómo añadir una nueva aplicación o actualizar Expo SDK, y [docs/API_REFERENCE.md](docs/API_REFERENCE.md) para ver toda la API pública autogenerada.

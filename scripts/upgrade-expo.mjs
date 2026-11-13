@@ -43,7 +43,7 @@ if (sdkArg) {
   console.log(`\nActualizado expo en pnpm-workspace.yaml -> ${nextVersion}`);
   console.log('Siguientes pasos recomendados:');
   console.log('  1. pnpm install');
-  console.log('  2. pnpm --filter @framework/demo-expo exec npx expo install --fix');
+  console.log('  2. pnpm --filter @framework/base-expo exec npx expo install --fix');
   console.log('  3. pnpm typecheck && pnpm test');
 } else {
   console.log('\nPara actualizar la versión de Expo de forma centralizada:');
