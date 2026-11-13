@@ -12,10 +12,71 @@ import type {
   IMtginvestModel
 } from './contracts.js';
 
-function clampIntensity(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(100, Math.max(0, Math.round(value)));
-}
+const SEED_CARDS: CreateCardInput[] = [
+  {
+    title: 'Ángel de Serra',
+    nameEn: 'Serra Angel',
+    edition: 'Unlimited Edition',
+    editionCode: '2ed',
+    previousPrice: 29.79,
+    currentPrice: 72.22,
+    condition: 'PL'
+  },
+  {
+    title: 'Demonic Tutor',
+    nameEn: 'Demonic Tutor',
+    edition: 'Revised Edition',
+    editionCode: '3ed',
+    previousPrice: 37.79,
+    currentPrice: 38.16,
+    condition: 'EX'
+  },
+  {
+    title: 'Relámpago',
+    nameEn: 'Lightning Bolt',
+    edition: 'Unlimited Edition',
+    editionCode: '2ed',
+    previousPrice: 41.79,
+    currentPrice: 21.76,
+    condition: 'LP'
+  },
+  {
+    title: 'Cavar túneles',
+    nameEn: 'Burrowing',
+    edition: 'Unlimited Edition',
+    editionCode: '2ed',
+    previousPrice: 3.79,
+    currentPrice: 1.42,
+    condition: 'LP'
+  },
+  {
+    title: 'Dragón shivano',
+    nameEn: 'Shivan Dragon',
+    edition: 'Revised Edition',
+    editionCode: '3ed',
+    previousPrice: 13.79,
+    currentPrice: 9.74,
+    condition: 'LP'
+  },
+  {
+    title: 'Ira de Dios',
+    nameEn: 'Wrath of God',
+    edition: 'Revised Edition',
+    editionCode: '3ed',
+    previousPrice: 16.79,
+    currentPrice: 7.85,
+    condition: 'NM'
+  },
+  {
+    title: 'Black Lotus',
+    nameEn: 'Black Lotus',
+    edition: 'Unlimited Edition',
+    editionCode: '2ed',
+    previousPrice: 11200.0,
+    currentPrice: 12450.0,
+    condition: 'EX'
+  }
+];
 
 function generateId(): string {
   const webCrypto = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -30,6 +91,7 @@ export class MtginvestModel implements IMtginvestModel {
   private items: CardEntity[] = [];
   private readonly listeners = new Set<() => void>();
   private readonly unsubRepo: () => void;
+  private seededOnce = false;
 
   constructor(private readonly repository: ISyncableRepository<CardEntity>) {
     this.unsubRepo = this.repository.subscribeStatus(() => {
@@ -55,7 +117,35 @@ export class MtginvestModel implements IMtginvestModel {
   }
 
   async loadItems(): Promise<CardEntity[]> {
-    this.items = await this.repository.list();
+    let items = await this.repository.list();
+
+    if (!this.seededOnce) {
+      this.seededOnce = true;
+      const history = await this.repository.list({ includeDeleted: true });
+      if (history.length === 0) {
+        for (const seed of SEED_CARDS) {
+          const now = new Date().toISOString();
+          await this.repository.save({
+            id: generateId(),
+            title: seed.title,
+            nameEn: seed.nameEn,
+            edition: seed.edition ?? 'Desconocida',
+            editionCode: seed.editionCode,
+            currentPrice: seed.currentPrice ?? 0,
+            previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
+            condition: seed.condition ?? 'NM',
+            isFavorite: false,
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+            version: 1
+          });
+        }
+        items = await this.repository.list();
+      }
+    }
+
+    this.items = items;
     this.notify();
     return this.getSnapshot();
   }
@@ -63,13 +153,21 @@ export class MtginvestModel implements IMtginvestModel {
   async createItem(input: CreateCardInput): Promise<CardEntity> {
     const title = input.title.trim();
     if (!title) {
-      throw new ValidationError('El título no puede estar vacío.');
+      throw new ValidationError('El nombre de la carta no puede estar vacío.');
     }
+    const currentPrice = Number(input.currentPrice ?? 0);
+    const previousPrice = Number(input.previousPrice ?? currentPrice);
     const now = new Date().toISOString();
+
     const created = await this.repository.save({
       id: generateId(),
       title,
-      intensity: clampIntensity(input.intensity ?? 50),
+      nameEn: input.nameEn?.trim(),
+      edition: input.edition?.trim() || 'General',
+      editionCode: input.editionCode?.trim(),
+      currentPrice,
+      previousPrice,
+      condition: input.condition ?? 'NM',
       isFavorite: false,
       createdAt: now,
       updatedAt: now,
@@ -80,14 +178,19 @@ export class MtginvestModel implements IMtginvestModel {
     return created;
   }
 
-  async updateIntensity(id: string, intensity: number): Promise<CardEntity> {
+  async updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity> {
     const current = await this.repository.findById(id);
     if (!current) {
-      throw new ValidationError('El elemento seleccionado ya no existe.');
+      throw new ValidationError('La carta seleccionada ya no existe.');
     }
+    const nextCurrent = Number(currentPrice);
+    const nextPrev = previousPrice !== undefined ? Number(previousPrice) : current.currentPrice;
+
     const saved = await this.repository.save({
       ...current,
-      intensity: clampIntensity(intensity)
+      currentPrice: nextCurrent,
+      previousPrice: nextPrev,
+      updatedAt: new Date().toISOString()
     });
     await this.loadItems();
     return saved;
@@ -118,10 +221,5 @@ export class MtginvestModel implements IMtginvestModel {
     const report = await this.repository.syncNow();
     await this.loadItems();
     return report;
-  }
-
-  dispose(): void {
-    this.unsubRepo();
-    this.listeners.clear();
   }
 }

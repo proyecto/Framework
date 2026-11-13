@@ -92,9 +92,9 @@ export class MtginvestController
     });
   }
 
-  async updateIntensity(id: string, intensity: number): Promise<void> {
+  async updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void> {
     await this.executeCommand(false, async () => {
-      await this.model.updateIntensity(id, intensity);
+      await this.model.updatePrices(id, currentPrice, previousPrice);
     });
   }
 
@@ -129,7 +129,6 @@ export class MtginvestController
 
   override dispose(): void {
     this.unsubModel();
-    this.model.dispose?.();
     super.dispose();
   }
 }

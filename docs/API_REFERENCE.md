@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (12 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (14 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (53 símbolos exportados)
@@ -1384,10 +1384,18 @@ const APP_ID
 const ENTITY_NAME
 ```
 
+### `CardTrend`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+type CardTrend = 'up' | 'down' | 'flat'
+```
+
 ### `CardEntity`
 
 - Origen: `packages/mtginvest-domain/src/contracts.ts`
-- Descripción: Entidad persistente de MTGInvest.
+- Descripción: Entidad de carta de MTG con seguimiento de inversión y cotización.
 
 ```ts
 interface CardEntity extends EntityBase
@@ -1395,7 +1403,12 @@ interface CardEntity extends EntityBase
 
 Miembros públicos:
 - `title: string`
-- `intensity: number`
+- `nameEn?: string`
+- `edition: string`
+- `editionCode?: string`
+- `currentPrice: number`
+- `previousPrice: number`
+- `condition?: string`
 - `isFavorite: boolean`
 
 ### `CreateCardInput`
@@ -1408,12 +1421,26 @@ interface CreateCardInput
 
 Miembros públicos:
 - `title: string`
-- `intensity?: number`
+- `nameEn?: string`
+- `edition?: string`
+- `editionCode?: string`
+- `currentPrice?: number`
+- `previousPrice?: number`
+- `condition?: string`
+
+### `calculateCardReturn`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Calcula la variación absoluta, porcentual y la tendencia estilo bursátil.
+
+```ts
+function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): { diff: number; percent: number; trend: CardTrend; }
+```
 
 ### `MtginvestViewState`
 
 - Origen: `packages/mtginvest-domain/src/contracts.ts`
-- Descripción: Estado inmutable proyectado hacia cualquier IView (Expo Android, Web, CLI, Tests).
+- Descripción: Estado inmutable proyectado hacia la vista de MTGInvest.
 
 ```ts
 interface MtginvestViewState
@@ -1439,7 +1466,7 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateIntensity(id: string, intensity: number): Promise<CardEntity>`
+- `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `getStorageStatus(): Promise<StorageStatus>`
 - `setPlan(plan: UserPlan): Promise<StorageStatus>`
@@ -1457,7 +1484,7 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 
 Miembros públicos:
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateIntensity(id: string, intensity: number): Promise<void>`
+- `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
 - `upgradeToProAndEnableCloud(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`
@@ -1488,13 +1515,12 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateIntensity(id: string, intensity: number): Promise<CardEntity>`
+- `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `getStorageStatus(): Promise<StorageStatus>`
 - `setPlan(plan: UserPlan): Promise<StorageStatus>`
 - `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
 - `syncNow(): Promise<SyncReport>`
-- `dispose(): void`
 
 ### `MtginvestController`
 
@@ -1509,7 +1535,7 @@ Miembros públicos:
 - `constructor(private readonly model: IMtginvestModel)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateIntensity(id: string, intensity: number): Promise<void>`
+- `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
 - `upgradeToProAndEnableCloud(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`

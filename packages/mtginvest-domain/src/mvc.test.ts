@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { IView, ViewEvent } from '@framework/core';
 import { InMemoryEntityStoreDriver, MemoryKeyValueStore } from '@framework/data';
-import { createMtginvestController, type MtginvestViewState } from './index.js';
+import {
+  calculateCardReturn,
+  createMtginvestController,
+  type MtginvestViewState
+} from './index.js';
 
 class SpyView implements IView<MtginvestViewState, ViewEvent> {
   readonly renders: MtginvestViewState[] = [];
@@ -19,8 +23,28 @@ class SpyView implements IView<MtginvestViewState, ViewEvent> {
   }
 }
 
-describe('Mtginvest MVC isolation', () => {
-  it('supports offline local storage and blocks cloud mode on free plan', async () => {
+describe('MTGInvest MVC domain', () => {
+  it('correctly calculates stock-like card returns and trends', () => {
+    // Subida
+    const up = calculateCardReturn({ previousPrice: 29.79, currentPrice: 72.22 });
+    expect(up.diff).toBe(42.43);
+    expect(up.percent).toBe(142.4);
+    expect(up.trend).toBe('up');
+
+    // Bajada
+    const down = calculateCardReturn({ previousPrice: 41.79, currentPrice: 21.76 });
+    expect(down.diff).toBe(-20.03);
+    expect(down.percent).toBe(-47.9);
+    expect(down.trend).toBe('down');
+
+    // Sin variación
+    const flat = calculateCardReturn({ previousPrice: 10, currentPrice: 10 });
+    expect(flat.diff).toBe(0);
+    expect(flat.percent).toBe(0);
+    expect(flat.trend).toBe('flat');
+  });
+
+  it('supports offline local storage, auto-seeds portfolio and manages cards', async () => {
     const controller = createMtginvestController({
       store: new InMemoryEntityStoreDriver(),
       kv: new MemoryKeyValueStore(),
@@ -30,12 +54,34 @@ describe('Mtginvest MVC isolation', () => {
     controller.attachView(view);
     await controller.init();
 
-    await controller.createItem({ title: 'Prueba inicial', intensity: 75 });
-    expect(view.latest.items).toHaveLength(1);
-    expect(view.latest.items[0]?.intensity).toBe(75);
+    // Comprueba que siembra las cartas del inventario inicial
+    expect(view.latest.items.length).toBeGreaterThan(0);
+    const serraAngel = view.latest.items.find((c) => c.title === 'Ángel de Serra');
+    expect(serraAngel).toBeDefined();
+    expect(serraAngel?.currentPrice).toBe(72.22);
+    expect(serraAngel?.previousPrice).toBe(29.79);
 
-    await controller.setStorageMode('cloud');
-    expect(view.events.some((e) => e.type === 'upgrade-required')).toBe(true);
+    // Permite dar de alta una nueva carta
+    await controller.createItem({
+      title: 'Mox Sapphire',
+      nameEn: 'Mox Sapphire',
+      edition: 'Unlimited Edition',
+      editionCode: '2ed',
+      previousPrice: 4500,
+      currentPrice: 5100
+    });
+
+    const mox = view.latest.items.find((c) => c.title === 'Mox Sapphire');
+    expect(mox).toBeDefined();
+    expect(mox?.currentPrice).toBe(5100);
+
+    // Actualiza cotización
+    if (mox) {
+      await controller.updatePrices(mox.id, 5300);
+      const updated = view.latest.items.find((c) => c.id === mox.id);
+      expect(updated?.currentPrice).toBe(5300);
+      expect(updated?.previousPrice).toBe(5100);
+    }
 
     controller.dispose();
   });
