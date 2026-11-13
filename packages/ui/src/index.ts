@@ -14,3 +14,4 @@ export * from './components/Badge.js';
 export * from './components/StorageStatusBar.js';
 export * from './components/AppShell.js';
 export * from './components/SimpleLineChart.js';
+export * from './components/Calendar.js';

@@ -15,7 +15,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (48 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (53 símbolos exportados)
 
 ## `@framework/base-domain`
 
@@ -2118,4 +2118,63 @@ Miembros públicos:
 
 ```ts
 function SimpleLineChart({ series, labels, height = 190, unit = '', autoScale = true, showDots = true, showGrid = true, showLegend = true, strokeWidth = 2.5, timeframeOptions, activeTimeframe, onTimeframeChange, emptyMessage = 'Sin datos para graficar' }: SimpleLineChartProps)
+```
+
+### `MarkedDateConfig`
+
+- Origen: `packages/ui/src/components/Calendar.tsx`
+
+```ts
+interface MarkedDateConfig
+```
+
+Miembros públicos:
+- `marked?: boolean`
+- `dotColor?: string`
+- `badge?: string`
+- `disabled?: boolean`
+
+### `CalendarProps`
+
+- Origen: `packages/ui/src/components/Calendar.tsx`
+
+```ts
+interface CalendarProps
+```
+
+Miembros públicos:
+- `selectedDate?: string | null`
+- `onSelectDate?: (dateString: string) => void`
+- `minDate?: string`
+- `maxDate?: string`
+- `markedDates?: Record<string, MarkedDateConfig>`
+- `initialYear?: number`
+- `initialMonth?: number`
+- `firstDayOfWeek?: 0 | 1`
+- `showTodayButton?: boolean`
+- `style?: ViewStyle`
+
+### `formatDateIso`
+
+- Origen: `packages/ui/src/components/Calendar.tsx`
+
+```ts
+function formatDateIso(year: number, month: number, day: number): string
+```
+
+### `parseDateIso`
+
+- Origen: `packages/ui/src/components/Calendar.tsx`
+
+```ts
+function parseDateIso(iso: string): { year: number; month: number; day: number } | null
+```
+
+### `Calendar`
+
+- Origen: `packages/ui/src/components/Calendar.tsx`
+- Descripción: Componente canónico de calendario del framework (`<Calendar />`). Características: - Construido exclusivamente con primitivas estándar de React Native (`View`, `Text`, `Pressable`). - Navegación entre meses con botones accesibles y botón de retorno rápido a "Hoy". - Selección de fecha individual (`YYYY-MM-DD`) con soporte de límites `minDate` y `maxDate`. - Marcadores visuales de eventos (`markedDates`) con puntos de color o badges configurables. - Soporte de semana europea (Lunes a Domingo por defecto) o americana (Domingo a Sábado). - Totalmente adaptado a temas claro y oscuro (`useFrameworkTheme()`).
+
+```ts
+function Calendar({ selectedDate, onSelectDate, minDate, maxDate, markedDates = {}, initialYear, initialMonth, firstDayOfWeek = 1, showTodayButton = true, style }: CalendarProps)
 ```

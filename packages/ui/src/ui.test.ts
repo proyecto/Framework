@@ -32,6 +32,7 @@ import { Badge, SegmentedControl } from './components/Badge.js';
 import { Button } from './components/Button.js';
 import { Card } from './components/Card.js';
 import { GoogleIcon } from './components/Icon.js';
+import { Calendar, formatDateIso, parseDateIso } from './components/Calendar.js';
 import { SimpleLineChart } from './components/SimpleLineChart.js';
 import { Slider } from './components/Slider.js';
 import { StorageStatusBar } from './components/StorageStatusBar.js';
@@ -229,5 +230,43 @@ describe('@framework/ui design tokens & typography resolver', () => {
     expect(html).toContain('160.0€');
     expect(html).toContain('142.0€');
     expect(html).toContain('1S');
+  });
+
+  it('formats and parses ISO dates without timezone shift', () => {
+    expect(formatDateIso(2026, 11, 13)).toBe('2026-11-13');
+    expect(formatDateIso(2026, 5, 4)).toBe('2026-05-04');
+    expect(parseDateIso('2026-11-13')).toEqual({ year: 2026, month: 11, day: 13 });
+    expect(parseDateIso('invalid-date')).toBeNull();
+  });
+
+  it('renders Calendar with month header, weekdays, day cells and marked events', () => {
+    const html = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'light',
+        children: createElement(Calendar, {
+          initialYear: 2026,
+          initialMonth: 11,
+          selectedDate: '2026-11-13',
+          firstDayOfWeek: 1,
+          markedDates: {
+            '2026-11-13': { marked: true, dotColor: '#3B82F6' },
+            '2026-11-20': { marked: true, dotColor: '#10B981' }
+          }
+        })
+      })
+    );
+
+    // Encabezado de mes y año
+    expect(html).toContain('Noviembre 2026');
+    // Botón Hoy
+    expect(html).toContain('Hoy');
+    // Días de la semana
+    expect(html).toContain('Lun');
+    expect(html).toContain('Mar');
+    expect(html).toContain('Mié');
+    expect(html).toContain('Dom');
+    // Días del mes representados
+    expect(html).toContain('13');
+    expect(html).toContain('20');
   });
 });

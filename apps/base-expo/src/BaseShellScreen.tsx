@@ -5,7 +5,9 @@ import {
   AppShell,
   Badge,
   Button,
+  Calendar,
   Card,
+  formatDateIso,
   ModalDialog,
   SegmentedControl,
   SimpleLineChart,
@@ -82,6 +84,10 @@ export function BaseShellScreen({
   const env = useFrameworkEnvironment();
   const [activeTab, setActiveTab] = useState<BaseTab>('workspace');
   const [chartTimeframe, setChartTimeframe] = useState<ChartTimeframe>('1S');
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(() => {
+    const d = new Date();
+    return formatDateIso(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  });
   const [toast, setToast] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -311,6 +317,22 @@ export function BaseShellScreen({
             ]}
             activeTimeframe={chartTimeframe}
             onTimeframeChange={(tf: string) => setChartTimeframe(tf as ChartTimeframe)}
+          />
+        </Card>
+
+        <Card
+          icon="event"
+          title="Módulo de Calendario Canónico"
+          subtitle={`Fecha seleccionada: ${selectedCalendarDate ?? 'Ninguna'}`}
+        >
+          <Calendar
+            selectedDate={selectedCalendarDate}
+            onSelectDate={(date) => setSelectedCalendarDate(date)}
+            markedDates={{
+              '2026-11-13': { marked: true, dotColor: '#3B82F6' },
+              '2026-11-18': { marked: true, dotColor: '#10B981' },
+              '2026-11-25': { marked: true, dotColor: '#F59E0B' }
+            }}
           />
         </Card>
         </>
