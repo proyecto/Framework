@@ -1,6 +1,8 @@
 import type {
   IScryfallApiClient,
   ScryfallCardData,
+  ScryfallCardIdentifier,
+  ScryfallCollectionResult,
   ScryfallImageUris,
   ScryfallNamedQuery,
   ScryfallSearchOptions,
@@ -9,7 +11,11 @@ import type {
 
 export type HttpFetchFn = (
   input: string,
-  init?: { headers?: Record<string, string> }
+  init?: {
+    method?: string;
+    body?: string;
+    headers?: Record<string, string>;
+  }
 ) => Promise<{
   ok: boolean;
   status: number;
@@ -154,6 +160,61 @@ export class ScryfallApiClient implements IScryfallApiClient {
 
     this.cache.set(url, requestPromise);
     return requestPromise;
+  }
+
+  async getCardsCollection(identifiers: ScryfallCardIdentifier[]): Promise<ScryfallCollectionResult> {
+    if (!identifiers || identifiers.length === 0) {
+      return { data: [], notFound: [] };
+    }
+
+    const BATCH_SIZE = 75; // Límite de Scryfall en POST /cards/collection
+    const allData: ScryfallCardData[] = [];
+    const allNotFound: ScryfallCardIdentifier[] = [];
+
+    for (let i = 0; i < identifiers.length; i += BATCH_SIZE) {
+      const chunk = identifiers.slice(i, i + BATCH_SIZE);
+      await this.throttle();
+
+      try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        };
+        try {
+          headers['User-Agent'] = this.userAgent;
+        } catch {
+          // Entornos con cabeceras restringidas
+        }
+
+        const url = `${this.baseUrl}/cards/collection`;
+        const response = await this.fetchFn(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ identifiers: chunk })
+        });
+
+        if (response.ok) {
+          const json = await response.json();
+          if (json && Array.isArray(json.data)) {
+            for (const item of json.data) {
+              allData.push(mapScryfallCard(item));
+            }
+          }
+          if (json && Array.isArray(json.not_found)) {
+            for (const nf of json.not_found) {
+              allNotFound.push(nf);
+            }
+          }
+        }
+      } catch {
+        // En caso de fallo de red en un lote, devolvemos lo acumulado
+      }
+    }
+
+    return {
+      data: allData,
+      notFound: allNotFound
+    };
   }
 
   async getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null> {

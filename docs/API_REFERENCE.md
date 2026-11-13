@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (30 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (38 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (59 símbolos exportados)
@@ -1392,6 +1392,19 @@ const ENTITY_NAME
 type CardTrend = 'up' | 'down' | 'flat'
 ```
 
+### `CardPricePoint`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Punto histórico de cotización de una carta.
+
+```ts
+interface CardPricePoint
+```
+
+Miembros públicos:
+- `date: string`
+- `price: number`
+
 ### `CardEntity`
 
 - Origen: `packages/mtginvest-domain/src/contracts.ts`
@@ -1413,6 +1426,9 @@ Miembros públicos:
 - `condition?: string`
 - `isFavorite: boolean`
 - `imageUrl?: string`
+- `scryfallId?: string`
+- `priceHistory?: CardPricePoint[]`
+- `lastPriceSyncDate?: string`
 
 ### `CreateCardInput`
 
@@ -1433,6 +1449,9 @@ Miembros públicos:
 - `previousPrice?: number`
 - `condition?: string`
 - `imageUrl?: string`
+- `scryfallId?: string`
+- `priceHistory?: CardPricePoint[]`
+- `lastPriceSyncDate?: string`
 
 ### `calculateCardReturn`
 
@@ -1442,6 +1461,21 @@ Miembros públicos:
 ```ts
 function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): { diff: number; percent: number; trend: CardTrend; }
 ```
+
+### `CardmarketSyncResult`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Resultado de la sincronización de precios de Cardmarket.
+
+```ts
+interface CardmarketSyncResult
+```
+
+Miembros públicos:
+- `alreadyUpToDate: boolean`
+- `updatedCount: number`
+- `totalCards: number`
+- `syncDate: string`
 
 ### `MtginvestViewState`
 
@@ -1458,6 +1492,8 @@ Miembros públicos:
 - `busy: boolean`
 - `errorMessage: string | null`
 - `storage: StorageStatus`
+- `isSyncingPrices?: boolean`
+- `lastPriceSyncDate?: string | null`
 
 ### `IMtginvestModel`
 
@@ -1472,8 +1508,9 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
+- `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<CardEntity[]>`
 - `importMissingSeeds(): Promise<CardEntity[]>`
@@ -1494,9 +1531,10 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 Miembros públicos:
 - `scryfallClient: IScryfallApiClient`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
+- `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
 - `importMissingSeeds(): Promise<void>`
@@ -1627,6 +1665,32 @@ Miembros públicos:
 - `order?: 'name' | 'set' | 'released' | 'rarity' | 'color' | 'usd' | 'eur'`
 - `dir?: 'auto' | 'asc' | 'desc'`
 
+### `ScryfallCardIdentifier`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallCardIdentifier
+```
+
+Miembros públicos:
+- `id?: string`
+- `name?: string`
+- `set?: string`
+- `collector_number?: string`
+
+### `ScryfallCollectionResult`
+
+- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+
+```ts
+interface ScryfallCollectionResult
+```
+
+Miembros públicos:
+- `data: ScryfallCardData[]`
+- `notFound: ScryfallCardIdentifier[]`
+
 ### `IScryfallApiClient`
 
 - Origen: `packages/mtginvest-domain/src/scryfall.ts`
@@ -1637,6 +1701,7 @@ interface IScryfallApiClient
 ```
 
 Miembros públicos:
+- `getCardsCollection(identifiers: ScryfallCardIdentifier[]): Promise<ScryfallCollectionResult>`
 - `getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null>`
 - `getCardBySetAndNumber(setCode: string, collectorNumber: string, lang?: string): Promise<ScryfallCardData | null>`
 - `searchCards(query: string, options?: ScryfallSearchOptions): Promise<ScryfallSearchResult>`
@@ -1648,7 +1713,7 @@ Miembros públicos:
 - Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
 
 ```ts
-type HttpFetchFn = ( input: string, init?: { headers?: Record<string, string> } ) => Promise<{ ok: boolean; status: number; json(): Promise<any>; }>
+type HttpFetchFn = ( input: string, init?: { method?: string; body?: string; headers?: Record<string, string>; } ) => Promise<{ ok: boolean; status: number; json(): Promise<any>; }>
 ```
 
 ### `ScryfallClientConfig`
@@ -1676,11 +1741,52 @@ class ScryfallApiClient implements IScryfallApiClient
 
 Miembros públicos:
 - `constructor(config: ScryfallClientConfig = {})`
+- `getCardsCollection(identifiers: ScryfallCardIdentifier[]): Promise<ScryfallCollectionResult>`
 - `getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null>`
 - `getCardBySetAndNumber(setCode: string, collectorNumber: string, lang?: string): Promise<ScryfallCardData | null>`
 - `searchCards(query: string, options?: ScryfallSearchOptions): Promise<ScryfallSearchResult>`
 - `autocompleteCardNames(query: string): Promise<string[]>`
 - `resolveCardImageUrl(card: { title: string; nameEn?: string; editionCode?: string; language?: string; }): Promise<string | null>`
+
+### `SEED_PRICE_HISTORIES`
+
+- Origen: `packages/mtginvest-domain/src/priceHistory.ts`
+- Descripción: Histórico de cotizaciones de Cardmarket extraído del catálogo Excel. Registro de cotizaciones diarias para el seguimiento de inversión de cada carta.
+
+```ts
+const SEED_PRICE_HISTORIES: Record<string, CardPricePoint[]>
+```
+
+### `CardChartSeriesData`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+
+```ts
+interface CardChartSeriesData
+```
+
+Miembros públicos:
+- `labels: string[]`
+- `values: number[]`
+- `unit: string`
+
+### `buildOneYearCardChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Genera la serie de datos para graficar la evolución del precio de una carta en el último año (12 meses). Si la carta no tiene datos para los primeros meses del año, comienza en 0 hasta la fecha en que se registran sus primeras cotizaciones históricas (según requerimiento explícito del usuario).
+
+```ts
+function buildOneYearCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): CardChartSeriesData
+```
+
+### `buildThreeMonthCardChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Genera la serie de datos para los últimos 3 meses con resolución detallada (Cardmarket).
+
+```ts
+function buildThreeMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>): CardChartSeriesData
+```
 
 ### `MtginvestModel`
 
@@ -1699,8 +1805,9 @@ Miembros públicos:
 - `resetToSeed(): Promise<CardEntity[]>`
 - `importMissingSeeds(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
+- `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `getStorageStatus(): Promise<StorageStatus>`
 - `setPlan(plan: UserPlan): Promise<StorageStatus>`
@@ -1721,9 +1828,10 @@ Miembros públicos:
 - `constructor(private readonly model: IMtginvestModel, scryfallClient?: IScryfallApiClient)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
+- `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
 - `importMissingSeeds(): Promise<void>`
@@ -1747,6 +1855,7 @@ Miembros públicos:
 - `deviceId: string`
 - `userId?: string`
 - `transport?: IRemoteSyncTransport`
+- `scryfallClient?: IScryfallApiClient`
 
 ### `createMtginvestController`
 
@@ -2481,6 +2590,7 @@ Miembros públicos:
 - `onConfirm?: () => void`
 - `onCancel: () => void`
 - `children?: ReactNode`
+- `contentMaxHeight?: number`
 
 ### `ModalDialog`
 
@@ -2488,7 +2598,7 @@ Miembros públicos:
 - Descripción: Diálogo modal reutilizable implementado sobre el `<Modal>` estándar de React Native.
 
 ```ts
-function ModalDialog({ visible, title, description, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, leftAction, onConfirm, onCancel, children }: ModalDialogProps)
+function ModalDialog({ visible, title, description, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, leftAction, onConfirm, onCancel, children, contentMaxHeight = 480 }: ModalDialogProps)
 ```
 
 ### `AppShellTab`

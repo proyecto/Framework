@@ -7,6 +7,7 @@ import {
 } from '@framework/core';
 import type {
   CardEntity,
+  CardmarketSyncResult,
   CreateCardInput,
   IMtginvestController,
   IMtginvestModel,
@@ -19,6 +20,8 @@ const INITIAL_STATE: MtginvestViewState = {
   items: [],
   loading: true,
   busy: false,
+  isSyncingPrices: false,
+  lastPriceSyncDate: null,
   errorMessage: null,
   storage: {
     mode: 'local',
@@ -105,7 +108,19 @@ export class MtginvestController
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
+        | 'title'
+        | 'nameEn'
+        | 'edition'
+        | 'editionCode'
+        | 'language'
+        | 'quantity'
+        | 'currentPrice'
+        | 'previousPrice'
+        | 'condition'
+        | 'imageUrl'
+        | 'scryfallId'
+        | 'priceHistory'
+        | 'lastPriceSyncDate'
       >
     >
   ): Promise<void> {
@@ -129,6 +144,33 @@ export class MtginvestController
     await this.executeCommand(false, async () => {
       await this.model.updatePrices(id, currentPrice, previousPrice);
     });
+  }
+
+  async syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult> {
+    this.setState({ isSyncingPrices: true });
+    try {
+      const result = await this.model.syncCardmarketPrices(this.scryfallClient, options);
+      await this.syncStateFromModel();
+      this.setState({
+        isSyncingPrices: false,
+        lastPriceSyncDate: result.syncDate
+      });
+      if (!result.alreadyUpToDate && result.updatedCount > 0) {
+        this.emitViewEvent({
+          type: 'toast',
+          message: `Cotizaciones de Cardmarket actualizadas (${result.updatedCount} cartas).`
+        });
+      }
+      return result;
+    } catch {
+      this.setState({ isSyncingPrices: false });
+      return {
+        alreadyUpToDate: false,
+        updatedCount: 0,
+        totalCards: this.getState().items.length,
+        syncDate: new Date().toISOString().slice(0, 10)
+      };
+    }
   }
 
   async deleteItem(id: string): Promise<void> {

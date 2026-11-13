@@ -7,6 +7,7 @@ import {
   type IEntityStoreDriver
 } from '@framework/data';
 import { APP_ID, ENTITY_NAME, type CardEntity } from './contracts.js';
+import type { IScryfallApiClient } from './scryfall.js';
 import { MtginvestController } from './MtginvestController.js';
 import { MtginvestModel } from './MtginvestModel.js';
 
@@ -16,6 +17,7 @@ export interface CreateMtginvestControllerOptions {
   deviceId: string;
   userId?: string;
   transport?: IRemoteSyncTransport;
+  scryfallClient?: IScryfallApiClient;
 }
 
 /** Factoría compartida multiplataforma (Android Expo + Web + Tests). */
@@ -33,5 +35,5 @@ export function createMtginvestController(
     defaultMode: 'local',
     defaultPlan: 'free'
   });
-  return new MtginvestController(new MtginvestModel(repository));
+  return new MtginvestController(new MtginvestModel(repository), options.scryfallClient);
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { IView, ViewEvent } from '@framework/core';
 import { InMemoryEntityStoreDriver, MemoryKeyValueStore } from '@framework/data';
 import {
+  buildOneYearCardChart,
+  buildThreeMonthCardChart,
   calculateCardReturn,
   createMtginvestController,
   findMtgSetByCode,
@@ -183,7 +185,7 @@ describe('MTGInvest MVC domain', () => {
         },
         prices: { eur: '9999.00', usd: '12000.00' }
       },
-      'named?fuzzy=Serra%20Angel&set=2ed': {
+      'Serra%20Angel': {
         id: 'serra-uuid-1',
         name: 'Serra Angel',
         set: '2ed',
@@ -194,21 +196,6 @@ describe('MTGInvest MVC domain', () => {
       },
       'autocomplete?q=Serra': {
         data: ['Serra Angel', 'Serra Avatar']
-      },
-      'search?q=%21%22Serra%20Angel%22': {
-        total_cards: 1,
-        has_more: false,
-        data: [
-          {
-            id: 'serra-uuid-1',
-            name: 'Serra Angel',
-            set: '2ed',
-            collector_number: '39',
-            image_uris: {
-              normal: 'https://cards.scryfall.io/normal/serra-angel.jpg'
-            }
-          }
-        ]
       }
     };
 
@@ -259,10 +246,9 @@ describe('MTGInvest MVC domain', () => {
     const controller = createMtginvestController({
       store,
       kv: new MemoryKeyValueStore(),
-      deviceId: 'test-device'
+      deviceId: 'test-device',
+      scryfallClient: client
     });
-    // Inyectamos el mock client en el controller
-    (controller as any).scryfallClient = client;
 
     const view = new SpyView();
     controller.attachView(view);
@@ -279,6 +265,125 @@ describe('MTGInvest MVC domain', () => {
       const cached = await controller.getCardImageUrl({ ...serraCard, imageUrl: 'https://custom-cache.jpg' });
       expect(cached).toBe('https://custom-cache.jpg');
     }
+
+    controller.dispose();
+  });
+
+  it('generates 1-year price chart starting from zero until data begins', () => {
+    const cardWithHistory = {
+      title: 'Serra Angel',
+      currentPrice: 72.22,
+      previousPrice: 29.79,
+      priceHistory: [
+        { date: '2026-09-07', price: 45.63 },
+        { date: '2026-10-15', price: 74.14 },
+        { date: '2026-11-10', price: 72.22 }
+      ]
+    };
+
+    const chart1y = buildOneYearCardChart(cardWithHistory, new Date('2026-11-13T00:00:00Z'));
+    expect(chart1y.labels.length).toBe(13); // Nov '25 to Nov '26
+    expect(chart1y.values.length).toBe(13);
+    // Primeros meses sin datos: empieza en 0
+    expect(chart1y.values[0]).toBe(0); // Nov '25
+    expect(chart1y.values[5]).toBe(0); // Abr '26
+    expect(chart1y.values[9]).toBe(0); // Ago '26
+    // Meses con datos registrados:
+    expect(chart1y.values[10]).toBe(45.63); // Sep '26
+    expect(chart1y.values[11]).toBe(74.14); // Oct '26
+    expect(chart1y.values[12]).toBe(72.22); // Nov '26
+
+    const chart3m = buildThreeMonthCardChart(cardWithHistory);
+    expect(chart3m.values.length).toBeGreaterThanOrEqual(3);
+    expect(chart3m.values[0]).toBe(45.63);
+    expect(chart3m.values[chart3m.values.length - 1]).toBe(72.22);
+  });
+
+  it('syncs Cardmarket prices via Scryfall batch collection endpoint and throttles daily', async () => {
+    let collectionRequestsCount = 0;
+    const mockBatchFetch: HttpFetchFn = async (input, init) => {
+      const url = String(input);
+      if (url.includes('/cards/collection') && init?.method === 'POST') {
+        collectionRequestsCount++;
+        const body = JSON.parse(init.body || '{}');
+        const identifiers = body.identifiers || [];
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            object: 'list',
+            not_found: [],
+            data: identifiers.map((idObj: any, index: number) => ({
+              object: 'card',
+              id: `scryfall-id-${index}`,
+              name: idObj.name || 'Unknown',
+              set: idObj.set || '2ed',
+              prices: {
+                eur: idObj.name === 'Serra Angel' ? '85.50' : '25.00',
+                eur_foil: null,
+                usd: '90.00'
+              },
+              image_uris: {
+                normal: `https://cards.scryfall.io/normal/${index}.jpg`
+              }
+            }))
+          })
+        };
+      }
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({ error: 'not found' })
+      };
+    };
+
+    const client = new ScryfallApiClient({
+      rateLimitMs: 0,
+      fetchFn: mockBatchFetch
+    });
+
+    const store = new InMemoryEntityStoreDriver();
+    const controller = createMtginvestController({
+      store,
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-device',
+      scryfallClient: client
+    });
+
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    // La primera sincronización actualiza los precios
+    const syncResult = await controller.syncCardmarketPrices({ force: true });
+    expect(syncResult.alreadyUpToDate).toBe(false);
+    expect(syncResult.updatedCount).toBeGreaterThan(0);
+    expect(collectionRequestsCount).toBe(1);
+
+    // Comprobamos que Serra Angel tiene su nueva cotización y registró el precio anterior
+    const serra = view.latest.items.find((c) => c.title === 'Ángel de Serra' && c.editionCode === '2ED');
+    expect(serra).toBeDefined();
+    expect(serra?.currentPrice).toBe(85.50);
+    expect(serra?.previousPrice).toBe(72.22);
+    expect(serra?.scryfallId).toBeDefined();
+    expect(serra?.lastPriceSyncDate).toBe(new Date().toISOString().slice(0, 10));
+
+    // Comprobamos que priceHistory contiene el punto de hoy con el nuevo valor
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayPoint = serra?.priceHistory?.find((p) => p.date === todayStr);
+    expect(todayPoint).toBeDefined();
+    expect(todayPoint?.price).toBe(85.50);
+
+    // Una segunda llamada el mismo día sin "force" no hace peticiones a Scryfall (cache/throttle)
+    const secondSync = await controller.syncCardmarketPrices();
+    expect(secondSync.alreadyUpToDate).toBe(true);
+    expect(secondSync.updatedCount).toBe(0);
+    expect(collectionRequestsCount).toBe(1);
+
+    // Con force: true, se vuelve a ejecutar la petición
+    const forceSync = await controller.syncCardmarketPrices({ force: true });
+    expect(forceSync.alreadyUpToDate).toBe(false);
+    expect(collectionRequestsCount).toBe(2);
 
     controller.dispose();
   });

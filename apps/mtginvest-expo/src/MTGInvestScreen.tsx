@@ -12,12 +12,15 @@ import {
   SearchInput,
   Select,
   type SelectOption,
+  SimpleLineChart,
   TextField,
   textTypographyStyle,
   useFrameworkTheme
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
 import {
+  buildOneYearCardChart,
+  buildThreeMonthCardChart,
   calculateCardReturn,
   type CardEntity,
   type IMtginvestController,
@@ -166,6 +169,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
   const [editCondition, setEditCondition] = useState('NM');
   const [cardArtUrl, setCardArtUrl] = useState<string | null>(null);
   const [loadingArt, setLoadingArt] = useState(false);
+  const [chartTimeframe, setChartTimeframe] = useState<'1y' | '3m'>('1y');
 
   // Estado para la barra de búsqueda y ordenación del tab principal
   const [searchQuery, setSearchQuery] = useState('');
@@ -183,6 +187,11 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
     const timer = setTimeout(() => setToast(null), APP_LAYOUT_BOUNDS.toastDurationMs);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Al abrir la aplicación, sincroniza en segundo plano las cotizaciones de Cardmarket si es un nuevo día
+  useEffect(() => {
+    void controller.syncCardmarketPrices().catch(() => {});
+  }, [controller]);
 
   // Opción de ordenación activa
   const activeSortOption: SortOptionDef = useMemo(
@@ -264,6 +273,25 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       trend
     };
   }, [state.items]);
+
+  // Gráfica de evolución temporal para la carta en edición/detalle
+  const cardChartData = useMemo(() => {
+    if (!editingCard) {
+      return { labels: [], values: [], unit: '€' };
+    }
+    const currentP = parseFloat(editCurrentPrice.replace(',', '.')) || editingCard.currentPrice;
+    const prevP = parseFloat(editBuyPrice.replace(',', '.')) || editingCard.previousPrice;
+    const cardSnapshot: CardEntity = {
+      ...editingCard,
+      currentPrice: currentP,
+      previousPrice: prevP
+    };
+
+    if (chartTimeframe === '3m') {
+      return buildThreeMonthCardChart(cardSnapshot);
+    }
+    return buildOneYearCardChart(cardSnapshot);
+  }, [editingCard, editCurrentPrice, editBuyPrice, chartTimeframe]);
 
   const handleAddCard = async () => {
     if (!newTitle.trim()) {
@@ -411,7 +439,11 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
           {/* 1. Tarjeta Resumen: Cartera de Inversión */}
           <Card
             title="Cartera de inversión"
-            subtitle={`${portfolioSummary.totalQuantity} carta(s) en total · ${portfolioSummary.uniqueCards} referencia(s)`}
+            subtitle={
+              state.isSyncingPrices
+                ? 'Actualizando cotizaciones Cardmarket...'
+                : `${portfolioSummary.totalQuantity} carta(s) en total · ${portfolioSummary.uniqueCards} referencia(s)`
+            }
             icon="account-balance-wallet"
             rightSlot={
               <Button
@@ -955,6 +987,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
             visible={editingCard !== null}
             title="Editar Carta"
             description="Modifica los datos, edición, cantidad o cotización de esta carta."
+            contentMaxHeight={520}
             confirmLabel="Guardar cambios"
             cancelLabel="Cancelar"
             leftAction={{
@@ -1005,8 +1038,11 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                       }}
                       resizeMode="contain"
                     />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                       <Badge label="Scryfall API" tone="accent" />
+                      {editingCard?.lastPriceSyncDate ? (
+                        <Badge label={`Cardmarket: ${editingCard.lastPriceSyncDate}`} tone="neutral" />
+                      ) : null}
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Recargar arte desde Scryfall"
@@ -1128,6 +1164,83 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                   />
                 </View>
               </View>
+
+              {/* Gráfica con la evolución del precio de la carta en el último año */}
+              <View style={{ marginTop: theme.spacing.sm, gap: theme.spacing.xs }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingHorizontal: 2
+                  }}
+                >
+                  <View style={{ gap: 2 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textPrimary,
+                        fontSize: theme.typography.bodySize,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      Evolución del precio
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      {chartTimeframe === '1y'
+                        ? 'Último año (inicio en 0 hasta datos registrados)'
+                        : 'Últimos 3 meses (detalle Cardmarket)'}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <Button
+                      size="sm"
+                      variant={chartTimeframe === '1y' ? 'primary' : 'outline'}
+                      label="1 Año"
+                      onPress={() => setChartTimeframe('1y')}
+                    />
+                    <Button
+                      size="sm"
+                      variant={chartTimeframe === '3m' ? 'primary' : 'outline'}
+                      label="3 Meses"
+                      onPress={() => setChartTimeframe('3m')}
+                    />
+                  </View>
+                </View>
+
+                <View
+                  style={{
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderRadius: theme.radius.md,
+                    padding: theme.spacing.md,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border
+                  }}
+                >
+                  <SimpleLineChart
+                    series={[
+                      {
+                        id: 'price-evolution',
+                        name: 'Cotización',
+                        color: theme.colors.accent,
+                        values: cardChartData.values
+                      }
+                    ]}
+                    labels={cardChartData.labels}
+                    unit="€"
+                    height={165}
+                    showLegend={false}
+                    showDots={true}
+                    showGrid={true}
+                  />
+                </View>
+              </View>
             </View>
           </ModalDialog>
 
@@ -1220,6 +1333,43 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
 
       {activeTab === 'settings' ? (
         <View style={{ gap: theme.spacing.md }}>
+          <Card
+            title="Cotizaciones Cardmarket (vía Scryfall)"
+            subtitle={
+              state.lastPriceSyncDate
+                ? `Última sincronización: ${state.lastPriceSyncDate}`
+                : 'Sincronización diaria por lote'
+            }
+            icon="currency-exchange"
+          >
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                Actualiza los precios en EUR de Cardmarket mediante el endpoint por lotes oficial de Scryfall (hasta 75 cartas en 1 sola llamada HTTP). Se ejecuta automáticamente una vez al día al abrir la aplicación para no saturar la API.
+              </Text>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon="refresh"
+                  label={state.isSyncingPrices ? 'Actualizando cotizaciones...' : 'Actualizar cotizaciones ahora'}
+                  disabled={state.isSyncingPrices}
+                  onPress={async () => {
+                    setToast('Consultando cotizaciones de Cardmarket en Scryfall...');
+                    const res = await controller.syncCardmarketPrices({ force: true });
+                    setToast(`Cotizaciones actualizadas (${res.updatedCount} cartas revisadas).`);
+                  }}
+                />
+              </View>
+            </View>
+          </Card>
+
           <Card
             title="Inventario y Catálogo Excel"
             subtitle="Sincronización y recarga de datos"

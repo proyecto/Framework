@@ -23,6 +23,7 @@ export interface ModalDialogProps {
   onConfirm?: () => void;
   onCancel: () => void;
   children?: ReactNode;
+  contentMaxHeight?: number;
 }
 
 /** Diálogo modal reutilizable implementado sobre el `<Modal>` estándar de React Native. */
@@ -36,7 +37,8 @@ export function ModalDialog({
   leftAction,
   onConfirm,
   onCancel,
-  children
+  children,
+  contentMaxHeight = 480
 }: ModalDialogProps) {
   const theme = useFrameworkTheme();
 
@@ -87,9 +89,9 @@ export function ModalDialog({
             </Text>
           ) : null}
           <ScrollView
-            style={{ maxHeight: 420 }}
+            style={{ maxHeight: contentMaxHeight }}
             contentContainerStyle={{ gap: theme.spacing.sm, paddingVertical: 2 }}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
           >
             {children}
           </ScrollView>

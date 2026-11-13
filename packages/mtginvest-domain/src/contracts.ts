@@ -16,6 +16,12 @@ export const ENTITY_NAME = 'cards';
 
 export type CardTrend = 'up' | 'down' | 'flat';
 
+/** Punto histórico de cotización de una carta. */
+export interface CardPricePoint {
+  date: string;  // Formato 'YYYY-MM-DD'
+  price: number; // Cotización unitaria en €
+}
+
 /** Entidad de carta de MTG con seguimiento de inversión y cotización. */
 export interface CardEntity extends EntityBase {
   title: string;              // Nombre en castellano o principal (ej. "Ángel de Serra")
@@ -29,6 +35,9 @@ export interface CardEntity extends EntityBase {
   condition?: string;         // Estado (NM, LP, EX, PL, PO)
   isFavorite: boolean;
   imageUrl?: string;          // URL del arte/carta resuelta desde Scryfall
+  scryfallId?: string;        // UUID canónico en Scryfall para optimizar consultas directas
+  priceHistory?: CardPricePoint[]; // Historial de cotizaciones temporales
+  lastPriceSyncDate?: string; // Fecha 'YYYY-MM-DD' de la última actualización exitosa desde Cardmarket
 }
 
 export interface CreateCardInput {
@@ -42,6 +51,9 @@ export interface CreateCardInput {
   previousPrice?: number;
   condition?: string;
   imageUrl?: string;
+  scryfallId?: string;
+  priceHistory?: CardPricePoint[];
+  lastPriceSyncDate?: string;
 }
 
 /** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad. */
@@ -59,6 +71,14 @@ export function calculateCardReturn(card: { currentPrice: number; previousPrice:
   return { diff, percent, trend };
 }
 
+/** Resultado de la sincronización de precios de Cardmarket. */
+export interface CardmarketSyncResult {
+  alreadyUpToDate: boolean;
+  updatedCount: number;
+  totalCards: number;
+  syncDate: string;
+}
+
 /** Estado inmutable proyectado hacia la vista de MTGInvest. */
 export interface MtginvestViewState {
   items: CardEntity[];
@@ -66,6 +86,8 @@ export interface MtginvestViewState {
   busy: boolean;
   errorMessage: string | null;
   storage: StorageStatus;
+  isSyncingPrices?: boolean;
+  lastPriceSyncDate?: string | null;
 }
 
 /** Contrato del Modelo (M). */
@@ -78,11 +100,27 @@ export interface IMtginvestModel extends IModel {
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
+        | 'title'
+        | 'nameEn'
+        | 'edition'
+        | 'editionCode'
+        | 'language'
+        | 'quantity'
+        | 'currentPrice'
+        | 'previousPrice'
+        | 'condition'
+        | 'imageUrl'
+        | 'scryfallId'
+        | 'priceHistory'
+        | 'lastPriceSyncDate'
       >
     >
   ): Promise<CardEntity>;
   updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>;
+  syncCardmarketPrices(
+    scryfallClient: IScryfallApiClient,
+    options?: { force?: boolean }
+  ): Promise<CardmarketSyncResult>;
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<CardEntity[]>;
   importMissingSeeds(): Promise<CardEntity[]>;
@@ -101,12 +139,25 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
     patch: Partial<
       Pick<
         CardEntity,
-        'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl'
+        | 'title'
+        | 'nameEn'
+        | 'edition'
+        | 'editionCode'
+        | 'language'
+        | 'quantity'
+        | 'currentPrice'
+        | 'previousPrice'
+        | 'condition'
+        | 'imageUrl'
+        | 'scryfallId'
+        | 'priceHistory'
+        | 'lastPriceSyncDate'
       >
     >
   ): Promise<void>;
   getCardImageUrl(card: CardEntity): Promise<string | null>;
   updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>;
+  syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>;
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<void>;
   importMissingSeeds(): Promise<void>;

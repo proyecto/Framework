@@ -67,11 +67,29 @@ export interface ScryfallSearchOptions {
   dir?: 'auto' | 'asc' | 'desc';
 }
 
+export interface ScryfallCardIdentifier {
+  id?: string;
+  name?: string;
+  set?: string;
+  collector_number?: string;
+}
+
+export interface ScryfallCollectionResult {
+  data: ScryfallCardData[];
+  notFound: ScryfallCardIdentifier[];
+}
+
 /**
  * Interfaz de cliente API para Scryfall.
  * Permite desacoplar cualquier llamada externa y mockearla en pruebas sin red.
  */
 export interface IScryfallApiClient {
+  /**
+   * Obtiene un lote masivo de cartas (hasta 75 por petición) mediante el endpoint oficial POST /cards/collection.
+   * Documentación: https://scryfall.com/docs/api/cards/collection
+   */
+  getCardsCollection(identifiers: ScryfallCardIdentifier[]): Promise<ScryfallCollectionResult>;
+
   /**
    * Obtiene una carta por nombre exacto o aproximado (fuzzy), opcionalmente acotado por código de set.
    * Documentación: https://scryfall.com/docs/api/cards/named
