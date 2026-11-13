@@ -129,6 +129,50 @@ export class ScryfallApiClient implements IScryfallApiClient {
     this.lastRequestTime = Date.now();
   }
 
+  /**
+   * Detecta si el entorno es un navegador o React Native (Hermes / JSC / Web),
+   * donde el estándar Fetch y XHR prohíben explícitamente definir la cabecera 'User-Agent'
+   * lanzando un TypeError: Refused to set unsafe header "User-Agent".
+   */
+  private isBrowserOrReactNative(): boolean {
+    const g = globalThis as any;
+    if (typeof g.window !== 'undefined') return true;
+    if (typeof g.navigator !== 'undefined' && typeof g.navigator.product === 'string') return true;
+    if (typeof g.__fbBatchedBridge !== 'undefined' || typeof g.HermesInternal !== 'undefined') return true;
+    return false;
+  }
+
+  /**
+   * Ejecuta una petición HTTP con manejo inteligente de cabeceras seguras para móvil y web.
+   */
+  private async executeFetch(
+    url: string,
+    init: { method?: string; body?: string; headers?: Record<string, string> } = {}
+  ): Promise<{ ok: boolean; status: number; json(): Promise<any> }> {
+    const isRestricted = this.isBrowserOrReactNative();
+    const headers: Record<string, string> = {
+      Accept: 'application/json;q=0.9,*/*;q=0.8',
+      ...(init.headers ?? {})
+    };
+
+    // Solo inyectamos User-Agent manual en Node.js, CLI o entornos de servidor donde está permitido
+    if (!isRestricted && this.userAgent && !headers['User-Agent']) {
+      headers['User-Agent'] = this.userAgent;
+    }
+
+    try {
+      return await this.fetchFn(url, { ...init, headers });
+    } catch (error) {
+      // Si el fetch falló por cabecera no permitida (Refused to set unsafe header "User-Agent"), reintentamos sin ella
+      if (headers['User-Agent']) {
+        const cleanHeaders = { ...headers };
+        delete cleanHeaders['User-Agent'];
+        return await this.fetchFn(url, { ...init, headers: cleanHeaders });
+      }
+      throw error;
+    }
+  }
+
   private async fetchJson<T>(url: string): Promise<T | null> {
     if (this.cache.has(url)) {
       return this.cache.get(url) as Promise<T | null>;
@@ -137,16 +181,7 @@ export class ScryfallApiClient implements IScryfallApiClient {
     const requestPromise = (async () => {
       await this.throttle();
       try {
-        const headers: Record<string, string> = {
-          Accept: 'application/json;q=0.9,*/*;q=0.8'
-        };
-        try {
-          headers['User-Agent'] = this.userAgent;
-        } catch {
-          // Algunos entornos restringen cabeceras User-Agent
-        }
-
-        const response = await this.fetchFn(url, { headers });
+        const response = await this.executeFetch(url);
         if (response.status === 404 || !response.ok) {
           return null;
         }
@@ -176,20 +211,11 @@ export class ScryfallApiClient implements IScryfallApiClient {
       await this.throttle();
 
       try {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        };
-        try {
-          headers['User-Agent'] = this.userAgent;
-        } catch {
-          // Entornos con cabeceras restringidas
-        }
-
-        const url = `${this.baseUrl}/cards/collection`;
-        const response = await this.fetchFn(url, {
+        const response = await this.executeFetch(`${this.baseUrl}/cards/collection`, {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({ identifiers: chunk })
         });
 

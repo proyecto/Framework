@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, Text, View } from 'react-native';
 import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 import {
   AppShell,
@@ -175,6 +175,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
   const [editCondition, setEditCondition] = useState('NM');
   const [cardArtUrl, setCardArtUrl] = useState<string | null>(null);
   const [loadingArt, setLoadingArt] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
   const [chartTimeframe, setChartTimeframe] = useState<ChartTimeframe>('1A');
 
   // Estado para la barra de búsqueda y ordenación del tab principal
@@ -365,6 +366,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
     setEditCondition(card.condition ?? 'NM');
 
     // Arte de la carta desde Scryfall
+    setImageLoadError(false);
     if (card.imageUrl) {
       setCardArtUrl(card.imageUrl);
       setLoadingArt(false);
@@ -387,6 +389,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
   const handleRefreshArt = async () => {
     if (!editingCard) return;
     setLoadingArt(true);
+    setImageLoadError(false);
     try {
       const url = await controller.scryfallClient.resolveCardImageUrl({
         title: editTitle,
@@ -1052,10 +1055,20 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                       Buscando arte en Scryfall...
                     </Text>
                   </View>
-                ) : cardArtUrl ? (
+                ) : cardArtUrl && !imageLoadError ? (
                   <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
                     <Image
-                      source={{ uri: cardArtUrl }}
+                      source={{
+                        uri: cardArtUrl,
+                        headers:
+                          Platform.OS !== 'web'
+                            ? {
+                                'User-Agent':
+                                  'Mozilla/5.0 (Linux; Android 10; Mobile) MTGInvest/2026.11',
+                                Accept: 'image/webp,image/png,image/jpeg,image/*;q=0.8'
+                              }
+                            : undefined
+                      }}
                       style={{
                         width: 154,
                         height: 215,
@@ -1063,6 +1076,9 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                         backgroundColor: theme.colors.surface
                       }}
                       resizeMode="contain"
+                      onError={() => {
+                        setImageLoadError(true);
+                      }}
                     />
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                       <Badge label="Scryfall API" tone="accent" />
@@ -1072,7 +1088,10 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Recargar arte desde Scryfall"
-                        onPress={() => void handleRefreshArt()}
+                        onPress={() => {
+                          setImageLoadError(false);
+                          void handleRefreshArt();
+                        }}
                         hitSlop={6}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                       >
@@ -1091,7 +1110,11 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                   </View>
                 ) : (
                   <View style={{ alignItems: 'center', gap: theme.spacing.xs, paddingVertical: theme.spacing.md }}>
-                    <GoogleIcon name="image-not-supported" size={28} color={theme.colors.textSecondary} />
+                    <GoogleIcon
+                      name={imageLoadError ? 'broken-image' : 'image-not-supported'}
+                      size={28}
+                      color={theme.colors.textSecondary}
+                    />
                     <Text
                       style={{
                         color: theme.colors.textSecondary,
@@ -1099,14 +1122,19 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
                         ...textTypographyStyle(theme, 'regular')
                       }}
                     >
-                      Sin arte disponible en Scryfall
+                      {imageLoadError
+                        ? 'Error al descargar la imagen de la carta'
+                        : 'Sin arte disponible en Scryfall'}
                     </Text>
                     <Button
                       size="sm"
                       variant="outline"
-                      icon="search"
-                      label="Buscar en Scryfall"
-                      onPress={() => void handleRefreshArt()}
+                      icon="refresh"
+                      label={imageLoadError ? 'Reintentar carga' : 'Buscar en Scryfall'}
+                      onPress={() => {
+                        setImageLoadError(false);
+                        void handleRefreshArt();
+                      }}
                     />
                   </View>
                 )}
