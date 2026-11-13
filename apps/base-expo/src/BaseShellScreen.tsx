@@ -8,12 +8,14 @@ import {
   Card,
   ModalDialog,
   SegmentedControl,
+  SimpleLineChart,
   Slider,
   StorageStatusBar,
   SwitchToggle,
   TextField,
   textTypographyStyle,
   useFrameworkTheme,
+  type ChartSeries,
   type ThemeScheme
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
@@ -21,6 +23,38 @@ import type { IBaseAppController } from './mvc';
 import { APP_BUILD, APP_VERSION } from './version';
 
 type BaseTab = 'workspace' | 'controls' | 'settings';
+type ChartTimeframe = '1D' | '1S' | '1M' | '1A';
+
+const STOCK_DATA: Record<ChartTimeframe, { labels: string[]; series: ChartSeries[] }> = {
+  '1D': {
+    labels: ['09:00', '11:00', '13:00', '15:00', '17:30'],
+    series: [
+      { id: 'aapl', name: 'AAPL', color: '#10B981', values: [181.2, 182.4, 181.9, 183.1, 183.8] },
+      { id: 'goog', name: 'GOOGL', color: '#3B82F6', values: [138.5, 137.9, 139.1, 138.8, 140.2] }
+    ]
+  },
+  '1S': {
+    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
+    series: [
+      { id: 'aapl', name: 'AAPL', color: '#10B981', values: [178.5, 180.1, 179.4, 182.0, 183.8] },
+      { id: 'goog', name: 'GOOGL', color: '#3B82F6', values: [135.2, 136.8, 138.0, 137.5, 140.2] }
+    ]
+  },
+  '1M': {
+    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+    series: [
+      { id: 'aapl', name: 'AAPL', color: '#10B981', values: [172.0, 175.4, 178.9, 183.8] },
+      { id: 'goog', name: 'GOOGL', color: '#3B82F6', values: [131.0, 134.5, 137.0, 140.2] }
+    ]
+  },
+  '1A': {
+    labels: ['Ene', 'Abr', 'Jul', 'Oct', 'Nov'],
+    series: [
+      { id: 'aapl', name: 'AAPL', color: '#10B981', values: [155.0, 168.2, 175.1, 180.4, 183.8] },
+      { id: 'goog', name: 'GOOGL', color: '#3B82F6', values: [120.5, 128.0, 133.4, 136.2, 140.2] }
+    ]
+  }
+};
 
 export interface BaseShellScreenProps {
   controller: IBaseAppController;
@@ -47,6 +81,7 @@ export function BaseShellScreen({
   const theme = useFrameworkTheme();
   const env = useFrameworkEnvironment();
   const [activeTab, setActiveTab] = useState<BaseTab>('workspace');
+  const [chartTimeframe, setChartTimeframe] = useState<ChartTimeframe>('1S');
   const [toast, setToast] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -195,7 +230,8 @@ export function BaseShellScreen({
       ) : null}
 
       {activeTab === 'controls' ? (
-        selectedItem ? (
+        <>
+        {selectedItem ? (
           <Card
             highlighted={selectedItem.isPrimary}
             icon="tune"
@@ -255,7 +291,29 @@ export function BaseShellScreen({
               Crea o selecciona un elemento en la pestaña Estructura para inspeccionar sus controles.
             </Text>
           </Card>
-        )
+        )}
+
+        <Card
+          icon="show-chart"
+          title="Gráfica de Valores (Multi-serie)"
+          subtitle="Trazado nativo interactivo con selector de período y cursor táctil"
+        >
+          <SimpleLineChart
+            height={185}
+            unit="$"
+            series={STOCK_DATA[chartTimeframe].series}
+            labels={STOCK_DATA[chartTimeframe].labels}
+            timeframeOptions={[
+              { value: '1D', label: '1D' },
+              { value: '1S', label: '1S' },
+              { value: '1M', label: '1M' },
+              { value: '1A', label: '1A' }
+            ]}
+            activeTimeframe={chartTimeframe}
+            onTimeframeChange={(tf: string) => setChartTimeframe(tf as ChartTimeframe)}
+          />
+        </Card>
+        </>
       ) : null}
 
       {activeTab === 'settings' ? (

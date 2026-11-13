@@ -2,12 +2,12 @@
   "expo": {
     "name": "Framework Base App",
     "slug": "framework-base-app",
-    "version": "2026.11.2",
+    "version": "2026.11.3",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.framework.baseapp",
-      "versionCode": 26111302
+      "versionCode": 26111303
     },
     "web": {
       "bundler": "metro"

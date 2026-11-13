@@ -15,7 +15,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (45 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (48 símbolos exportados)
 
 ## `@framework/base-domain`
 
@@ -2072,4 +2072,50 @@ Miembros públicos:
 
 ```ts
 function AppShell<T extends string>({ appName, subtitle, headerRight, topBanner, toastMessage, tabs, activeTab, onTabChange, children }: AppShellProps<T>)
+```
+
+### `ChartSeries`
+
+- Origen: `packages/ui/src/components/SimpleLineChart.tsx`
+
+```ts
+interface ChartSeries
+```
+
+Miembros públicos:
+- `id: string`
+- `name: string`
+- `color?: string`
+- `values: number[]`
+
+### `SimpleLineChartProps`
+
+- Origen: `packages/ui/src/components/SimpleLineChart.tsx`
+
+```ts
+interface SimpleLineChartProps
+```
+
+Miembros públicos:
+- `series: ChartSeries[]`
+- `labels: string[]`
+- `height?: number`
+- `unit?: string`
+- `autoScale?: boolean`
+- `showDots?: boolean`
+- `showGrid?: boolean`
+- `showLegend?: boolean`
+- `strokeWidth?: number`
+- `timeframeOptions?: Array<{ value: string; label: string }>`
+- `activeTimeframe?: string`
+- `onTimeframeChange?: (next: string) => void`
+- `emptyMessage?: string`
+
+### `SimpleLineChart`
+
+- Origen: `packages/ui/src/components/SimpleLineChart.tsx`
+- Descripción: Gráfica de líneas simple y multiserie implementada con primitivas estándar de React Native. Características: - Soporta 1, 2 o más series simultáneas (ej. comparar varias acciones o métricas). - Selector integrado de período temporal (1D, 1S, 1M, 1A). - Leyenda interactiva para mostrar u ocultar series pulsando sobre ellas. - Cursor táctil interactivo (scrubbing) con línea guía y tooltip flotante con fecha y valores. - Cero dependencias nativas externas: funciona de forma idéntica en Expo Android, iOS y Web.
+
+```ts
+function SimpleLineChart({ series, labels, height = 190, unit = '', autoScale = true, showDots = true, showGrid = true, showLegend = true, strokeWidth = 2.5, timeframeOptions, activeTimeframe, onTimeframeChange, emptyMessage = 'Sin datos para graficar' }: SimpleLineChartProps)
 ```

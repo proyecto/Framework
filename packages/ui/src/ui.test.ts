@@ -32,6 +32,7 @@ import { Badge, SegmentedControl } from './components/Badge.js';
 import { Button } from './components/Button.js';
 import { Card } from './components/Card.js';
 import { GoogleIcon } from './components/Icon.js';
+import { SimpleLineChart } from './components/SimpleLineChart.js';
 import { Slider } from './components/Slider.js';
 import { StorageStatusBar } from './components/StorageStatusBar.js';
 import { SwitchToggle } from './components/SwitchToggle.js';
@@ -199,5 +200,34 @@ describe('@framework/ui design tokens & typography resolver', () => {
     expect(html).toContain('Activo');
     expect(html).toContain('Campo requerido');
     expect(html).toContain('Confirmar');
+  });
+
+  it('renders SimpleLineChart with multi-series, labels, unit and interactive legend', () => {
+    const html = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'light',
+        children: createElement(SimpleLineChart, {
+          unit: '€',
+          labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
+          series: [
+            { id: 'aapl', name: 'Apple', color: '#3B82F6', values: [150, 155, 153, 162, 160] },
+            { id: 'goog', name: 'Google', color: '#10B981', values: [130, 132, 138, 140, 142] }
+          ],
+          timeframeOptions: [
+            { value: '1D', label: '1D' },
+            { value: '1W', label: '1S' },
+            { value: '1M', label: '1M' }
+          ],
+          activeTimeframe: '1W',
+          onTimeframeChange: () => {}
+        })
+      })
+    );
+
+    expect(html).toContain('Apple');
+    expect(html).toContain('Google');
+    expect(html).toContain('160.0€');
+    expect(html).toContain('142.0€');
+    expect(html).toContain('1S');
   });
 });
