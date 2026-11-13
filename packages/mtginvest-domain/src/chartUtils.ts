@@ -309,3 +309,268 @@ export function buildCardChart(
   }
 }
 
+/** Serie agregada global para la cartera de inversión completa. */
+export interface PortfolioChartSeriesData {
+  labels: string[];
+  investmentValues: number[];
+  portfolioValues: number[];
+  profitValues: number[];
+  roiValues: number[];
+}
+
+/**
+ * Calcula la evolución temporal consolidada de toda la colección.
+ * Permite analizar la cartera a nivel macro (Valor total vs Coste, Beneficio neto y ROI %).
+ */
+export function buildPortfolioChart(
+  items: CardEntity[],
+  timeframe: ChartTimeframe,
+  referenceDate: Date = new Date('2026-11-13T00:00:00Z')
+): PortfolioChartSeriesData {
+  if (items.length === 0) {
+    return {
+      labels: ['Hoy'],
+      investmentValues: [0],
+      portfolioValues: [0],
+      profitValues: [0],
+      roiValues: [0]
+    };
+  }
+
+  // Coste total acumulado de adquisición de la cartera
+  let totalCost = 0;
+  for (const c of items) {
+    const qty = Math.max(1, c.quantity ?? 1);
+    totalCost += (c.previousPrice ?? c.currentPrice) * qty;
+  }
+  const totalCostFixed = Number(totalCost.toFixed(2));
+
+  // Generamos los hitos temporales según el timeframe
+  const dateKeys: string[] = [];
+  const labels: string[] = [];
+  const refTime = referenceDate.getTime();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  if (timeframe === '1S') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(refTime - i * ONE_DAY_MS);
+      dateKeys.push(d.toISOString().slice(0, 10));
+      labels.push(`${d.getUTCDate()} ${SPANISH_MONTHS[d.getUTCMonth()] ?? ''}`);
+    }
+  } else if (timeframe === '1M') {
+    const offsets = [28, 24, 20, 16, 12, 8, 4, 0];
+    for (const offset of offsets) {
+      const d = new Date(refTime - offset * ONE_DAY_MS);
+      dateKeys.push(d.toISOString().slice(0, 10));
+      labels.push(`${d.getUTCDate()} ${SPANISH_MONTHS[d.getUTCMonth()] ?? ''}`);
+    }
+  } else if (timeframe === '3M') {
+    const offsets = [80, 70, 60, 50, 40, 30, 20, 10, 0];
+    for (const offset of offsets) {
+      const d = new Date(refTime - offset * ONE_DAY_MS);
+      dateKeys.push(d.toISOString().slice(0, 10));
+      labels.push(`${d.getUTCDate()} ${SPANISH_MONTHS[d.getUTCMonth()] ?? ''}`);
+    }
+  } else if (timeframe === '6M') {
+    const refYear = referenceDate.getUTCFullYear();
+    const refMonth = referenceDate.getUTCMonth();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.UTC(refYear, refMonth - i, 1));
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+      dateKeys.push(key);
+      const year2 = String(d.getUTCFullYear()).slice(-2);
+      const mName = SPANISH_MONTHS[d.getUTCMonth()] ?? '';
+      labels.push(i === 6 || i === 0 ? `${mName} '${year2}` : mName);
+    }
+  } else {
+    // '1A' (12 meses / 13 puntos)
+    const refYear = referenceDate.getUTCFullYear();
+    const refMonth = referenceDate.getUTCMonth();
+    for (let i = 12; i >= 0; i--) {
+      const d = new Date(Date.UTC(refYear, refMonth - i, 1));
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+      dateKeys.push(key);
+      const year2 = String(d.getUTCFullYear()).slice(-2);
+      const mName = SPANISH_MONTHS[d.getUTCMonth()] ?? '';
+      labels.push(i === 12 || i === 0 ? `${mName} '${year2}` : mName);
+    }
+  }
+
+  const investmentValues: number[] = [];
+  const portfolioValues: number[] = [];
+  const profitValues: number[] = [];
+  const roiValues: number[] = [];
+
+  for (let idx = 0; idx < dateKeys.length; idx++) {
+    const key = dateKeys[idx]!;
+    const isLast = idx === dateKeys.length - 1;
+
+    let portVal = 0;
+
+    if (isLast) {
+      for (const card of items) {
+        const qty = Math.max(1, card.quantity ?? 1);
+        portVal += card.currentPrice * qty;
+      }
+    } else {
+      for (const card of items) {
+        const qty = Math.max(1, card.quantity ?? 1);
+        const history = card.priceHistory ?? [];
+        if (history.length === 0) {
+          portVal += card.currentPrice * qty;
+          continue;
+        }
+
+        const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
+        const validPoints = sorted.filter((p) =>
+          key.length === 7 ? p.date <= `${key}-31` : p.date <= key
+        );
+
+        if (validPoints.length > 0) {
+          portVal += validPoints[validPoints.length - 1]!.price * qty;
+        } else {
+          // Antes de empezar a tener registros históricos
+          portVal += 0;
+        }
+      }
+    }
+
+    const currentVal = Number(portVal.toFixed(2));
+
+    if (currentVal === 0) {
+      investmentValues.push(0);
+      portfolioValues.push(0);
+      profitValues.push(0);
+      roiValues.push(0);
+    } else {
+      const profit = Number((currentVal - totalCostFixed).toFixed(2));
+      const roi = totalCostFixed > 0 ? Number(((profit / totalCostFixed) * 100).toFixed(1)) : 0;
+      investmentValues.push(totalCostFixed);
+      portfolioValues.push(currentVal);
+      profitValues.push(profit);
+      roiValues.push(roi);
+    }
+  }
+
+  return {
+    labels,
+    investmentValues,
+    portfolioValues,
+    profitValues,
+    roiValues
+  };
+}
+
+/** Tramo de distribución de rentabilidad para la cartera. */
+export interface RoiDistributionBucket {
+  id: string;
+  label: string;
+  rangeLabel: string;
+  minPercent: number;
+  maxPercent: number;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+/**
+ * Calcula la distribución porcentual de cartas en los distintos tramos de rentabilidad (ROI %).
+ */
+export function calculatePortfolioRoiDistribution(items: CardEntity[]): RoiDistributionBucket[] {
+  const totalCards = items.length;
+  const buckets: Array<Omit<RoiDistributionBucket, 'count' | 'percentage'> & { count: number }> = [
+    { id: 'loss', label: 'En pérdida', rangeLabel: '< 0%', minPercent: -Infinity, maxPercent: 0, count: 0, color: '#EF4444' },
+    { id: 'low', label: 'Bajo', rangeLabel: '0% a 25%', minPercent: 0, maxPercent: 25, count: 0, color: '#3B82F6' },
+    { id: 'mid', label: 'Moderado', rangeLabel: '25% a 50%', minPercent: 25, maxPercent: 50, count: 0, color: '#10B981' },
+    { id: 'high', label: 'Alto', rangeLabel: '50% a 100%', minPercent: 50, maxPercent: 100, count: 0, color: '#F59E0B' },
+    { id: 'multi', label: 'x2 o más', rangeLabel: '> 100%', minPercent: 100, maxPercent: Infinity, count: 0, color: '#8B5CF6' }
+  ];
+
+  for (const card of items) {
+    const prev = card.previousPrice || card.currentPrice;
+    const roi = prev > 0 ? ((card.currentPrice - prev) / prev) * 100 : 0;
+
+    for (const b of buckets) {
+      if (b.id === 'loss' && roi < 0) {
+        b.count++;
+        break;
+      } else if (b.id === 'multi' && roi >= 100) {
+        b.count++;
+        break;
+      } else if (roi >= b.minPercent && roi < b.maxPercent) {
+        b.count++;
+        break;
+      }
+    }
+  }
+
+  return buckets.map((b) => ({
+    ...b,
+    percentage: totalCards > 0 ? Number(((b.count / totalCards) * 100).toFixed(1)) : 0
+  }));
+}
+
+/** Registro de carta destacada por plusvalía o pérdida. */
+export interface CardProfitLeader {
+  id: string;
+  title: string;
+  nameEn?: string;
+  edition: string;
+  editionCode?: string;
+  quantity: number;
+  unitBuyPrice: number;
+  unitCurrentPrice: number;
+  totalInvested: number;
+  totalCurrent: number;
+  totalProfit: number;
+  roiPercent: number;
+}
+
+/**
+ * Obtiene las cartas líderes en plusvalía (candidatas a venta) y las cartas con mayor pérdida.
+ */
+export function getPortfolioProfitLeaders(
+  items: CardEntity[],
+  limit = 5
+): {
+  topGainers: CardProfitLeader[];
+  topLosers: CardProfitLeader[];
+} {
+  const mapped: CardProfitLeader[] = items.map((card) => {
+    const qty = Math.max(1, card.quantity ?? 1);
+    const unitBuy = card.previousPrice ?? card.currentPrice;
+    const unitCur = card.currentPrice;
+    const totalInvested = Number((unitBuy * qty).toFixed(2));
+    const totalCurrent = Number((unitCur * qty).toFixed(2));
+    const totalProfit = Number((totalCurrent - totalInvested).toFixed(2));
+    const roiPercent = totalInvested > 0 ? Number(((totalProfit / totalInvested) * 100).toFixed(1)) : 0;
+
+    return {
+      id: card.id,
+      title: card.title,
+      nameEn: card.nameEn,
+      edition: card.edition,
+      editionCode: card.editionCode,
+      quantity: qty,
+      unitBuyPrice: unitBuy,
+      unitCurrentPrice: unitCur,
+      totalInvested,
+      totalCurrent,
+      totalProfit,
+      roiPercent
+    };
+  });
+
+  const topGainers = [...mapped]
+    .filter((c) => c.totalProfit > 0)
+    .sort((a, b) => b.totalProfit - a.totalProfit)
+    .slice(0, limit);
+
+  const topLosers = [...mapped]
+    .filter((c) => c.totalProfit < 0)
+    .sort((a, b) => a.totalProfit - b.totalProfit)
+    .slice(0, limit);
+
+  return { topGainers, topLosers };
+}
+

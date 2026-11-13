@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (45 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (51 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (59 símbolos exportados)
@@ -1846,6 +1846,91 @@ function buildSixMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previou
 
 ```ts
 function buildCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, timeframe: ChartTimeframe, referenceDate?: Date): CardChartSeriesData
+```
+
+### `PortfolioChartSeriesData`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Serie agregada global para la cartera de inversión completa.
+
+```ts
+interface PortfolioChartSeriesData
+```
+
+Miembros públicos:
+- `labels: string[]`
+- `investmentValues: number[]`
+- `portfolioValues: number[]`
+- `profitValues: number[]`
+- `roiValues: number[]`
+
+### `buildPortfolioChart`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Calcula la evolución temporal consolidada de toda la colección. Permite analizar la cartera a nivel macro (Valor total vs Coste, Beneficio neto y ROI %).
+
+```ts
+function buildPortfolioChart(items: CardEntity[], timeframe: ChartTimeframe, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): PortfolioChartSeriesData
+```
+
+### `RoiDistributionBucket`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Tramo de distribución de rentabilidad para la cartera.
+
+```ts
+interface RoiDistributionBucket
+```
+
+Miembros públicos:
+- `id: string`
+- `label: string`
+- `rangeLabel: string`
+- `minPercent: number`
+- `maxPercent: number`
+- `count: number`
+- `percentage: number`
+- `color: string`
+
+### `calculatePortfolioRoiDistribution`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Calcula la distribución porcentual de cartas en los distintos tramos de rentabilidad (ROI %).
+
+```ts
+function calculatePortfolioRoiDistribution(items: CardEntity[]): RoiDistributionBucket[]
+```
+
+### `CardProfitLeader`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Registro de carta destacada por plusvalía o pérdida.
+
+```ts
+interface CardProfitLeader
+```
+
+Miembros públicos:
+- `id: string`
+- `title: string`
+- `nameEn?: string`
+- `edition: string`
+- `editionCode?: string`
+- `quantity: number`
+- `unitBuyPrice: number`
+- `unitCurrentPrice: number`
+- `totalInvested: number`
+- `totalCurrent: number`
+- `totalProfit: number`
+- `roiPercent: number`
+
+### `getPortfolioProfitLeaders`
+
+- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Descripción: Obtiene las cartas líderes en plusvalía (candidatas a venta) y las cartas con mayor pérdida.
+
+```ts
+function getPortfolioProfitLeaders(items: CardEntity[], limit = 5): { topGainers: CardProfitLeader[]; topLosers: CardProfitLeader[]; }
 ```
 
 ### `MtginvestModel`

@@ -20,16 +20,21 @@ import {
 import { APP_LAYOUT_BOUNDS } from './bounds';
 import {
   buildCardChart,
+  buildPortfolioChart,
   calculateCardReturn,
+  calculatePortfolioRoiDistribution,
+  getPortfolioProfitLeaders,
   type CardEntity,
+  type CardProfitLeader,
   type ChartTimeframe,
   type IMtginvestController,
+  type RoiDistributionBucket,
   MTG_SETS,
   TIMEFRAME_DESCRIPTIONS
 } from './mvc';
 import { APP_VERSION, BASE_VERSION } from './version';
 
-export type MTGTab = 'main' | 'settings';
+export type MTGTab = 'main' | 'analytics' | 'settings';
 
 export interface MTGInvestScreenProps {
   controller: IMtginvestController;
@@ -177,6 +182,10 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
   const [sortBy, setSortBy] = useState<MtgSortKey>('price_desc');
   const [showSortModal, setShowSortModal] = useState(false);
 
+  // Estado para la pestaña de Gráficas de la Cartera completa
+  const [portfolioTimeframe, setPortfolioTimeframe] = useState<ChartTimeframe>('1A');
+  const [activeMetricChart, setActiveMetricChart] = useState<'value' | 'profit' | 'roi'>('value');
+
   const state = useMvcController(controller, {
     onEvent: (event) => {
       setToast(event.message);
@@ -274,6 +283,24 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       trend
     };
   }, [state.items]);
+
+  // Series temporales agregadas para la pestaña "Gráficas" de la colección completa
+  const portfolioChartData = useMemo(
+    () => buildPortfolioChart(state.items, portfolioTimeframe),
+    [state.items, portfolioTimeframe]
+  );
+
+  // Distribución de cartas según tramos de rentabilidad (ROI %)
+  const roiDistribution = useMemo(
+    () => calculatePortfolioRoiDistribution(state.items),
+    [state.items]
+  );
+
+  // Líderes de plusvalía y pérdida (candidatas a venta vs revisión)
+  const profitLeaders = useMemo(
+    () => getPortfolioProfitLeaders(state.items, 5),
+    [state.items]
+  );
 
   // Gráfica de evolución temporal para la carta en edición/detalle
   const cardChartData = useMemo(() => {
@@ -423,6 +450,7 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
       toastMessage={toast}
       tabs={[
         { id: 'main', label: 'Principal', icon: 'home' },
+        { id: 'analytics', label: 'Gráficas', icon: 'show-chart' },
         {
           id: APP_LAYOUT_BOUNDS.settingsTab.id,
           label: APP_LAYOUT_BOUNDS.settingsTab.label,
@@ -1326,6 +1354,690 @@ export function MTGInvestScreen({ controller }: MTGInvestScreenProps) {
             </View>
           </ModalDialog>
         </>
+      ) : null}
+
+      {/* Pestaña Gráficas: Vista macro de valor, evolución, ROI y distribución de la colección */}
+      {activeTab === 'analytics' ? (
+        <View style={{ gap: theme.spacing.md }}>
+          {/* 1. KPIs Globales de Rendimiento de la Colección */}
+          <Card
+            title="Rendimiento Global de la Cartera"
+            subtitle={`${portfolioSummary.totalQuantity} copias físicas · ${portfolioSummary.uniqueCards} cartas únicas en cartera`}
+            icon="insights"
+          >
+            <View style={{ gap: theme.spacing.sm }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: theme.spacing.sm
+                }}
+              >
+                {/* Coste Total Invertido */}
+                <View
+                  style={{
+                    flex: 1,
+                    minWidth: 140,
+                    backgroundColor: theme.colors.surfaceMuted,
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    gap: 3
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'medium')
+                    }}
+                  >
+                    Inversión Total
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: theme.typography.titleSize - 2,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {portfolioSummary.totalInvested.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}{' '}
+                    €
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize - 1,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    Coste de adquisición
+                  </Text>
+                </View>
+
+                {/* Valor Actual de Mercado */}
+                <View
+                  style={{
+                    flex: 1,
+                    minWidth: 140,
+                    backgroundColor: theme.colors.surfaceMuted,
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    gap: 3
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'medium')
+                    }}
+                  >
+                    Valor de Cartera
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: theme.typography.titleSize - 2,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {portfolioSummary.totalCurrent.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}{' '}
+                    €
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize - 1,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    Cotización Cardmarket
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: theme.spacing.sm
+                }}
+              >
+                {/* Plusvalía Neta */}
+                <View
+                  style={{
+                    flex: 1,
+                    minWidth: 140,
+                    backgroundColor:
+                      portfolioSummary.trend === 'up'
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : portfolioSummary.trend === 'down'
+                        ? 'rgba(239, 68, 68, 0.08)'
+                        : theme.colors.surfaceMuted,
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor:
+                      portfolioSummary.trend === 'up'
+                        ? 'rgba(16, 185, 129, 0.25)'
+                        : portfolioSummary.trend === 'down'
+                        ? 'rgba(239, 68, 68, 0.25)'
+                        : theme.colors.border,
+                    gap: 3
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'medium')
+                    }}
+                  >
+                    Plusvalía Neta
+                  </Text>
+                  <Text
+                    style={{
+                      color:
+                        portfolioSummary.trend === 'up'
+                          ? '#10B981'
+                          : portfolioSummary.trend === 'down'
+                          ? '#EF4444'
+                          : theme.colors.textPrimary,
+                      fontSize: theme.typography.titleSize - 2,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {portfolioSummary.totalDiff >= 0 ? '+' : ''}
+                    {portfolioSummary.totalDiff.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}{' '}
+                    €
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize - 1,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    Ganancia no realizada
+                  </Text>
+                </View>
+
+                {/* Rentabilidad ROI (%) */}
+                <View
+                  style={{
+                    flex: 1,
+                    minWidth: 140,
+                    backgroundColor:
+                      portfolioSummary.trend === 'up'
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : portfolioSummary.trend === 'down'
+                        ? 'rgba(239, 68, 68, 0.08)'
+                        : theme.colors.surfaceMuted,
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor:
+                      portfolioSummary.trend === 'up'
+                        ? 'rgba(16, 185, 129, 0.25)'
+                        : portfolioSummary.trend === 'down'
+                        ? 'rgba(239, 68, 68, 0.25)'
+                        : theme.colors.border,
+                    gap: 3
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'medium')
+                    }}
+                  >
+                    Rentabilidad (ROI)
+                  </Text>
+                  <Text
+                    style={{
+                      color:
+                        portfolioSummary.trend === 'up'
+                          ? '#10B981'
+                          : portfolioSummary.trend === 'down'
+                          ? '#EF4444'
+                          : theme.colors.textPrimary,
+                      fontSize: theme.typography.titleSize - 2,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {portfolioSummary.totalPercent >= 0 ? '+' : ''}
+                    {portfolioSummary.totalPercent} %
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize - 1,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    Rendimiento sobre coste
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          {/* 2. Gráfica Consolidada de Evolución de la Colección */}
+          <Card
+            title="Evolución de la Colección"
+            subtitle={TIMEFRAME_DESCRIPTIONS[portfolioTimeframe]}
+            icon="show-chart"
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              {/* Selector de Métrica (Valor, Beneficio, ROI) */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 6,
+                  backgroundColor: theme.colors.surfaceMuted,
+                  padding: 4,
+                  borderRadius: theme.radius.md
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver gráfica de Valor e Inversión"
+                  onPress={() => setActiveMetricChart('value')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: theme.spacing.sm,
+                    borderRadius: theme.radius.sm,
+                    alignItems: 'center',
+                    backgroundColor:
+                      activeMetricChart === 'value' ? theme.colors.surface : 'transparent'
+                  }}
+                >
+                  <Text
+                    style={{
+                      color:
+                        activeMetricChart === 'value'
+                          ? theme.colors.accentText
+                          : theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize + 1,
+                      ...textTypographyStyle(
+                        theme,
+                        activeMetricChart === 'value' ? 'bold' : 'medium'
+                      )
+                    }}
+                  >
+                    Valor vs Inversión (€)
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver gráfica de Beneficio Neto"
+                  onPress={() => setActiveMetricChart('profit')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: theme.spacing.sm,
+                    borderRadius: theme.radius.sm,
+                    alignItems: 'center',
+                    backgroundColor:
+                      activeMetricChart === 'profit' ? theme.colors.surface : 'transparent'
+                  }}
+                >
+                  <Text
+                    style={{
+                      color:
+                        activeMetricChart === 'profit'
+                          ? theme.colors.accentText
+                          : theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize + 1,
+                      ...textTypographyStyle(
+                        theme,
+                        activeMetricChart === 'profit' ? 'bold' : 'medium'
+                      )
+                    }}
+                  >
+                    Beneficio Neto (€)
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver gráfica de ROI"
+                  onPress={() => setActiveMetricChart('roi')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: theme.spacing.sm,
+                    borderRadius: theme.radius.sm,
+                    alignItems: 'center',
+                    backgroundColor:
+                      activeMetricChart === 'roi' ? theme.colors.surface : 'transparent'
+                  }}
+                >
+                  <Text
+                    style={{
+                      color:
+                        activeMetricChart === 'roi'
+                          ? theme.colors.accentText
+                          : theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize + 1,
+                      ...textTypographyStyle(
+                        theme,
+                        activeMetricChart === 'roi' ? 'bold' : 'medium'
+                      )
+                    }}
+                  >
+                    ROI Global (%)
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Selector de Rango Temporal (1S, 1M, 3M, 6M, 1A) entre texto y gráfico */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 6
+                }}
+              >
+                {(['1S', '1M', '3M', '6M', '1A'] as const).map((tf) => {
+                  const isSelected = portfolioTimeframe === tf;
+                  return (
+                    <Button
+                      key={tf}
+                      size="sm"
+                      variant={isSelected ? 'primary' : 'outline'}
+                      label={tf}
+                      onPress={() => setPortfolioTimeframe(tf)}
+                    />
+                  );
+                })}
+              </View>
+
+              {/* Gráfica SimpleLineChart según la métrica activa */}
+              <View
+                style={{
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderRadius: theme.radius.md,
+                  padding: theme.spacing.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border
+                }}
+              >
+                {activeMetricChart === 'value' ? (
+                  <SimpleLineChart
+                    series={[
+                      {
+                        id: 'portfolio-val',
+                        name: 'Valor de Mercado',
+                        color: theme.colors.accent,
+                        values: portfolioChartData.portfolioValues
+                      },
+                      {
+                        id: 'portfolio-inv',
+                        name: 'Inversión Total',
+                        color: '#64748B',
+                        values: portfolioChartData.investmentValues
+                      }
+                    ]}
+                    labels={portfolioChartData.labels}
+                    unit="€"
+                    height={205}
+                    showLegend={true}
+                    showDots={true}
+                    showGrid={true}
+                  />
+                ) : activeMetricChart === 'profit' ? (
+                  <SimpleLineChart
+                    series={[
+                      {
+                        id: 'portfolio-profit',
+                        name: 'Beneficio Neto',
+                        color: '#10B981',
+                        values: portfolioChartData.profitValues
+                      }
+                    ]}
+                    labels={portfolioChartData.labels}
+                    unit="€"
+                    height={205}
+                    showLegend={false}
+                    showDots={true}
+                    showGrid={true}
+                  />
+                ) : (
+                  <SimpleLineChart
+                    series={[
+                      {
+                        id: 'portfolio-roi',
+                        name: 'Rentabilidad (ROI)',
+                        color: '#8B5CF6',
+                        values: portfolioChartData.roiValues
+                      }
+                    ]}
+                    labels={portfolioChartData.labels}
+                    unit="%"
+                    height={205}
+                    showLegend={false}
+                    showDots={true}
+                    showGrid={true}
+                  />
+                )}
+              </View>
+            </View>
+          </Card>
+
+          {/* 3. Distribución de Rentabilidad (ROI %) */}
+          <Card
+            title="Distribución de Rentabilidad (ROI %)"
+            subtitle="Desglose por tramos de ganancia y pérdida en la colección"
+            icon="pie-chart"
+          >
+            <View style={{ gap: theme.spacing.sm }}>
+              {roiDistribution.map((bucket) => (
+                <View key={bucket.id} style={{ gap: 4 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: bucket.color
+                        }}
+                      />
+                      <Text
+                        style={{
+                          color: theme.colors.textPrimary,
+                          fontSize: theme.typography.captionSize + 1,
+                          ...textTypographyStyle(theme, 'medium')
+                        }}
+                      >
+                        {bucket.label} ({bucket.rangeLabel})
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      {bucket.count} carta(s) · {bucket.percentage} %
+                    </Text>
+                  </View>
+
+                  {/* Barra de progreso */}
+                  <View
+                    style={{
+                      height: 8,
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderRadius: 4,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <View
+                      style={{
+                        height: '100%',
+                        width: `${Math.min(100, Math.max(bucket.percentage, bucket.count > 0 ? 3 : 0))}%`,
+                        backgroundColor: bucket.color,
+                        borderRadius: 4
+                      }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          {/* 4. Top 5 Joyas de la Cartera (Mayor Plusvalía en €) */}
+          <Card
+            title="Top 5 • Mayor Plusvalía (€)"
+            subtitle="Cartas con mayor revalorización monetaria neta"
+            icon="trending-up"
+          >
+            <View style={{ gap: theme.spacing.xs }}>
+              {profitLeaders.topGainers.map((card, idx) => (
+                <View
+                  key={card.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: theme.spacing.sm,
+                    borderBottomWidth: idx < profitLeaders.topGainers.length - 1 ? 1 : 0,
+                    borderBottomColor: theme.colors.border
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 13,
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: '#10B981',
+                          fontSize: theme.typography.captionSize,
+                          ...textTypographyStyle(theme, 'bold')
+                        }}
+                      >
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text
+                        style={{
+                          color: theme.colors.textPrimary,
+                          fontSize: theme.typography.bodySize,
+                          ...textTypographyStyle(theme, 'bold')
+                        }}
+                        numberOfLines={1}
+                      >
+                        {card.title} {card.quantity > 1 ? `(${card.quantity})` : ''}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontSize: theme.typography.captionSize,
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                      >
+                        {card.edition} {card.editionCode ? `[${card.editionCode}]` : ''} · Compra: {card.unitBuyPrice} €
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <Text
+                      style={{
+                        color: '#10B981',
+                        fontSize: theme.typography.bodySize,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      +{card.totalProfit.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </Text>
+                    <Text
+                      style={{
+                        color: '#10B981',
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'medium')
+                      }}
+                    >
+                      +{card.roiPercent} %
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          {/* 5. Top 5 Mayor Pérdida (€) */}
+          <Card
+            title="Top 5 • Mayor Pérdida (€)"
+            subtitle="Cartas con mayor caída respecto al precio de adquisición"
+            icon="trending-down"
+          >
+            <View style={{ gap: theme.spacing.xs }}>
+              {profitLeaders.topLosers.map((card, idx) => (
+                <View
+                  key={card.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: theme.spacing.sm,
+                    borderBottomWidth: idx < profitLeaders.topLosers.length - 1 ? 1 : 0,
+                    borderBottomColor: theme.colors.border
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 13,
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: '#EF4444',
+                          fontSize: theme.typography.captionSize,
+                          ...textTypographyStyle(theme, 'bold')
+                        }}
+                      >
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text
+                        style={{
+                          color: theme.colors.textPrimary,
+                          fontSize: theme.typography.bodySize,
+                          ...textTypographyStyle(theme, 'bold')
+                        }}
+                        numberOfLines={1}
+                      >
+                        {card.title} {card.quantity > 1 ? `(${card.quantity})` : ''}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontSize: theme.typography.captionSize,
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                      >
+                        {card.edition} {card.editionCode ? `[${card.editionCode}]` : ''} · Compra: {card.unitBuyPrice} €
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <Text
+                      style={{
+                        color: '#EF4444',
+                        fontSize: theme.typography.bodySize,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      {card.totalProfit.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </Text>
+                    <Text
+                      style={{
+                        color: '#EF4444',
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'medium')
+                      }}
+                    >
+                      {card.roiPercent} %
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </View>
       ) : null}
 
       {activeTab === 'settings' ? (

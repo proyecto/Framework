@@ -4,11 +4,14 @@ import { InMemoryEntityStoreDriver, MemoryKeyValueStore } from '@framework/data'
 import {
   buildCardChart,
   buildOneYearCardChart,
+  buildPortfolioChart,
   buildThreeMonthCardChart,
   calculateCardReturn,
+  calculatePortfolioRoiDistribution,
   createMtginvestController,
   findMtgSetByCode,
   findMtgSetByName,
+  getPortfolioProfitLeaders,
   MTG_SETS,
   ScryfallApiClient,
   SEED_CARDS,
@@ -317,6 +320,80 @@ describe('MTGInvest MVC domain', () => {
     expect(chart6m.values[0]).toBe(0); // May '26
     expect(chart6m.values[3]).toBe(0); // Ago '26
     expect(chart6m.values[4]).toBe(45.63); // Sep '26
+  });
+
+  it('calculates global portfolio charts, ROI distribution and profit leaders', () => {
+    const mockItems = [
+      {
+        id: '1',
+        title: 'Scrubland',
+        edition: 'Revised Edition',
+        editionCode: '3ED',
+        quantity: 1,
+        previousPrice: 200,
+        currentPrice: 300,
+        isFavorite: false,
+        priceHistory: [
+          { date: '2026-09-07', price: 220 },
+          { date: '2026-10-15', price: 260 },
+          { date: '2026-11-13', price: 300 }
+        ],
+        createdAt: '2026-09-01T00:00:00Z',
+        updatedAt: '2026-11-13T00:00:00Z',
+        deletedAt: null,
+        version: 1
+      },
+      {
+        id: '2',
+        title: 'Relámpago',
+        edition: 'Unlimited Edition',
+        editionCode: '2ED',
+        quantity: 2,
+        previousPrice: 40,
+        currentPrice: 20, // Pérdida
+        isFavorite: false,
+        priceHistory: [
+          { date: '2026-09-07', price: 35 },
+          { date: '2026-10-15', price: 25 },
+          { date: '2026-11-13', price: 20 }
+        ],
+        createdAt: '2026-09-01T00:00:00Z',
+        updatedAt: '2026-11-13T00:00:00Z',
+        deletedAt: null,
+        version: 1
+      }
+    ];
+
+    const ref = new Date('2026-11-13T00:00:00Z');
+
+    // 1. Portfolio Chart (1A y 1S)
+    const port1a = buildPortfolioChart(mockItems, '1A', ref);
+    expect(port1a.labels.length).toBe(13);
+    // Coste total: 200 * 1 + 40 * 2 = 280
+    // Valor final actual: 300 * 1 + 20 * 2 = 340
+    // Beneficio final: 340 - 280 = 60
+    expect(port1a.investmentValues[12]).toBe(280);
+    expect(port1a.portfolioValues[12]).toBe(340);
+    expect(port1a.profitValues[12]).toBe(60);
+    expect(port1a.roiValues[12]).toBe(21.4); // 60 / 280 * 100
+
+    // 2. ROI Distribution
+    const distribution = calculatePortfolioRoiDistribution(mockItems);
+    expect(distribution.length).toBe(5);
+    const lossBucket = distribution.find((b) => b.id === 'loss');
+    const highBucket = distribution.find((b) => b.id === 'high');
+    expect(lossBucket?.count).toBe(1); // Relámpago (-50%)
+    expect(highBucket?.count).toBe(1);  // Scrubland (+50%)
+
+    // 3. Profit Leaders (Top Gainers / Losers)
+    const leaders = getPortfolioProfitLeaders(mockItems, 5);
+    expect(leaders.topGainers.length).toBe(1);
+    expect(leaders.topGainers[0]?.title).toBe('Scrubland');
+    expect(leaders.topGainers[0]?.totalProfit).toBe(100);
+
+    expect(leaders.topLosers.length).toBe(1);
+    expect(leaders.topLosers[0]?.title).toBe('Relámpago');
+    expect(leaders.topLosers[0]?.totalProfit).toBe(-40); // (20 - 40) * 2
   });
 
   it('syncs Cardmarket prices via Scryfall batch collection endpoint and throttles daily', async () => {
