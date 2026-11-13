@@ -178,6 +178,70 @@ importers:
         specifier: 'catalog:'
         version: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(terser@5.51.2)(tsx@4.23.15)
 
+  apps/mtginvest-expo:
+    dependencies:
+      '@expo-google-fonts/inter':
+        specifier: 'catalog:'
+        version: 0.4.2
+      '@expo/metro-runtime':
+        specifier: 'catalog:'
+        version: 58.0.17(@expo/log-box@58.0.15)(expo@58.0.25)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      '@expo/vector-icons':
+        specifier: 'catalog:'
+        version: 15.1.1(expo-font@58.0.12(expo@58.0.25)(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      '@framework/core':
+        specifier: 'workspace:'
+        version: link:../../packages/core
+      '@framework/data':
+        specifier: 'workspace:'
+        version: link:../../packages/data
+      '@framework/expo-adapter':
+        specifier: 'workspace:'
+        version: link:../../packages/expo-adapter
+      '@framework/mtginvest-domain':
+        specifier: 'workspace:'
+        version: link:../../packages/mtginvest-domain
+      '@framework/react':
+        specifier: 'workspace:'
+        version: link:../../packages/react
+      '@framework/ui':
+        specifier: 'workspace:'
+        version: link:../../packages/ui
+      expo:
+        specifier: 'catalog:'
+        version: 58.0.25(@babel/core@7.29.13)(@expo/dom-webview@58.0.2)(@expo/metro-runtime@58.0.17)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      expo-font:
+        specifier: 'catalog:'
+        version: 58.0.12(expo@58.0.25)(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      expo-sqlite:
+        specifier: 'catalog:'
+        version: 58.0.17(expo@58.0.25)(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      expo-status-bar:
+        specifier: 'catalog:'
+        version: 58.0.5(expo@58.0.25)(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+      react-native:
+        specifier: 'catalog:'
+        version: 0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0)
+      react-native-safe-area-context:
+        specifier: 'catalog:'
+        version: 5.11.1(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      react-native-web:
+        specifier: 'catalog:'
+        version: 0.21.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/base-domain:
     dependencies:
       '@framework/core':
@@ -260,6 +324,22 @@ importers:
       expo-sqlite:
         specifier: 'catalog:'
         version: 58.0.17(expo@58.0.25)(react-native@0.88.1(@babel/core@7.29.13)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@types/node@26.6.6)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(terser@5.51.2)(tsx@4.23.15))
+
+  packages/mtginvest-domain:
+    dependencies:
+      '@framework/core':
+        specifier: workspace:*
+        version: link:../core
+      '@framework/data':
+        specifier: workspace:*
+        version: link:../data
+    devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

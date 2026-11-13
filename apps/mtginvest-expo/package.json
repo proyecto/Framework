@@ -1,0 +1,38 @@
+{
+  "name": "@framework/mtginvest-expo",
+  "version": "2026.11.1",
+  "private": true,
+  "description": "Aplicación móvil MTGInvest construida sobre la arquitectura canónica (@framework/base-expo).",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "web": "expo start --web",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@expo-google-fonts/inter": "catalog:",
+    "@expo/metro-runtime": "catalog:",
+    "@expo/vector-icons": "catalog:",
+    "@framework/core": "workspace:",
+    "@framework/data": "workspace:",
+    "@framework/expo-adapter": "workspace:",
+    "@framework/mtginvest-domain": "workspace:",
+    "@framework/react": "workspace:",
+    "@framework/ui": "workspace:",
+    "expo": "catalog:",
+    "expo-font": "catalog:",
+    "expo-sqlite": "catalog:",
+    "expo-status-bar": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "catalog:",
+    "react-native-web": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}
+

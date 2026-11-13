@@ -13,6 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (12 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (53 símbolos exportados)
@@ -1362,6 +1363,183 @@ Miembros públicos:
 - `query(sql: string, params?: SqlValue[]): Promise<TRow[]>`
 - `transaction(fn: (tx: ISqlTransaction) => Promise<T>): Promise<T>`
 - `close(): Promise<void>`
+
+## `@framework/mtginvest-domain`
+
+Dominio MVC de la aplicación MTGInvest.
+
+### `APP_ID`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+const APP_ID
+```
+
+### `ENTITY_NAME`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+const ENTITY_NAME
+```
+
+### `CardEntity`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Entidad persistente de MTGInvest.
+
+```ts
+interface CardEntity extends EntityBase
+```
+
+Miembros públicos:
+- `title: string`
+- `intensity: number`
+- `isFavorite: boolean`
+
+### `CreateCardInput`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+interface CreateCardInput
+```
+
+Miembros públicos:
+- `title: string`
+- `intensity?: number`
+
+### `MtginvestViewState`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Estado inmutable proyectado hacia cualquier IView (Expo Android, Web, CLI, Tests).
+
+```ts
+interface MtginvestViewState
+```
+
+Miembros públicos:
+- `items: CardEntity[]`
+- `loading: boolean`
+- `busy: boolean`
+- `errorMessage: string | null`
+- `storage: StorageStatus`
+
+### `IMtginvestModel`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Contrato del Modelo (M).
+
+```ts
+interface IMtginvestModel extends IModel
+```
+
+Miembros públicos:
+- `getSnapshot(): CardEntity[]`
+- `loadItems(): Promise<CardEntity[]>`
+- `createItem(input: CreateCardInput): Promise<CardEntity>`
+- `updateIntensity(id: string, intensity: number): Promise<CardEntity>`
+- `deleteItem(id: string): Promise<void>`
+- `getStorageStatus(): Promise<StorageStatus>`
+- `setPlan(plan: UserPlan): Promise<StorageStatus>`
+- `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
+- `syncNow(): Promise<SyncReport>`
+
+### `IMtginvestController`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Contrato del Controlador (C).
+
+```ts
+interface IMtginvestController extends IController<MtginvestViewState, ViewEvent>
+```
+
+Miembros públicos:
+- `createItem(input: CreateCardInput): Promise<void>`
+- `updateIntensity(id: string, intensity: number): Promise<void>`
+- `deleteItem(id: string): Promise<void>`
+- `upgradeToProAndEnableCloud(): Promise<void>`
+- `setStorageMode(mode: StorageMode): Promise<void>`
+- `syncNow(): Promise<void>`
+- `clearError(): void`
+
+### `SERVER_MODULE`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Módulo enchufable al backend reutilizable `@framework/server`.
+
+```ts
+const SERVER_MODULE: RegisteredAppModule
+```
+
+### `MtginvestModel`
+
+- Origen: `packages/mtginvest-domain/src/MtginvestModel.ts`
+- Descripción: Modelo MVC de MTGInvest.
+
+```ts
+class MtginvestModel implements IMtginvestModel
+```
+
+Miembros públicos:
+- `constructor(private readonly repository: ISyncableRepository<CardEntity>)`
+- `subscribe(listener: () => void): () => void`
+- `getSnapshot(): CardEntity[]`
+- `loadItems(): Promise<CardEntity[]>`
+- `createItem(input: CreateCardInput): Promise<CardEntity>`
+- `updateIntensity(id: string, intensity: number): Promise<CardEntity>`
+- `deleteItem(id: string): Promise<void>`
+- `getStorageStatus(): Promise<StorageStatus>`
+- `setPlan(plan: UserPlan): Promise<StorageStatus>`
+- `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
+- `syncNow(): Promise<SyncReport>`
+- `dispose(): void`
+
+### `MtginvestController`
+
+- Origen: `packages/mtginvest-domain/src/MtginvestController.ts`
+- Descripción: Controlador MVC de MTGInvest.
+
+```ts
+class MtginvestController extends BaseController<MtginvestViewState, ViewEvent> implements IMtginvestController
+```
+
+Miembros públicos:
+- `constructor(private readonly model: IMtginvestModel)`
+- `init(): Promise<void>`
+- `createItem(input: CreateCardInput): Promise<void>`
+- `updateIntensity(id: string, intensity: number): Promise<void>`
+- `deleteItem(id: string): Promise<void>`
+- `upgradeToProAndEnableCloud(): Promise<void>`
+- `setStorageMode(mode: StorageMode): Promise<void>`
+- `syncNow(): Promise<void>`
+- `clearError(): void`
+- `dispose(): void`
+
+### `CreateMtginvestControllerOptions`
+
+- Origen: `packages/mtginvest-domain/src/factory.ts`
+
+```ts
+interface CreateMtginvestControllerOptions
+```
+
+Miembros públicos:
+- `store: IEntityStoreDriver`
+- `kv: IKeyValueStore`
+- `deviceId: string`
+- `userId?: string`
+- `transport?: IRemoteSyncTransport`
+
+### `createMtginvestController`
+
+- Origen: `packages/mtginvest-domain/src/factory.ts`
+- Descripción: Factoría compartida multiplataforma (Android Expo + Web + Tests).
+
+```ts
+function createMtginvestController(options: CreateMtginvestControllerOptions): MtginvestController
+```
 
 ## `@framework/react`
 

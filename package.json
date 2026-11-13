@@ -15,6 +15,8 @@
     "dev:web": "pnpm --filter @framework/base-web dev",
     "dev:expo": "pnpm --filter @framework/base-expo start",
     "dev:expo:web": "pnpm --filter @framework/base-expo web",
+    "dev:mtginvest": "pnpm --filter @framework/mtginvest-expo start",
+    "dev:mtginvest:web": "pnpm --filter @framework/mtginvest-expo web",
     "upgrade:expo": "node scripts/upgrade-expo.mjs",
     "version:bump": "node scripts/bump-version.mjs",
     "version:auto": "node scripts/bump-version.mjs --auto"
