@@ -91,3 +91,20 @@ corepack pnpm check
 4. **Quality Gate unificado (`corepack pnpm check`) e Integración Continua**:
    - Ejecuta en cadena `build` → `typecheck` → `test` → `verify:arch` → `docs:check`.
    - Automatizado en cada push/PR mediante [.github/workflows/ci.yml](../.github/workflows/ci.yml), junto con [.vscode/settings.json](../.vscode/settings.json) para fijar el TypeScript SDK del workspace en el IDE.
+
+## 7. Versionado automático CalVer + Monotónico Android (`scripts/bump-version.mjs`)
+
+Para eliminar la toma de decisiones manual sobre números de versión (sin tener que elegir entre major/minor/patch):
+
+1. **Esquema CalVer por aplicación (`apps/*`)**:
+   - `version`: Formato `YYYY.MM.BUILD` (ej. `2026.11.1`, `2026.11.2`). Incrementa de forma secuencial cada vez que se publica una release en el mes. Al cambiar de mes, se reinicia a `YYYY.MM.1`.
+   - `android.versionCode` (obligatorio en Google Play): Entero monotónico `YYMMDDXX` (ej. `26111301`). Si ya existe una release el mismo día, incrementa a `26111302`. Al día siguiente pasa a `26111401` (> `26111302`), garantizando matemáticamente que Google Play nunca rechaza la subida.
+2. **Generación automática de `src/version.ts`**:
+   - Cada app cuenta con su archivo `src/version.ts` generado por el script exportando `APP_VERSION`, `APP_BUILD` y `APP_RELEASE_DATE`.
+   - Las vistas (`BaseShellScreen`, `BaseWebApp`) consumen estas constantes directamente.
+3. **Comandos automatizados**:
+   - `corepack pnpm version:auto`: Inspecciona `git status` y actualiza automáticamente solo las apps que tengan modificaciones.
+   - `corepack pnpm version:bump <app>`: Actualiza una app específica (ej. `base-expo`).
+   - `corepack pnpm version:bump --all`: Actualiza todas las apps del monorepo a la vez.
+   - `node --test scripts/bump-version.test.mjs`: Suite de tests unitarios del sistema de versionado.
+

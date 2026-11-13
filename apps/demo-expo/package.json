@@ -1,6 +1,6 @@
 {
   "name": "@framework/demo-expo",
-  "version": "0.1.0",
+  "version": "2026.11.1",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -31,4 +31,3 @@
     "typescript": "catalog:"
   }
 }
-

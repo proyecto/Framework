@@ -1,6 +1,6 @@
 {
   "name": "@framework/base-web",
-  "version": "0.1.0",
+  "version": "2026.11.1",
   "private": true,
   "description": "Plantilla base canónica para aplicaciones Web del framework: fija límites visuales, tokens CSS en capas y estructura MVC.",
   "type": "module",
@@ -26,4 +26,3 @@
     "vite": "catalog:"
   }
 }
-

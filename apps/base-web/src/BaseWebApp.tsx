@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 import { WEB_LAYOUT_BOUNDS } from './bounds';
 import type { IBaseAppController } from './mvc';
+import { APP_VERSION } from './version';
 
 type ColorSchemeSetting = 'system' | 'light' | 'dark';
 
@@ -248,6 +249,7 @@ export function BaseWebApp({ controller }: { controller: IBaseAppController }) {
         </div>
 
         <div className="base-topbar-actions">
+          <span className="pill">v{APP_VERSION}</span>
           <span className={`pill ${state.storage.cloudEnabled ? 'cloud' : ''}`}>
             {state.storage.cloudEnabled ? 'Nube Pro sincronizada' : 'Solo local (Gratis)'}
           </span>

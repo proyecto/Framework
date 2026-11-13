@@ -18,6 +18,7 @@ import {
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
 import type { IBaseAppController } from './mvc';
+import { APP_BUILD, APP_VERSION } from './version';
 
 type BaseTab = 'workspace' | 'controls' | 'bounds';
 
@@ -337,6 +338,33 @@ export function BaseShellScreen({
               label="Aplicar URL"
               onPress={() => onApiBaseUrlChange(draftApiUrl.trim())}
             />
+          </Card>
+
+          <Card icon="verified-user" title="Información de Release" subtitle="CalVer monotónico sincronizado">
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'medium')
+                }}
+              >
+                Versión de la app
+              </Text>
+              <Badge label={`v${APP_VERSION}`} tone="accent" />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'medium')
+                }}
+              >
+                Código de Build (Android)
+              </Text>
+              <Badge label={String(APP_BUILD)} tone="neutral" />
+            </View>
           </Card>
         </>
       ) : null}

@@ -2,16 +2,19 @@
   "expo": {
     "name": "Framework Base App",
     "slug": "framework-base-app",
-    "version": "0.1.0",
+    "version": "2026.11.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "com.framework.baseapp"
+      "package": "com.framework.baseapp",
+      "versionCode": 26111301
     },
     "web": {
       "bundler": "metro"
     },
-    "plugins": ["expo-sqlite", "expo-font"]
+    "plugins": [
+      "expo-sqlite",
+      "expo-font"
+    ]
   }
 }
-
