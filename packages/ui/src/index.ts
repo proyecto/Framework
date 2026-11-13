@@ -15,3 +15,4 @@ export * from './components/StorageStatusBar.js';
 export * from './components/AppShell.js';
 export * from './components/SimpleLineChart.js';
 export * from './components/Calendar.js';
+export * from './components/Select.js';

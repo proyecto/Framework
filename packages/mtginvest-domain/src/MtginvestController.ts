@@ -6,6 +6,7 @@ import {
   type ViewEvent
 } from '@framework/core';
 import type {
+  CardEntity,
   CreateCardInput,
   IMtginvestController,
   IMtginvestModel,
@@ -92,6 +93,20 @@ export class MtginvestController
     });
   }
 
+  async updateCard(
+    id: string,
+    patch: Partial<
+      Pick<
+        CardEntity,
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+      >
+    >
+  ): Promise<void> {
+    await this.executeCommand(true, async () => {
+      await this.model.updateCard(id, patch);
+    });
+  }
+
   async updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void> {
     await this.executeCommand(false, async () => {
       await this.model.updatePrices(id, currentPrice, previousPrice);
@@ -101,6 +116,18 @@ export class MtginvestController
   async deleteItem(id: string): Promise<void> {
     await this.executeCommand(true, async () => {
       await this.model.deleteItem(id);
+    });
+  }
+
+  async resetToSeed(): Promise<void> {
+    await this.executeCommand(true, async () => {
+      await this.model.resetToSeed();
+    });
+  }
+
+  async importMissingSeeds(): Promise<void> {
+    await this.executeCommand(true, async () => {
+      await this.model.importMissingSeeds();
     });
   }
 

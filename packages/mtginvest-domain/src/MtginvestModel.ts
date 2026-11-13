@@ -11,72 +11,7 @@ import type {
   CardEntity,
   IMtginvestModel
 } from './contracts.js';
-
-const SEED_CARDS: CreateCardInput[] = [
-  {
-    title: 'Ángel de Serra',
-    nameEn: 'Serra Angel',
-    edition: 'Unlimited Edition',
-    editionCode: '2ed',
-    previousPrice: 29.79,
-    currentPrice: 72.22,
-    condition: 'PL'
-  },
-  {
-    title: 'Demonic Tutor',
-    nameEn: 'Demonic Tutor',
-    edition: 'Revised Edition',
-    editionCode: '3ed',
-    previousPrice: 37.79,
-    currentPrice: 38.16,
-    condition: 'EX'
-  },
-  {
-    title: 'Relámpago',
-    nameEn: 'Lightning Bolt',
-    edition: 'Unlimited Edition',
-    editionCode: '2ed',
-    previousPrice: 41.79,
-    currentPrice: 21.76,
-    condition: 'LP'
-  },
-  {
-    title: 'Cavar túneles',
-    nameEn: 'Burrowing',
-    edition: 'Unlimited Edition',
-    editionCode: '2ed',
-    previousPrice: 3.79,
-    currentPrice: 1.42,
-    condition: 'LP'
-  },
-  {
-    title: 'Dragón shivano',
-    nameEn: 'Shivan Dragon',
-    edition: 'Revised Edition',
-    editionCode: '3ed',
-    previousPrice: 13.79,
-    currentPrice: 9.74,
-    condition: 'LP'
-  },
-  {
-    title: 'Ira de Dios',
-    nameEn: 'Wrath of God',
-    edition: 'Revised Edition',
-    editionCode: '3ed',
-    previousPrice: 16.79,
-    currentPrice: 7.85,
-    condition: 'NM'
-  },
-  {
-    title: 'Black Lotus',
-    nameEn: 'Black Lotus',
-    edition: 'Unlimited Edition',
-    editionCode: '2ed',
-    previousPrice: 11200.0,
-    currentPrice: 12450.0,
-    condition: 'EX'
-  }
-];
+import { SEED_CARDS } from './seeds.js';
 
 function generateId(): string {
   const webCrypto = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -131,6 +66,7 @@ export class MtginvestModel implements IMtginvestModel {
             nameEn: seed.nameEn,
             edition: seed.edition ?? 'Desconocida',
             editionCode: seed.editionCode,
+            quantity: Math.max(1, Number(seed.quantity ?? 1)),
             currentPrice: seed.currentPrice ?? 0,
             previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
             condition: seed.condition ?? 'NM',
@@ -141,10 +77,119 @@ export class MtginvestModel implements IMtginvestModel {
             version: 1
           });
         }
-        items = await this.repository.list();
+      } else {
+        // Si ya existían datos de una versión previa (ej. solo las 7 cartas de prueba),
+        // completamos automáticamente el inventario con todas las cartas faltantes de las semillas.
+        for (const seed of SEED_CARDS) {
+          const alreadyExists = history.some(
+            (c) =>
+              c.title.trim().toLowerCase() === seed.title.trim().toLowerCase() &&
+              (c.editionCode?.trim().toLowerCase() === seed.editionCode?.trim().toLowerCase() ||
+                c.edition.trim().toLowerCase() === (seed.edition ?? '').trim().toLowerCase())
+          );
+          if (!alreadyExists) {
+            const now = new Date().toISOString();
+            await this.repository.save({
+              id: generateId(),
+              title: seed.title,
+              nameEn: seed.nameEn,
+              edition: seed.edition ?? 'Desconocida',
+              editionCode: seed.editionCode,
+              quantity: Math.max(1, Number(seed.quantity ?? 1)),
+              currentPrice: seed.currentPrice ?? 0,
+              previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
+              condition: seed.condition ?? 'NM',
+              isFavorite: false,
+              createdAt: now,
+              updatedAt: now,
+              deletedAt: null,
+              version: 1
+            });
+          }
+        }
+        // Aseguramos que las cartas existentes tengan cantidad definida (>= 1)
+        for (const item of history) {
+          if (item.quantity === undefined || isNaN(item.quantity) || item.quantity < 1) {
+            const matchingSeed = SEED_CARDS.find(
+              (s) => s.title.trim().toLowerCase() === item.title.trim().toLowerCase()
+            );
+            await this.repository.save({
+              ...item,
+              quantity: matchingSeed?.quantity ?? 1,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
       }
+      items = await this.repository.list();
     }
 
+    this.items = items;
+    this.notify();
+    return this.getSnapshot();
+  }
+
+  async resetToSeed(): Promise<CardEntity[]> {
+    const all = await this.repository.list({ includeDeleted: true });
+    for (const card of all) {
+      await this.repository.remove(card.id);
+    }
+    for (const seed of SEED_CARDS) {
+      const now = new Date().toISOString();
+      await this.repository.save({
+        id: generateId(),
+        title: seed.title,
+        nameEn: seed.nameEn,
+        edition: seed.edition ?? 'Desconocida',
+        editionCode: seed.editionCode,
+        quantity: Math.max(1, Number(seed.quantity ?? 1)),
+        currentPrice: seed.currentPrice ?? 0,
+        previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
+        condition: seed.condition ?? 'NM',
+        isFavorite: false,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        version: 1
+      });
+    }
+    this.seededOnce = true;
+    const items = await this.repository.list();
+    this.items = items;
+    this.notify();
+    return this.getSnapshot();
+  }
+
+  async importMissingSeeds(): Promise<CardEntity[]> {
+    const history = await this.repository.list({ includeDeleted: true });
+    for (const seed of SEED_CARDS) {
+      const alreadyExists = history.some(
+        (c) =>
+          c.title.trim().toLowerCase() === seed.title.trim().toLowerCase() &&
+          (c.editionCode?.trim().toLowerCase() === seed.editionCode?.trim().toLowerCase() ||
+            c.edition.trim().toLowerCase() === (seed.edition ?? '').trim().toLowerCase())
+      );
+      if (!alreadyExists) {
+        const now = new Date().toISOString();
+        await this.repository.save({
+          id: generateId(),
+          title: seed.title,
+          nameEn: seed.nameEn,
+          edition: seed.edition ?? 'Desconocida',
+          editionCode: seed.editionCode,
+          quantity: Math.max(1, Number(seed.quantity ?? 1)),
+          currentPrice: seed.currentPrice ?? 0,
+          previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
+          condition: seed.condition ?? 'NM',
+          isFavorite: false,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+          version: 1
+        });
+      }
+    }
+    const items = await this.repository.list();
     this.items = items;
     this.notify();
     return this.getSnapshot();
@@ -157,6 +202,7 @@ export class MtginvestModel implements IMtginvestModel {
     }
     const currentPrice = Number(input.currentPrice ?? 0);
     const previousPrice = Number(input.previousPrice ?? currentPrice);
+    const quantity = Math.max(1, Number(input.quantity ?? 1));
     const now = new Date().toISOString();
 
     const created = await this.repository.save({
@@ -165,6 +211,7 @@ export class MtginvestModel implements IMtginvestModel {
       nameEn: input.nameEn?.trim(),
       edition: input.edition?.trim() || 'General',
       editionCode: input.editionCode?.trim(),
+      quantity,
       currentPrice,
       previousPrice,
       condition: input.condition ?? 'NM',
@@ -176,6 +223,43 @@ export class MtginvestModel implements IMtginvestModel {
     });
     await this.loadItems();
     return created;
+  }
+
+  async updateCard(
+    id: string,
+    patch: Partial<
+      Pick<
+        CardEntity,
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+      >
+    >
+  ): Promise<CardEntity> {
+    const current = await this.repository.findById(id);
+    if (!current) {
+      throw new ValidationError('La carta seleccionada ya no existe.');
+    }
+
+    const title = patch.title !== undefined ? patch.title.trim() : current.title;
+    if (!title) {
+      throw new ValidationError('El nombre de la carta no puede estar vacío.');
+    }
+
+    const updated: CardEntity = {
+      ...current,
+      title,
+      nameEn: patch.nameEn !== undefined ? (patch.nameEn.trim() || undefined) : current.nameEn,
+      edition: patch.edition !== undefined ? (patch.edition.trim() || current.edition) : current.edition,
+      editionCode: patch.editionCode !== undefined ? (patch.editionCode.trim() || undefined) : current.editionCode,
+      quantity: patch.quantity !== undefined ? Math.max(1, Number(patch.quantity)) : current.quantity,
+      currentPrice: patch.currentPrice !== undefined ? Number(patch.currentPrice) : current.currentPrice,
+      previousPrice: patch.previousPrice !== undefined ? Number(patch.previousPrice) : current.previousPrice,
+      condition: patch.condition !== undefined ? patch.condition : current.condition,
+      updatedAt: new Date().toISOString()
+    };
+
+    const saved = await this.repository.save(updated);
+    await this.loadItems();
+    return saved;
   }
 
   async updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity> {

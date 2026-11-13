@@ -13,10 +13,10 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (14 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (19 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (53 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (57 símbolos exportados)
 
 ## `@framework/base-domain`
 
@@ -1406,6 +1406,7 @@ Miembros públicos:
 - `nameEn?: string`
 - `edition: string`
 - `editionCode?: string`
+- `quantity: number`
 - `currentPrice: number`
 - `previousPrice: number`
 - `condition?: string`
@@ -1424,6 +1425,7 @@ Miembros públicos:
 - `nameEn?: string`
 - `edition?: string`
 - `editionCode?: string`
+- `quantity?: number`
 - `currentPrice?: number`
 - `previousPrice?: number`
 - `condition?: string`
@@ -1431,7 +1433,7 @@ Miembros públicos:
 ### `calculateCardReturn`
 
 - Origen: `packages/mtginvest-domain/src/contracts.ts`
-- Descripción: Calcula la variación absoluta, porcentual y la tendencia estilo bursátil.
+- Descripción: Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad.
 
 ```ts
 function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): { diff: number; percent: number; trend: CardTrend; }
@@ -1466,8 +1468,11 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
+- `resetToSeed(): Promise<CardEntity[]>`
+- `importMissingSeeds(): Promise<CardEntity[]>`
 - `getStorageStatus(): Promise<StorageStatus>`
 - `setPlan(plan: UserPlan): Promise<StorageStatus>`
 - `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
@@ -1484,8 +1489,11 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 
 Miembros públicos:
 - `createItem(input: CreateCardInput): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
+- `resetToSeed(): Promise<void>`
+- `importMissingSeeds(): Promise<void>`
 - `upgradeToProAndEnableCloud(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`
 - `syncNow(): Promise<void>`
@@ -1514,7 +1522,10 @@ Miembros públicos:
 - `subscribe(listener: () => void): () => void`
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
+- `resetToSeed(): Promise<CardEntity[]>`
+- `importMissingSeeds(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `deleteItem(id: string): Promise<void>`
 - `getStorageStatus(): Promise<StorageStatus>`
@@ -1535,8 +1546,11 @@ Miembros públicos:
 - `constructor(private readonly model: IMtginvestModel)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, 'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' > >): Promise<void>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `deleteItem(id: string): Promise<void>`
+- `resetToSeed(): Promise<void>`
+- `importMissingSeeds(): Promise<void>`
 - `upgradeToProAndEnableCloud(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`
 - `syncNow(): Promise<void>`
@@ -1565,6 +1579,53 @@ Miembros públicos:
 
 ```ts
 function createMtginvestController(options: CreateMtginvestControllerOptions): MtginvestController
+```
+
+### `MtgSet`
+
+- Origen: `packages/mtginvest-domain/src/sets.ts`
+- Descripción: Catálogo canónico de ediciones/sets de Magic: The Gathering extraído de la hoja "Sets".
+
+```ts
+interface MtgSet
+```
+
+Miembros públicos:
+- `code: string`
+- `name: string`
+- `year?: string`
+
+### `MTG_SETS`
+
+- Origen: `packages/mtginvest-domain/src/sets.ts`
+
+```ts
+const MTG_SETS: MtgSet[]
+```
+
+### `findMtgSetByCode`
+
+- Origen: `packages/mtginvest-domain/src/sets.ts`
+
+```ts
+function findMtgSetByCode(code: string): MtgSet | undefined
+```
+
+### `findMtgSetByName`
+
+- Origen: `packages/mtginvest-domain/src/sets.ts`
+
+```ts
+function findMtgSetByName(name: string): MtgSet | undefined
+```
+
+### `SEED_CARDS`
+
+- Origen: `packages/mtginvest-domain/src/seeds.ts`
+- Descripción: Semillas de cartas iniciales basadas en el inventario real de Magic: The Gathering.
+
+```ts
+const SEED_CARDS: CreateCardInput[]
 ```
 
 ## `@framework/react`
@@ -2114,6 +2175,8 @@ Miembros públicos:
 - `placeholder?: string`
 - `error?: string`
 - `multiline?: boolean`
+- `keyboardType?: KeyboardTypeOptions`
+- `autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'`
 
 ### `TextField`
 
@@ -2121,7 +2184,7 @@ Miembros públicos:
 - Descripción: Campo de texto estándar del Design System con etiqueta superior y validación visual inline.
 
 ```ts
-function TextField({ label, value, onChangeText, placeholder, error, multiline = false }: TextFieldProps)
+function TextField({ label, value, onChangeText, placeholder, error, multiline = false, keyboardType = 'default', autoCapitalize }: TextFieldProps)
 ```
 
 ### `BadgeTone`
@@ -2209,6 +2272,20 @@ Miembros públicos:
 function StorageStatusBar({ status, onSyncPress, onManagePress }: StorageStatusBarProps)
 ```
 
+### `ModalDialogAction`
+
+- Origen: `packages/ui/src/components/AppShell.tsx`
+
+```ts
+interface ModalDialogAction
+```
+
+Miembros públicos:
+- `label: string`
+- `variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'`
+- `icon?: GoogleIconName`
+- `onPress: () => void`
+
 ### `ModalDialogProps`
 
 - Origen: `packages/ui/src/components/AppShell.tsx`
@@ -2224,6 +2301,7 @@ Miembros públicos:
 - `confirmLabel?: string`
 - `cancelLabel?: string`
 - `destructive?: boolean`
+- `leftAction?: ModalDialogAction`
 - `onConfirm?: () => void`
 - `onCancel: () => void`
 - `children?: ReactNode`
@@ -2234,7 +2312,7 @@ Miembros públicos:
 - Descripción: Diálogo modal reutilizable implementado sobre el `<Modal>` estándar de React Native.
 
 ```ts
-function ModalDialog({ visible, title, description, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, onConfirm, onCancel, children }: ModalDialogProps)
+function ModalDialog({ visible, title, description, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, leftAction, onConfirm, onCancel, children }: ModalDialogProps)
 ```
 
 ### `AppShellTab`
@@ -2381,4 +2459,48 @@ function parseDateIso(iso: string): { year: number; month: number; day: number }
 
 ```ts
 function Calendar({ selectedDate, onSelectDate, minDate, maxDate, markedDates = {}, initialYear, initialMonth, firstDayOfWeek = 1, showTodayButton = true, style }: CalendarProps)
+```
+
+### `SelectOption`
+
+- Origen: `packages/ui/src/components/Select.tsx`
+
+```ts
+interface SelectOption<T = string>
+```
+
+Miembros públicos:
+- `label: string`
+- `value: T`
+- `description?: string`
+- `badge?: string`
+
+### `SelectProps`
+
+- Origen: `packages/ui/src/components/Select.tsx`
+
+```ts
+interface SelectProps<T = string>
+```
+
+Miembros públicos:
+- `label?: string`
+- `placeholder?: string`
+- `value?: T | null`
+- `options: SelectOption<T>[]`
+- `onChange: (value: T) => void`
+- `disabled?: boolean`
+- `error?: string`
+- `searchable?: boolean`
+- `searchPlaceholder?: string`
+- `modalTitle?: string`
+- `style?: ViewStyle`
+
+### `Select`
+
+- Origen: `packages/ui/src/components/Select.tsx`
+- Descripción: Componente canónico de selección desplegable (`<Select />`) del Design System. Características: - Construido exclusivamente sobre primitivas puras de React Native (`View`, `Pressable`, `Modal`, `ScrollView`). - Soporta listas grandes con buscador integrado en tiempo real. - Soporta etiquetas descriptivas y badges en cada opción (ideal para colecciones, ediciones, estados). - Totalmente adaptado a temas claro y oscuro (`useFrameworkTheme()`).
+
+```ts
+function Select<T = string>({ label, placeholder = 'Selecciona una opción...', value, options, onChange, disabled = false, error, searchable = true, searchPlaceholder = 'Buscar...', modalTitle, style }: SelectProps<T>)
 ```

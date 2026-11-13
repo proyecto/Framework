@@ -1,3 +1,4 @@
+import type { KeyboardTypeOptions } from 'react-native';
 import { Text, TextInput, View } from 'react-native';
 import { useFrameworkTheme } from '../ThemeProvider.js';
 import { textTypographyStyle } from '../tokens.js';
@@ -9,6 +10,8 @@ export interface TextFieldProps {
   placeholder?: string;
   error?: string;
   multiline?: boolean;
+  keyboardType?: KeyboardTypeOptions;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 }
 
 /** Campo de texto estándar del Design System con etiqueta superior y validación visual inline. */
@@ -18,7 +21,9 @@ export function TextField({
   onChangeText,
   placeholder,
   error,
-  multiline = false
+  multiline = false,
+  keyboardType = 'default',
+  autoCapitalize
 }: TextFieldProps) {
   const theme = useFrameworkTheme();
 
@@ -39,6 +44,8 @@ export function TextField({
         placeholder={placeholder}
         placeholderTextColor={theme.colors.textSecondary}
         multiline={multiline}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         style={{
           backgroundColor: theme.colors.surfaceMuted,
           borderColor: error ? theme.colors.danger : theme.colors.border,

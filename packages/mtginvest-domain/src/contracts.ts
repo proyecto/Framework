@@ -20,7 +20,8 @@ export interface CardEntity extends EntityBase {
   title: string;              // Nombre en castellano o principal (ej. "Ángel de Serra")
   nameEn?: string;            // Nombre original en inglés (ej. "Serra Angel")
   edition: string;            // Nombre de la edición (ej. "Unlimited Edition")
-  editionCode?: string;       // Código del set (ej. "2ed", "3ed")
+  editionCode?: string;       // Código del set (ej. "2ED", "3ED")
+  quantity: number;           // Cantidad de cartas que se poseen (ej. 1, 4)
   currentPrice: number;       // Último valor de mercado registrado (€)
   previousPrice: number;      // Valor anterior de referencia o compra (€)
   condition?: string;         // Estado (NM, LP, EX, PL, PO)
@@ -32,12 +33,13 @@ export interface CreateCardInput {
   nameEn?: string;
   edition?: string;
   editionCode?: string;
+  quantity?: number;
   currentPrice?: number;
   previousPrice?: number;
   condition?: string;
 }
 
-/** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil. */
+/** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad. */
 export function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): {
   diff: number;
   percent: number;
@@ -66,8 +68,19 @@ export interface IMtginvestModel extends IModel {
   getSnapshot(): CardEntity[];
   loadItems(): Promise<CardEntity[]>;
   createItem(input: CreateCardInput): Promise<CardEntity>;
+  updateCard(
+    id: string,
+    patch: Partial<
+      Pick<
+        CardEntity,
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+      >
+    >
+  ): Promise<CardEntity>;
   updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>;
   deleteItem(id: string): Promise<void>;
+  resetToSeed(): Promise<CardEntity[]>;
+  importMissingSeeds(): Promise<CardEntity[]>;
   getStorageStatus(): Promise<StorageStatus>;
   setPlan(plan: UserPlan): Promise<StorageStatus>;
   setStorageMode(mode: StorageMode): Promise<StorageStatus>;
@@ -77,8 +90,19 @@ export interface IMtginvestModel extends IModel {
 /** Contrato del Controlador (C). */
 export interface IMtginvestController extends IController<MtginvestViewState, ViewEvent> {
   createItem(input: CreateCardInput): Promise<void>;
+  updateCard(
+    id: string,
+    patch: Partial<
+      Pick<
+        CardEntity,
+        'title' | 'nameEn' | 'edition' | 'editionCode' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition'
+      >
+    >
+  ): Promise<void>;
   updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>;
   deleteItem(id: string): Promise<void>;
+  resetToSeed(): Promise<void>;
+  importMissingSeeds(): Promise<void>;
   upgradeToProAndEnableCloud(): Promise<void>;
   setStorageMode(mode: StorageMode): Promise<void>;
   syncNow(): Promise<void>;

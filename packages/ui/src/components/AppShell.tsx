@@ -5,6 +5,13 @@ import { textTypographyStyle } from '../tokens.js';
 import { Button } from './Button.js';
 import { GoogleIcon, type GoogleIconName } from './Icon.js';
 
+export interface ModalDialogAction {
+  label: string;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  icon?: GoogleIconName;
+  onPress: () => void;
+}
+
 export interface ModalDialogProps {
   visible: boolean;
   title: string;
@@ -12,6 +19,7 @@ export interface ModalDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  leftAction?: ModalDialogAction;
   onConfirm?: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -25,6 +33,7 @@ export function ModalDialog({
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   destructive = false,
+  leftAction,
   onConfirm,
   onCancel,
   children
@@ -39,7 +48,8 @@ export function ModalDialog({
           flex: 1,
           backgroundColor: 'rgba(15, 23, 42, 0.55)',
           justifyContent: 'center',
-          padding: theme.spacing.xl
+          alignItems: 'center',
+          padding: theme.spacing.md
         }}
       >
         <Pressable
@@ -50,7 +60,10 @@ export function ModalDialog({
             borderWidth: 1,
             borderColor: theme.colors.border,
             padding: theme.spacing.xl,
-            gap: theme.spacing.md
+            gap: theme.spacing.md,
+            width: '100%',
+            maxWidth: 540,
+            maxHeight: '92%'
           }}
         >
           <Text
@@ -73,24 +86,42 @@ export function ModalDialog({
               {description}
             </Text>
           ) : null}
-          {children}
+          <ScrollView
+            style={{ maxHeight: 420 }}
+            contentContainerStyle={{ gap: theme.spacing.sm, paddingVertical: 2 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
           <View
             style={{
               flexDirection: 'row',
-              justifyContent: 'flex-end',
+              justifyContent: leftAction ? 'space-between' : 'flex-end',
+              alignItems: 'center',
               gap: theme.spacing.sm,
               marginTop: theme.spacing.xs
             }}
           >
-            <Button size="sm" variant="outline" label={cancelLabel} onPress={onCancel} />
-            {onConfirm ? (
+            {leftAction ? (
               <Button
                 size="sm"
-                variant={destructive ? 'danger' : 'primary'}
-                label={confirmLabel}
-                onPress={onConfirm}
+                variant={leftAction.variant ?? 'danger'}
+                icon={leftAction.icon}
+                label={leftAction.label}
+                onPress={leftAction.onPress}
               />
             ) : null}
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <Button size="sm" variant="outline" label={cancelLabel} onPress={onCancel} />
+              {onConfirm ? (
+                <Button
+                  size="sm"
+                  variant={destructive ? 'danger' : 'primary'}
+                  label={confirmLabel}
+                  onPress={onConfirm}
+                />
+              ) : null}
+            </View>
           </View>
         </Pressable>
       </Pressable>

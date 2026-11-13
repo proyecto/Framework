@@ -33,6 +33,7 @@ import { Button } from './components/Button.js';
 import { Card } from './components/Card.js';
 import { GoogleIcon } from './components/Icon.js';
 import { Calendar, formatDateIso, parseDateIso } from './components/Calendar.js';
+import { Select } from './components/Select.js';
 import { SimpleLineChart } from './components/SimpleLineChart.js';
 import { Slider } from './components/Slider.js';
 import { StorageStatusBar } from './components/StorageStatusBar.js';
@@ -268,5 +269,26 @@ describe('@framework/ui design tokens & typography resolver', () => {
     // Días del mes representados
     expect(html).toContain('13');
     expect(html).toContain('20');
+  });
+
+  it('renders Select with label, placeholder, and selected option value and badge', () => {
+    const html = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'light',
+        children: createElement(Select, {
+          label: 'Edición',
+          value: '2ED',
+          options: [
+            { label: 'Unlimited Edition', value: '2ED', badge: '2ED', description: '1993' },
+            { label: 'Revised Edition', value: '3ED', badge: '3ED', description: '1994' }
+          ],
+          onChange: () => {}
+        })
+      })
+    );
+
+    expect(html).toContain('Edición');
+    expect(html).toContain('Unlimited Edition');
+    expect(html).toContain('2ED');
   });
 });
