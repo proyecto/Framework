@@ -20,7 +20,7 @@ import { APP_LAYOUT_BOUNDS } from './bounds';
 import type { IBaseAppController } from './mvc';
 import { APP_BUILD, APP_VERSION } from './version';
 
-type BaseTab = 'workspace' | 'controls' | 'bounds';
+type BaseTab = 'workspace' | 'controls' | 'settings';
 
 export interface BaseShellScreenProps {
   controller: IBaseAppController;
@@ -61,7 +61,7 @@ export function BaseShellScreen({
     onEvent: (event) => {
       setToast(event.message);
       if (event.type === 'upgrade-required') {
-        setActiveTab('bounds');
+        setActiveTab('settings');
       }
     }
   });
@@ -97,7 +97,11 @@ export function BaseShellScreen({
       tabs={[
         { id: 'workspace', label: 'Estructura', icon: 'dashboard' },
         { id: 'controls', label: 'Controles UI', icon: 'tune' },
-        { id: 'bounds', label: 'Límites & Nube', icon: 'cloud-queue' }
+        {
+          id: APP_LAYOUT_BOUNDS.settingsTab.id,
+          label: APP_LAYOUT_BOUNDS.settingsTab.label,
+          icon: APP_LAYOUT_BOUNDS.settingsTab.icon
+        }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -111,7 +115,7 @@ export function BaseShellScreen({
         <StorageStatusBar
           status={state.storage}
           onSyncPress={() => void controller.syncNow()}
-          onManagePress={() => setActiveTab('bounds')}
+          onManagePress={() => setActiveTab('settings')}
         />
       }
     >
@@ -254,7 +258,7 @@ export function BaseShellScreen({
         )
       ) : null}
 
-      {activeTab === 'bounds' ? (
+      {activeTab === 'settings' ? (
         <>
           <Card
             icon="info-outline"

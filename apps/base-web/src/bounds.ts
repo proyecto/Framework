@@ -17,9 +17,9 @@ export const WEB_LAYOUT_BOUNDS = {
   defaultSliderStep: 5,
   designRules: [
     'Design Tokens Tier 1/2 en `@layer theme` equivalentes 1:1 a `LIGHT_THEME` y `DARK_THEME` de `@framework/ui`.',
-    'Estructura fija de 3 regiones mediante `grid-template-areas`: topbar, sidebar maestro e inspector principal.',
+    'Estructura fija de 3 regiones mediante `grid-template-areas`: topbar con botón permanente "Ajustes", sidebar maestro e inspector principal.',
     'Adaptación guiada por contenedor (`@container`) en bloques de métricas y propiedades lógicas (`inline-size`, `padding-block`).',
-    'Modales accesibles con `<dialog closedby="any">` y confirmación explícita para acciones destructivas.'
+    'Modal centralizado de "Ajustes" (`<dialog closedby="any">`) para gestión de tema, sincronización y release, con confirmación explícita para acciones destructivas.'
   ]
 } as const;
 

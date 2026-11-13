@@ -2,12 +2,12 @@
   "expo": {
     "name": "FocusScenes Framework",
     "slug": "focus-scenes-framework",
-    "version": "2026.11.1",
+    "version": "2026.11.2",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.framework.focusscenes",
-      "versionCode": 26111301
+      "versionCode": 26111302
     },
     "web": {
       "bundler": "metro"

@@ -271,7 +271,7 @@ export function BaseWebApp({ controller }: { controller: IBaseAppController }) {
             className="btn primary"
             onClick={() => settingsDialogRef.current?.showModal()}
           >
-            Nube, Tema y Límites
+            Ajustes
           </button>
         </div>
       </header>
@@ -460,7 +460,7 @@ export function BaseWebApp({ controller }: { controller: IBaseAppController }) {
         {...({ closedby: 'any' } as Record<string, string>)}
       >
         <div className="dialog-header">
-          <h2 id={settingsHeadingId}>Nube, Tema y Límites</h2>
+          <h2 id={settingsHeadingId}>Ajustes de la aplicación</h2>
           <form method="dialog">
             <button type="submit" className="btn" value="close">
               Cerrar

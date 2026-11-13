@@ -1,6 +1,6 @@
 {
   "name": "@framework/base-expo",
-  "version": "2026.11.1",
+  "version": "2026.11.2",
   "private": true,
   "description": "Plantilla base canónica para aplicaciones Android Expo del framework: fija límites visuales, tokens y estructura MVC.",
   "main": "index.ts",

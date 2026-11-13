@@ -92,8 +92,8 @@ export function PresetStudioScreen({
       subtitle={`Framework MVC · ${env.platformName}`}
       toastMessage={toast}
       tabs={[
-        { id: 'scenes', label: 'Escenas' },
-        { id: 'cloud', label: 'Nube & Ajustes' }
+        { id: 'scenes', label: 'Escenas', icon: 'dashboard' },
+        { id: 'cloud', label: 'Ajustes', icon: 'settings' }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab}
