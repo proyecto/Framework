@@ -11,6 +11,8 @@ import type {
   CreateCardInput,
   IMtginvestController,
   IMtginvestModel,
+  ImportCardsOptions,
+  ImportCardsResult,
   MtginvestViewState
 } from './contracts.js';
 import type { IScryfallApiClient } from './scryfall.js';
@@ -59,15 +61,16 @@ export class MtginvestController
     this.setState({ items, storage });
   }
 
-  private async executeCommand(
+  private async executeCommand<T = void>(
     trackBusy: boolean,
-    task: () => Promise<void>
-  ): Promise<void> {
+    task: () => Promise<T>
+  ): Promise<T> {
     this.setState(trackBusy ? { busy: true, errorMessage: null } : { errorMessage: null });
     try {
-      await task();
+      const result = await task();
       await this.syncStateFromModel();
       if (trackBusy) this.setState({ busy: false });
+      return result;
     } catch (error) {
       const message = getErrorMessage(error);
       this.setState(trackBusy ? { busy: false, errorMessage: message } : { errorMessage: message });
@@ -76,6 +79,7 @@ export class MtginvestController
       } else {
         this.emitViewEvent({ type: 'error', message });
       }
+      throw error;
     }
   }
 
@@ -185,10 +189,44 @@ export class MtginvestController
     });
   }
 
+  async clearInventory(): Promise<void> {
+    await this.executeCommand(true, async () => {
+      await this.model.clearInventory();
+    });
+    this.emitViewEvent({
+      type: 'toast',
+      message: 'Inventario vaciado por completo'
+    });
+  }
+
   async importMissingSeeds(): Promise<void> {
     await this.executeCommand(true, async () => {
       await this.model.importMissingSeeds();
     });
+  }
+
+  async importCards(
+    cards: CreateCardInput[],
+    options?: ImportCardsOptions
+  ): Promise<ImportCardsResult> {
+    const result = await this.executeCommand(true, async () => {
+      return await this.model.importCards(cards, options);
+    });
+    this.emitViewEvent({
+      type: 'toast',
+      message: result.replaced
+        ? `Cartera reemplazada con ${result.importedCount} carta(s).`
+        : `Importadas ${result.importedCount} carta(s) a la cartera.`
+    });
+    return result;
+  }
+
+  exportToJson(): string {
+    return this.model.exportToJson();
+  }
+
+  exportToCsv(): string {
+    return this.model.exportToCsv();
   }
 
   async upgradeToProAndEnableCloud(): Promise<void> {

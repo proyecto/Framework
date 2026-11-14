@@ -10,11 +10,14 @@ import type {
   CardmarketSyncResult,
   CreateCardInput,
   CardEntity,
-  IMtginvestModel
+  IMtginvestModel,
+  ImportCardsOptions,
+  ImportCardsResult
 } from './contracts.js';
 import type { IScryfallApiClient } from './scryfall.js';
 import { SEED_CARDS } from './seeds.js';
 import { SEED_PRICE_HISTORIES } from './priceHistory.js';
+import { exportCardsToCsv, exportCardsToJson } from './importExport.js';
 
 function generateId(): string {
   const webCrypto = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -85,39 +88,6 @@ export class MtginvestModel implements IMtginvestModel {
           });
         }
       } else {
-        // Si ya existían datos de una versión previa (ej. solo las 7 cartas de prueba),
-        // completamos automáticamente el inventario con todas las cartas faltantes de las semillas.
-        for (let idx = 0; idx < SEED_CARDS.length; idx++) {
-          const seed = SEED_CARDS[idx]!;
-          const seedId = `CARD-${String(idx + 1).padStart(5, '0')}`;
-          const alreadyExists = history.some(
-            (c) =>
-              c.title.trim().toLowerCase() === seed.title.trim().toLowerCase() &&
-              (c.editionCode?.trim().toLowerCase() === seed.editionCode?.trim().toLowerCase() ||
-                c.edition.trim().toLowerCase() === (seed.edition ?? '').trim().toLowerCase())
-          );
-          if (!alreadyExists) {
-            const now = new Date().toISOString();
-            await this.repository.save({
-              id: generateId(),
-              title: seed.title,
-              nameEn: seed.nameEn,
-              edition: seed.edition ?? 'Desconocida',
-              editionCode: seed.editionCode,
-              language: seed.language ?? 'EN',
-              quantity: Math.max(1, Number(seed.quantity ?? 1)),
-              currentPrice: seed.currentPrice ?? 0,
-              previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
-              condition: seed.condition ?? 'NM',
-              isFavorite: false,
-              priceHistory: SEED_PRICE_HISTORIES[seedId] ?? [],
-              createdAt: now,
-              updatedAt: now,
-              deletedAt: null,
-              version: 1
-            });
-          }
-        }
         // Aseguramos que las cartas existentes tengan cantidad, idioma e historial definidos
         for (const item of history) {
           const matchingIndex = SEED_CARDS.findIndex(
@@ -187,6 +157,16 @@ export class MtginvestModel implements IMtginvestModel {
     return this.getSnapshot();
   }
 
+  async clearInventory(): Promise<CardEntity[]> {
+    const all = await this.repository.list({ includeDeleted: true });
+    for (const card of all) {
+      await this.repository.remove(card.id);
+    }
+    this.items = [];
+    this.notify();
+    return [];
+  }
+
   async importMissingSeeds(): Promise<CardEntity[]> {
     const history = await this.repository.list({ includeDeleted: true });
     for (let idx = 0; idx < SEED_CARDS.length; idx++) {
@@ -224,6 +204,45 @@ export class MtginvestModel implements IMtginvestModel {
     this.items = items;
     this.notify();
     return this.getSnapshot();
+  }
+
+  async importCards(
+    cards: CreateCardInput[],
+    options: ImportCardsOptions = {}
+  ): Promise<ImportCardsResult> {
+    if (!cards || cards.length === 0) {
+      throw new ValidationError('No se proporcionaron cartas válidas para importar.');
+    }
+
+    const replace = Boolean(options.replace);
+
+    if (replace) {
+      const existing = await this.repository.list();
+      for (const card of existing) {
+        await this.repository.remove(card.id);
+      }
+    }
+
+    let count = 0;
+    for (const cardInput of cards) {
+      if (!cardInput.title || !cardInput.title.trim()) continue;
+      await this.createItem(cardInput);
+      count++;
+    }
+
+    await this.loadItems();
+    return {
+      importedCount: count,
+      replaced: replace
+    };
+  }
+
+  exportToJson(): string {
+    return exportCardsToJson(this.items);
+  }
+
+  exportToCsv(): string {
+    return exportCardsToCsv(this.items);
   }
 
   async createItem(input: CreateCardInput): Promise<CardEntity> {

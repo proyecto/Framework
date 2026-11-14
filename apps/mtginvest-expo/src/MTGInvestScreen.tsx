@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
 import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 import {
   AppShell,
@@ -35,6 +45,10 @@ import {
   type RoiDistributionBucket,
   type ScryfallCardData,
   type ScryfallSearchResult,
+  type CreateCardInput,
+  detectAndParseCards,
+  exportCardsToCsv,
+  exportCardsToJson,
   MTG_SETS,
   TIMEFRAME_DESCRIPTIONS
 } from './mvc';
@@ -112,13 +126,20 @@ export const I18N_STRINGS = {
     syncingButton: 'Actualizando cotizaciones...',
     syncConsultingToast: 'Consultando cotizaciones de Cardmarket en Scryfall...',
     syncDoneToast: (count: number) => `Cotizaciones actualizadas (${count} cartas revisadas).`,
-    inventoryCardTitle: 'Inventario y Catálogo Excel',
-    inventoryCardSubtitle: 'Sincronización y recarga de datos',
-    inventoryDescription: (count: number) => `Actualmente tienes ${count} referencia(s) en tu almacenamiento local. El catálogo del Excel incluye 57 cartas completas y 1.047 sets oficiales.`,
-    resetButton: 'Restablecer a las 57 cartas del Excel',
-    resetToast: 'Inventario restablecido a las 57 cartas del Excel.',
+    inventoryCardTitle: 'Inventario',
+    inventoryCardSubtitle: 'Gestión y borrado de la cartera',
+    inventoryDescription: (count: number) => `Actualmente tienes ${count} carta(s) registrada(s) en tu almacenamiento local.`,
+    resetButton: 'Resetear inventario',
+    resetToast: 'Inventario restablecido a las 57 cartas de prueba.',
+    clearToast: 'Inventario vaciado por completo (0 cartas).',
     importMissingButton: 'Importar cartas faltantes',
-    importMissingToast: 'Cartas del Excel importadas.',
+    importMissingToast: 'Cartas importadas.',
+    importExportCardTitle: 'Importar y Exportar Cartera',
+    importExportCardSubtitle: 'Copias de seguridad en JSON y CSV',
+    importExportDescription: 'Exporta tu inventario completo para guardarlo como copia de seguridad o abrirlo en Excel/Google Sheets, o importa colecciones completas desde archivos JSON o CSV.',
+    exportJsonButton: 'Exportar a JSON',
+    exportCsvButton: 'Exportar a CSV',
+    importButton: 'Importar cartas (JSON o CSV)',
     aboutCardTitle: 'Acerca de MTGInvest',
     aboutCardSubtitle: 'Gestor de Inversiones MTG',
     aboutDescription: 'Aplicación de gestión y valoración bursátil de inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.',
@@ -152,13 +173,20 @@ export const I18N_STRINGS = {
     syncingButton: 'Updating prices...',
     syncConsultingToast: 'Fetching Cardmarket quotes from Scryfall...',
     syncDoneToast: (count: number) => `Quotes updated (${count} cards reviewed).`,
-    inventoryCardTitle: 'Inventory & Excel Catalog',
-    inventoryCardSubtitle: 'Data synchronization & reload',
-    inventoryDescription: (count: number) => `You currently have ${count} card item(s) in your local storage. The Excel catalog includes 57 complete seeds and 1,047 official sets.`,
-    resetButton: 'Reset to 57 Excel seed cards',
-    resetToast: 'Inventory reset to the 57 Excel seed cards.',
+    inventoryCardTitle: 'Inventory',
+    inventoryCardSubtitle: 'Portfolio management & reset',
+    inventoryDescription: (count: number) => `You currently have ${count} card(s) in your local storage.`,
+    resetButton: 'Reset inventory',
+    resetToast: 'Inventory reset to the 57 test seed cards.',
+    clearToast: 'Inventory cleared completely (0 cards).',
     importMissingButton: 'Import missing cards',
-    importMissingToast: 'Missing Excel cards imported.',
+    importMissingToast: 'Cards imported.',
+    importExportCardTitle: 'Import & Export Portfolio',
+    importExportCardSubtitle: 'JSON and CSV backups',
+    importExportDescription: 'Export your full collection for safe backup or opening in Excel/Google Sheets, or import portfolios from JSON or CSV files.',
+    exportJsonButton: 'Export to JSON',
+    exportCsvButton: 'Export to CSV',
+    importButton: 'Import cards (JSON or CSV)',
     aboutCardTitle: 'About MTGInvest',
     aboutCardSubtitle: 'MTG Investment Manager',
     aboutDescription: 'Magic: The Gathering investment tracking and valuation app built on the modular Framework architecture.',
@@ -337,6 +365,57 @@ export const LANGUAGE_OPTIONS: SelectOption<string>[] = [
   { label: 'Japonés (JP)', value: 'JP', badge: 'JP' }
 ];
 
+function triggerWebDownload(content: string, fileName: string, mimeType: string): void {
+  if (typeof document === 'undefined') return;
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function openWebFilePicker(accept: string): Promise<{ name: string; content: string } | null> {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined') {
+      resolve(null);
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.style.display = 'none';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement)?.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const text = evt.target?.result;
+        if (typeof text === 'string') {
+          resolve({ name: file.name, content: text });
+        } else {
+          resolve(null);
+        }
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(() => {
+      if (input.parentNode) {
+        input.parentNode.removeChild(input);
+      }
+    }, 1000);
+  });
+}
+
 /**
  * Pantalla principal de MTGInvest (@framework/mtginvest-expo).
  *
@@ -461,6 +540,25 @@ export function MTGInvestScreen({
   // Estado para la pestaña de Gráficas de la Cartera completa
   const [portfolioTimeframe, setPortfolioTimeframe] = useState<ChartTimeframe>('1A');
   const [activeMetricChart, setActiveMetricChart] = useState<'value' | 'profit' | 'roi'>('value');
+
+  // Estado para la importación y exportación de la cartera (JSON / CSV)
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportConfirmModal, setShowImportConfirmModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importReplace, setImportReplace] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportModalTitle, setExportModalTitle] = useState('Exportar Cartera');
+  const [exportFileName, setExportFileName] = useState('');
+  const [exportContent, setExportContent] = useState('');
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
+
+  // Estado para el modal de doble check de borrado / reset de inventario
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [resetMode, setResetMode] = useState<'clear' | 'seed'>('clear');
+  const [isResetting, setIsResetting] = useState(false);
 
   const state = useMvcController(controller, {
     onEvent: (event) => {
@@ -936,6 +1034,147 @@ export function MTGInvestScreen({
     setToast(`Carta "${name}" eliminada de la cartera.`);
   };
 
+  const parsedImport = useMemo(() => {
+    const trimmed = importText.trim();
+    if (!trimmed) {
+      return {
+        cards: [] as CreateCardInput[],
+        format: null as 'json' | 'csv' | null,
+        error: null as string | null
+      };
+    }
+    try {
+      const res = detectAndParseCards(trimmed);
+      if (res.cards.length === 0) {
+        return {
+          cards: [] as CreateCardInput[],
+          format: res.format,
+          error: 'No se encontraron cartas válidas en el contenido.'
+        };
+      }
+      return { cards: res.cards, format: res.format, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al parsear el contenido.';
+      return { cards: [] as CreateCardInput[], format: null, error: msg };
+    }
+  }, [importText]);
+
+  const handleOpenImportModal = () => {
+    setImportText('');
+    setImportFileName(null);
+    setImportReplace(false);
+    setIsImporting(false);
+    setShowImportModal(true);
+  };
+
+  const handlePickFileForImport = async () => {
+    try {
+      const picked = await openWebFilePicker('.json,.csv,text/csv,application/json');
+      if (picked) {
+        setImportFileName(picked.name);
+        setImportText(picked.content);
+      }
+    } catch {}
+  };
+
+  const handleExecuteImport = async () => {
+    if (parsedImport.cards.length === 0 || isImporting) return;
+    setIsImporting(true);
+    try {
+      const result = await controller.importCards(parsedImport.cards, { replace: importReplace });
+      setShowImportConfirmModal(false);
+      setShowImportModal(false);
+      setToast(
+        importReplace
+          ? `Cartera reemplazada con éxito (${result.importedCount} cartas importadas).`
+          : `Se han añadido ${result.importedCount} cartas a la cartera con éxito.`
+      );
+      setImportText('');
+      setImportFileName(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido al importar';
+      setToast(`Error en la importación: ${msg}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleExecuteReset = async () => {
+    if (isResetting) return;
+    setIsResetting(true);
+    try {
+      if (resetMode === 'clear') {
+        await controller.clearInventory();
+        setToast(t.clearToast);
+      } else {
+        await controller.resetToSeed();
+        setToast(t.resetToast);
+      }
+      setShowResetConfirmModal(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al procesar el reseteo';
+      setToast(`Error: ${msg}`);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleExportJson = async () => {
+    const jsonStr = await controller.exportToJson();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `mtginvest_cartera_${dateStr}.json`;
+
+    setExportModalTitle('Exportar Cartera a JSON');
+    setExportFileName(fileName);
+    setExportContent(jsonStr);
+    setExportFormat('json');
+    setShowExportModal(true);
+
+    if (Platform.OS === 'web') {
+      triggerWebDownload(jsonStr, fileName, 'application/json');
+      setToast(`Cartera exportada a ${fileName}`);
+    } else {
+      try {
+        await Share.share({ title: fileName, message: jsonStr });
+      } catch {}
+    }
+  };
+
+  const handleExportCsv = async () => {
+    const csvStr = await controller.exportToCsv();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `mtginvest_cartera_${dateStr}.csv`;
+
+    setExportModalTitle('Exportar Cartera a CSV');
+    setExportFileName(fileName);
+    setExportContent(csvStr);
+    setExportFormat('csv');
+    setShowExportModal(true);
+
+    if (Platform.OS === 'web') {
+      triggerWebDownload(csvStr, fileName, 'text/csv');
+      setToast(`Cartera exportada a ${fileName}`);
+    } else {
+      try {
+        await Share.share({ title: fileName, message: csvStr });
+      } catch {}
+    }
+  };
+
+  const handleCopyExportToClipboard = async () => {
+    if (!exportContent) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(exportContent);
+        setToast('¡Copiado al portapapeles!');
+        return;
+      }
+    } catch {}
+    try {
+      await Share.share({ title: exportFileName, message: exportContent });
+    } catch {}
+  };
+
   return (
     <AppShell<MTGTab>
       appName="MTGInvest"
@@ -1093,54 +1332,6 @@ export function MTGInvestScreen({
               </View>
             </View>
           </Card>
-
-          {/* Banner de actualización si se detecta caché de una versión previa con menos de 50 cartas */}
-          {state.items.length < 50 ? (
-            <View
-              style={{
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.accent,
-                borderWidth: 1,
-                borderRadius: theme.radius.lg,
-                padding: theme.spacing.md,
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: theme.spacing.md
-              }}
-            >
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text
-                  style={{
-                    color: theme.colors.textPrimary,
-                    fontSize: theme.typography.bodySize,
-                    ...textTypographyStyle(theme, 'bold')
-                  }}
-                >
-                  Cargar catálogo completo del Excel
-                </Text>
-                <Text
-                  style={{
-                    color: theme.colors.textSecondary,
-                    fontSize: theme.typography.captionSize,
-                    ...textTypographyStyle(theme, 'regular')
-                  }}
-                >
-                  Tu almacenamiento local tiene guardadas {state.items.length} carta(s). Pulsa aquí para cargar las 57 cartas reales del Excel.
-                </Text>
-              </View>
-              <Button
-                size="sm"
-                variant="primary"
-                icon="refresh"
-                label="Cargar 57 cartas"
-                onPress={async () => {
-                  await controller.resetToSeed();
-                  setToast('¡Inventario cargado con las 57 cartas del Excel!');
-                }}
-              />
-            </View>
-          ) : null}
 
           {/* Barra de Búsqueda y Desplegable de Ordenación */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
@@ -3381,7 +3572,7 @@ export function MTGInvestScreen({
           <Card
             title={t.inventoryCardTitle}
             subtitle={t.inventoryCardSubtitle}
-            icon="settings-backup-restore"
+            icon="inventory-2"
           >
             <View style={{ gap: theme.spacing.md }}>
               <Text
@@ -3397,23 +3588,55 @@ export function MTGInvestScreen({
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
                 <Button
                   size="sm"
-                  variant="primary"
-                  icon="refresh"
+                  variant="outline"
+                  icon="delete-sweep"
                   label={t.resetButton}
-                  onPress={async () => {
-                    await controller.resetToSeed();
-                    setToast(t.resetToast);
+                  onPress={() => {
+                    setResetMode('clear');
+                    setShowResetConfirmModal(true);
                   }}
+                />
+              </View>
+            </View>
+          </Card>
+
+          <Card
+            title={t.importExportCardTitle}
+            subtitle={t.importExportCardSubtitle}
+            icon="import-export"
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                {t.importExportDescription}
+              </Text>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon="file-download"
+                  label={t.importButton}
+                  onPress={handleOpenImportModal}
                 />
                 <Button
                   size="sm"
                   variant="outline"
-                  icon="cloud-download"
-                  label={t.importMissingButton}
-                  onPress={async () => {
-                    await controller.importMissingSeeds();
-                    setToast(t.importMissingToast);
-                  }}
+                  icon="code"
+                  label={t.exportJsonButton}
+                  onPress={handleExportJson}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon="table-chart"
+                  label={t.exportCsvButton}
+                  onPress={handleExportCsv}
                 />
               </View>
             </View>
@@ -3451,6 +3674,621 @@ export function MTGInvestScreen({
           </View>
         </View>
       ) : null}
+
+      {/* Modal para Visualizar y Compartir la Exportación (JSON / CSV) */}
+      <ModalDialog
+        visible={showExportModal}
+        title={exportModalTitle}
+        description={`Archivo: ${exportFileName} (${exportContent.length} caracteres)`}
+        cancelLabel="Cerrar"
+        onCancel={() => setShowExportModal(false)}
+        contentMaxHeight={440}
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: theme.spacing.xs
+            }}
+          >
+            <View style={{ flexDirection: 'row', gap: theme.spacing.xs, alignItems: 'center' }}>
+              <Badge label={exportFormat.toUpperCase()} tone="accent" />
+              <Badge label={`${state.items.length} cartas`} tone="neutral" />
+            </View>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
+              <Button
+                size="sm"
+                variant="outline"
+                icon="content-copy"
+                label="Copiar"
+                onPress={handleCopyExportToClipboard}
+              />
+              <Button
+                size="sm"
+                variant="primary"
+                icon="download"
+                label="Descargar / Compartir"
+                onPress={() => {
+                  if (Platform.OS === 'web') {
+                    triggerWebDownload(
+                      exportContent,
+                      exportFileName,
+                      exportFormat === 'json' ? 'application/json' : 'text/csv'
+                    );
+                    setToast(`Descargando ${exportFileName}...`);
+                  } else {
+                    void Share.share({ title: exportFileName, message: exportContent });
+                  }
+                }}
+              />
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal={true}
+            style={{
+              maxHeight: 280,
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.border,
+              borderWidth: 1,
+              borderRadius: theme.radius.md,
+              padding: theme.spacing.sm
+            }}
+          >
+            <Text
+              selectable={true}
+              style={{
+                color: theme.colors.textPrimary,
+                fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                fontSize: 11,
+                lineHeight: 16
+              }}
+            >
+              {exportContent}
+            </Text>
+          </ScrollView>
+        </View>
+      </ModalDialog>
+
+      {/* Modal para Importar Cartas desde JSON o CSV */}
+      <ModalDialog
+        visible={showImportModal}
+        title="Importar cartas a la cartera"
+        description="Pega contenido en formato JSON o CSV, o selecciona un archivo desde tu dispositivo."
+        confirmLabel={
+          isImporting
+            ? 'Importando...'
+            : parsedImport.cards.length > 0
+            ? `Continuar importación (${parsedImport.cards.length})`
+            : 'Importar'
+        }
+        cancelLabel="Cancelar"
+        onConfirm={
+          parsedImport.cards.length > 0 && !isImporting
+            ? () => setShowImportConfirmModal(true)
+            : undefined
+        }
+        onCancel={() => {
+          if (!isImporting) {
+            setShowImportModal(false);
+          }
+        }}
+        contentMaxHeight={480}
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          {/* Botón para seleccionar archivo en Web */}
+          {Platform.OS === 'web' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.sm }}>
+              <Button
+                size="sm"
+                variant="outline"
+                icon="file-upload"
+                label="Seleccionar archivo (.json, .csv)"
+                onPress={handlePickFileForImport}
+              />
+              {importFileName ? (
+                <Badge label={importFileName} tone="accent" />
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Área de texto para pegar el contenido */}
+          <View style={{ gap: 4 }}>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.captionSize,
+                ...textTypographyStyle(theme, 'medium')
+              }}
+            >
+              Contenido JSON o CSV:
+            </Text>
+            <TextInput
+              multiline
+              numberOfLines={6}
+              value={importText}
+              onChangeText={(txt) => {
+                setImportText(txt);
+                setImportFileName(null);
+              }}
+              placeholder={`Pega aquí el contenido JSON o CSV. Ejemplos:\nJSON: [{"title": "Black Lotus", "edition": "Alpha", "quantity": 1, "buyPrice": 5000}]\nCSV: title,edition,quantity,buyPrice,currentPrice,language,condition\nBlack Lotus,Alpha,1,5000,12000,EN,NM`}
+              placeholderTextColor={theme.colors.textSecondary}
+              style={{
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: parsedImport.error ? theme.colors.danger : theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.sm,
+                color: theme.colors.textPrimary,
+                fontSize: theme.typography.captionSize,
+                fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                minHeight: 120,
+                maxHeight: 180,
+                textAlignVertical: 'top'
+              }}
+            />
+          </View>
+
+          {/* Indicador de validación y vista previa */}
+          {parsedImport.format && parsedImport.cards.length > 0 ? (
+            <View
+              style={{
+                backgroundColor: theme.colors.successSoft,
+                borderColor: theme.colors.success,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.sm,
+                gap: 4
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <GoogleIcon name="check-circle" size={16} color={theme.colors.success} />
+                <Text
+                  style={{
+                    color: theme.colors.success,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  Formato {parsedImport.format.toUpperCase()} válido · {parsedImport.cards.length} carta(s) detectada(s)
+                </Text>
+              </View>
+              <Text
+                style={{
+                  color: theme.colors.textPrimary,
+                  fontSize: theme.typography.captionSize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                Muestra: {parsedImport.cards.slice(0, 3).map((c) => `${c.title} (${c.edition || 'General'})`).join(', ')}
+                {parsedImport.cards.length > 3 ? ` ...y ${parsedImport.cards.length - 3} más` : ''}
+              </Text>
+            </View>
+          ) : parsedImport.error ? (
+            <View
+              style={{
+                backgroundColor: theme.colors.dangerSoft,
+                borderColor: theme.colors.danger,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.sm,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              <GoogleIcon name="error" size={16} color={theme.colors.danger} />
+              <Text
+                style={{
+                  color: theme.colors.danger,
+                  fontSize: theme.typography.captionSize,
+                  flex: 1,
+                  ...textTypographyStyle(theme, 'medium')
+                }}
+              >
+                {parsedImport.error}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Opciones de importación: Añadir vs Reemplazar */}
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.captionSize,
+                ...textTypographyStyle(theme, 'medium')
+              }}
+            >
+              Modo de importación:
+            </Text>
+
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: !importReplace }}
+              onPress={() => setImportReplace(false)}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                padding: theme.spacing.sm,
+                backgroundColor: !importReplace ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                borderColor: !importReplace ? theme.colors.accent : theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                opacity: pressed ? 0.85 : 1
+              })}
+            >
+              <GoogleIcon
+                name={!importReplace ? 'radio-button-checked' : 'radio-button-unchecked'}
+                size={18}
+                color={!importReplace ? theme.colors.accent : theme.colors.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, !importReplace ? 'bold' : 'regular')
+                  }}
+                >
+                  Añadir a la cartera actual
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  Conserva las {state.items.length} carta(s) existentes e incorpora las nuevas.
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: importReplace }}
+              onPress={() => setImportReplace(true)}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                padding: theme.spacing.sm,
+                backgroundColor: importReplace ? theme.colors.dangerSoft : theme.colors.surfaceMuted,
+                borderColor: importReplace ? theme.colors.danger : theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                opacity: pressed ? 0.85 : 1
+              })}
+            >
+              <GoogleIcon
+                name={importReplace ? 'radio-button-checked' : 'radio-button-unchecked'}
+                size={18}
+                color={importReplace ? theme.colors.danger : theme.colors.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, importReplace ? 'bold' : 'regular')
+                  }}
+                >
+                  Reemplazar cartera completa
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  Borra las {state.items.length} carta(s) actuales y deja únicamente las importadas.
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </ModalDialog>
+
+      {/* Modal de doble check para confirmar la importación */}
+      <ModalDialog
+        visible={showImportConfirmModal}
+        title={importReplace ? '¿Confirmar reemplazo completo?' : '¿Confirmar importación de cartas?'}
+        description={
+          importReplace
+            ? 'Esta acción eliminará todas las cartas actuales antes de importar.'
+            : 'Las cartas importadas se añadirán a tu colección existente.'
+        }
+        destructive={importReplace}
+        cancelLabel="Volver"
+        confirmLabel={
+          isImporting
+            ? 'Importando...'
+            : importReplace
+            ? 'Sí, reemplazar cartera'
+            : 'Sí, importar cartas'
+        }
+        onCancel={() => {
+          if (!isImporting) {
+            setShowImportConfirmModal(false);
+          }
+        }}
+        onConfirm={!isResetting && !isImporting ? handleExecuteImport : undefined}
+        contentMaxHeight={420}
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          {importReplace ? (
+            <View
+              style={{
+                backgroundColor: theme.colors.dangerSoft,
+                borderColor: theme.colors.danger,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.sm,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm
+              }}
+            >
+              <GoogleIcon name="warning" size={22} color={theme.colors.danger} />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: theme.colors.danger,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  ¡Atención: Borrado masivo!
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.danger,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  Se eliminarán permanentemente las {state.items.length} cartas guardadas actualmente en tu cartera y se sustituirán por las {parsedImport.cards.length} cartas importadas.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View
+              style={{
+                backgroundColor: theme.colors.accentSoft,
+                borderColor: theme.colors.accent,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.sm,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm
+              }}
+            >
+              <GoogleIcon name="add-circle" size={22} color={theme.colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: theme.colors.accent,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  Añadir cartas a la colección
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  Se conservarán tus {state.items.length} cartas actuales y se sumarán las {parsedImport.cards.length} nuevas (total resultante: {state.items.length + parsedImport.cards.length} cartas).
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <View
+            style={{
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.border,
+              borderWidth: 1,
+              borderRadius: theme.radius.md,
+              padding: theme.spacing.sm,
+              gap: 4
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.captionSize,
+                  ...textTypographyStyle(theme, 'semibold')
+                }}
+              >
+                Muestra de cartas a importar ({parsedImport.cards.length} en total):
+              </Text>
+              <Badge label={parsedImport.format?.toUpperCase() ?? 'ARCHIVO'} tone="neutral" />
+            </View>
+            <Text
+              style={{
+                color: theme.colors.textPrimary,
+                fontSize: theme.typography.captionSize,
+                ...textTypographyStyle(theme, 'regular')
+              }}
+            >
+              {parsedImport.cards.slice(0, 6).map((c) => `${c.title} (${c.edition || 'General'})`).join(', ')}
+              {parsedImport.cards.length > 6 ? ` ...y ${parsedImport.cards.length - 6} más` : ''}
+            </Text>
+          </View>
+        </View>
+      </ModalDialog>
+
+      {/* Modal de doble check para confirmar el borrado / reseteo de inventario */}
+      <ModalDialog
+        visible={showResetConfirmModal}
+        title="¿Confirmar borrado de inventario?"
+        description="Esta acción afectará a todas las cartas de tu cartera actual."
+        destructive={true}
+        cancelLabel="Cancelar"
+        confirmLabel={
+          isResetting
+            ? 'Procesando...'
+            : resetMode === 'clear'
+            ? 'Sí, vaciar cartera'
+            : 'Sí, restablecer cartas'
+        }
+        onCancel={() => {
+          if (!isResetting) {
+            setShowResetConfirmModal(false);
+          }
+        }}
+        onConfirm={!isResetting ? handleExecuteReset : undefined}
+        contentMaxHeight={440}
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          <View
+            style={{
+              backgroundColor: theme.colors.dangerSoft,
+              borderColor: theme.colors.danger,
+              borderWidth: 1,
+              borderRadius: theme.radius.md,
+              padding: theme.spacing.sm,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.sm
+            }}
+          >
+            <GoogleIcon name="warning" size={22} color={theme.colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color: theme.colors.danger,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'bold')
+                }}
+              >
+                ¡Atención: Acción destructiva!
+              </Text>
+              <Text
+                style={{
+                  color: theme.colors.danger,
+                  fontSize: theme.typography.captionSize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                {state.items.length > 0
+                  ? `Vas a borrar de golpe las ${state.items.length} cartas que tienes guardadas actualmente.`
+                  : 'Tu cartera actual está vacía.'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.captionSize,
+                ...textTypographyStyle(theme, 'medium')
+              }}
+            >
+              Selecciona qué deseas hacer:
+            </Text>
+
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: resetMode === 'clear' }}
+              onPress={() => setResetMode('clear')}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                padding: theme.spacing.sm,
+                backgroundColor: resetMode === 'clear' ? theme.colors.dangerSoft : theme.colors.surfaceMuted,
+                borderColor: resetMode === 'clear' ? theme.colors.danger : theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                opacity: pressed ? 0.85 : 1
+              })}
+            >
+              <GoogleIcon
+                name={resetMode === 'clear' ? 'radio-button-checked' : 'radio-button-unchecked'}
+                size={18}
+                color={resetMode === 'clear' ? theme.colors.danger : theme.colors.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, resetMode === 'clear' ? 'bold' : 'regular')
+                  }}
+                >
+                  Vaciar cartera (borrar todo, 0 cartas)
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  Elimina todas las cartas de tu almacenamiento local para empezar una cartera limpia desde cero o importar tu colección desde JSON/CSV.
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: resetMode === 'seed' }}
+              onPress={() => setResetMode('seed')}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                padding: theme.spacing.sm,
+                backgroundColor: resetMode === 'seed' ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                borderColor: resetMode === 'seed' ? theme.colors.accent : theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                opacity: pressed ? 0.85 : 1
+              })}
+            >
+              <GoogleIcon
+                name={resetMode === 'seed' ? 'radio-button-checked' : 'radio-button-unchecked'}
+                size={18}
+                color={resetMode === 'seed' ? theme.colors.accent : theme.colors.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, resetMode === 'seed' ? 'bold' : 'regular')
+                  }}
+                >
+                  Restablecer cartas de prueba (57 cartas)
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  Sustituye la cartera actual por el lote predeterminado de 57 cartas de demostración.
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </ModalDialog>
     </AppShell>
   );
 }

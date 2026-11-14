@@ -2,12 +2,12 @@
   "expo": {
     "name": "MTGInvest",
     "slug": "mtginvest-expo",
-    "version": "2026.11.24",
+    "version": "2026.11.26",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.framework.mtginvest",
-      "versionCode": 26111408
+      "versionCode": 26111410
     },
     "web": {
       "bundler": "metro"

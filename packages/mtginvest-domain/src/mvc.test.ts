@@ -117,7 +117,7 @@ describe('MTGInvest MVC domain', () => {
     controller.dispose();
   });
 
-  it('auto-completes missing seeds if previous database only had older cards', async () => {
+  it('loads existing user cards without unwanted seed injection, and supports reset and clearInventory', async () => {
     const store = new InMemoryEntityStoreDriver();
     // Simulamos que el usuario ya tenía 1 carta guardada previamente en su base de datos
     await store.upsert(
@@ -148,15 +148,23 @@ describe('MTGInvest MVC domain', () => {
     controller.attachView(view);
     await controller.init();
 
-    // Debe conservar la carta previa y auto-incorporar las 57 semillas del Excel
+    // Debe conservar la carta previa sin inyectar semillas no deseadas
+    expect(view.latest.items.length).toBe(1);
+    expect(view.latest.items[0]?.title).toBe('Carta Antigua Demo');
+
+    // Si ejecutamos importMissingSeeds manualmente, incorpora las 57 semillas
+    await controller.importMissingSeeds();
     expect(view.latest.items.length).toBe(58);
-    expect(view.latest.items.some((c) => c.title === 'Carta Antigua Demo')).toBe(true);
     expect(view.latest.items.some((c) => c.title === 'Relámpago')).toBe(true);
 
     // Si ejecutamos resetToSeed, debe dejar exactamente las 57 semillas limpias
     await controller.resetToSeed();
     expect(view.latest.items.length).toBe(57);
     expect(view.latest.items.some((c) => c.title === 'Carta Antigua Demo')).toBe(false);
+
+    // Si ejecutamos clearInventory, debe vaciar la cartera a 0 cartas
+    await controller.clearInventory();
+    expect(view.latest.items.length).toBe(0);
 
     controller.dispose();
   });
@@ -481,6 +489,68 @@ describe('MTGInvest MVC domain', () => {
     const forceSync = await controller.syncCardmarketPrices({ force: true });
     expect(forceSync.alreadyUpToDate).toBe(false);
     expect(collectionRequestsCount).toBe(2);
+
+    controller.dispose();
+  });
+
+  it('supports importing and exporting portfolio cards to JSON and CSV', async () => {
+    const controller = createMtginvestController({
+      store: new InMemoryEntityStoreDriver(),
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-import-export'
+    });
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    // Exportación a JSON y CSV
+    const jsonOutput = controller.exportToJson();
+    expect(jsonOutput).toContain('"app": "MTGInvest"');
+
+    const csvOutput = controller.exportToCsv();
+    expect(csvOutput).toContain('title,nameEn,edition');
+
+    // Importación con reemplazo
+    const newCards = [
+      {
+        title: 'Mox Diamond',
+        edition: 'Stronghold',
+        editionCode: 'STH',
+        currentPrice: 650.0,
+        previousPrice: 500.0,
+        quantity: 1
+      },
+      {
+        title: 'Gaea\'s Cradle',
+        edition: 'Urza\'s Saga',
+        editionCode: 'USG',
+        currentPrice: 900.0,
+        previousPrice: 800.0,
+        quantity: 1
+      }
+    ];
+
+    const result = await controller.importCards(newCards, { replace: true });
+    expect(result.importedCount).toBe(2);
+    expect(result.replaced).toBe(true);
+
+    expect(view.latest.items).toHaveLength(2);
+    expect(view.latest.items.map((c) => c.title)).toContain('Mox Diamond');
+    expect(view.latest.items.map((c) => c.title)).toContain('Gaea\'s Cradle');
+
+    // Importación agregando (sin reemplazo)
+    const appendResult = await controller.importCards([
+      {
+        title: 'Lion\'s Eye Diamond',
+        edition: 'Mirage',
+        editionCode: 'MIR',
+        currentPrice: 480.0
+      }
+    ], { replace: false });
+
+    expect(appendResult.importedCount).toBe(1);
+    expect(appendResult.replaced).toBe(false);
+    expect(view.latest.items).toHaveLength(3);
 
     controller.dispose();
   });

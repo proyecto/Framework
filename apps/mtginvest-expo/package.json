@@ -1,6 +1,6 @@
 {
   "name": "@framework/mtginvest-expo",
-  "version": "2026.11.24",
+  "version": "2026.11.26",
   "private": true,
   "description": "Aplicación móvil MTGInvest construida sobre la arquitectura canónica (@framework/base-expo).",
   "main": "index.ts",

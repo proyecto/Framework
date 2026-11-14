@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (51 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (58 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (63 símbolos exportados)
@@ -1453,6 +1453,29 @@ Miembros públicos:
 - `priceHistory?: CardPricePoint[]`
 - `lastPriceSyncDate?: string`
 
+### `ImportCardsOptions`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+interface ImportCardsOptions
+```
+
+Miembros públicos:
+- `replace?: boolean`
+
+### `ImportCardsResult`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+interface ImportCardsResult
+```
+
+Miembros públicos:
+- `importedCount: number`
+- `replaced: boolean`
+
 ### `calculateCardReturn`
 
 - Origen: `packages/mtginvest-domain/src/contracts.ts`
@@ -1513,7 +1536,11 @@ Miembros públicos:
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<CardEntity[]>`
+- `clearInventory(): Promise<CardEntity[]>`
 - `importMissingSeeds(): Promise<CardEntity[]>`
+- `importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>`
+- `exportToJson(): string`
+- `exportToCsv(): string`
 - `getStorageStatus(): Promise<StorageStatus>`
 - `setPlan(plan: UserPlan): Promise<StorageStatus>`
 - `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
@@ -1537,7 +1564,11 @@ Miembros públicos:
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
+- `clearInventory(): Promise<void>`
 - `importMissingSeeds(): Promise<void>`
+- `importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>`
+- `exportToJson(): string`
+- `exportToCsv(): string`
 - `upgradeToProAndEnableCloud(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`
 - `syncNow(): Promise<void>`
@@ -1951,7 +1982,11 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `resetToSeed(): Promise<CardEntity[]>`
+- `clearInventory(): Promise<CardEntity[]>`
 - `importMissingSeeds(): Promise<CardEntity[]>`
+- `importCards(cards: CreateCardInput[], options: ImportCardsOptions = {}): Promise<ImportCardsResult>`
+- `exportToJson(): string`
+- `exportToCsv(): string`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
 - `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
@@ -1982,7 +2017,11 @@ Miembros públicos:
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
 - `resetToSeed(): Promise<void>`
+- `clearInventory(): Promise<void>`
 - `importMissingSeeds(): Promise<void>`
+- `importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>`
+- `exportToJson(): string`
+- `exportToCsv(): string`
 - `upgradeToProAndEnableCloud(): Promise<void>`
 - `setStorageMode(mode: StorageMode): Promise<void>`
 - `syncNow(): Promise<void>`
@@ -2059,6 +2098,51 @@ function findMtgSetByName(name: string): MtgSet | undefined
 
 ```ts
 const SEED_CARDS: CreateCardInput[]
+```
+
+### `exportCardsToJson`
+
+- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Descripción: Exporta una lista de cartas a formato JSON estructurado y legible.
+
+```ts
+function exportCardsToJson(cards: CardEntity[]): string
+```
+
+### `exportCardsToCsv`
+
+- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Descripción: Exporta una lista de cartas a formato CSV estándar (RFC 4180).
+
+```ts
+function exportCardsToCsv(cards: CardEntity[]): string
+```
+
+### `parseCardsFromJson`
+
+- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Descripción: Parsea e interpreta un contenido JSON a una lista de cartas válidas para inserción. Soporta tanto arrays planos como objetos estructurados `{ cards: [...] }`.
+
+```ts
+function parseCardsFromJson(jsonStr: string): CreateCardInput[]
+```
+
+### `parseCardsFromCsv`
+
+- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Descripción: Parsea un CSV de cartas MTG asociando cabeceras flexibles en inglés y español.
+
+```ts
+function parseCardsFromCsv(csvStr: string): CreateCardInput[]
+```
+
+### `detectAndParseCards`
+
+- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Descripción: Detecta automáticamente si una cadena es JSON o CSV y la parsea a cartas.
+
+```ts
+function detectAndParseCards(content: string): { format: 'json' | 'csv'; cards: CreateCardInput[] }
 ```
 
 ## `@framework/react`

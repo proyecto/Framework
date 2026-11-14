@@ -56,6 +56,15 @@ export interface CreateCardInput {
   lastPriceSyncDate?: string;
 }
 
+export interface ImportCardsOptions {
+  replace?: boolean;
+}
+
+export interface ImportCardsResult {
+  importedCount: number;
+  replaced: boolean;
+}
+
 /** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad. */
 export function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): {
   diff: number;
@@ -123,7 +132,11 @@ export interface IMtginvestModel extends IModel {
   ): Promise<CardmarketSyncResult>;
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<CardEntity[]>;
+  clearInventory(): Promise<CardEntity[]>;
   importMissingSeeds(): Promise<CardEntity[]>;
+  importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>;
+  exportToJson(): string;
+  exportToCsv(): string;
   getStorageStatus(): Promise<StorageStatus>;
   setPlan(plan: UserPlan): Promise<StorageStatus>;
   setStorageMode(mode: StorageMode): Promise<StorageStatus>;
@@ -160,7 +173,11 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
   syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>;
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<void>;
+  clearInventory(): Promise<void>;
   importMissingSeeds(): Promise<void>;
+  importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>;
+  exportToJson(): string;
+  exportToCsv(): string;
   upgradeToProAndEnableCloud(): Promise<void>;
   setStorageMode(mode: StorageMode): Promise<void>;
   syncNow(): Promise<void>;
