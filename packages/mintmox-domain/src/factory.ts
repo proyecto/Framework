@@ -8,10 +8,10 @@ import {
 } from '@framework/data';
 import { APP_ID, ENTITY_NAME, type CardEntity } from './contracts.js';
 import type { IScryfallApiClient } from './scryfall.js';
-import { MtginvestController } from './MtginvestController.js';
-import { MtginvestModel } from './MtginvestModel.js';
+import { MintmoxController } from './MintmoxController.js';
+import { MintmoxModel } from './MintmoxModel.js';
 
-export interface CreateMtginvestControllerOptions {
+export interface CreateMintmoxControllerOptions {
   store: IEntityStoreDriver;
   kv: IKeyValueStore;
   deviceId: string;
@@ -20,10 +20,12 @@ export interface CreateMtginvestControllerOptions {
   scryfallClient?: IScryfallApiClient;
 }
 
+export type CreateMtginvestControllerOptions = CreateMintmoxControllerOptions;
+
 /** Factoría compartida multiplataforma (Android Expo + Web + Tests). */
-export function createMtginvestController(
-  options: CreateMtginvestControllerOptions
-): MtginvestController {
+export function createMintmoxController(
+  options: CreateMintmoxControllerOptions
+): MintmoxController {
   const repository = new HybridSyncRepository<CardEntity>({
     appId: APP_ID,
     userId: options.userId ?? 'default-user',
@@ -35,5 +37,7 @@ export function createMtginvestController(
     defaultMode: 'local',
     defaultPlan: 'free'
   });
-  return new MtginvestController(new MtginvestModel(repository), options.scryfallClient);
+  return new MintmoxController(new MintmoxModel(repository), options.scryfallClient);
 }
+
+export const createMtginvestController = createMintmoxController;

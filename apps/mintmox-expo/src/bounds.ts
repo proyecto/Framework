@@ -1,5 +1,5 @@
 /**
- * Límites visuales y estructurales de MTGInvest heredados de la plantilla base.
+ * Límites visuales y estructurales de MintMox heredados de la plantilla base.
  */
 export const APP_LAYOUT_BOUNDS = {
   minBottomTabs: 2,

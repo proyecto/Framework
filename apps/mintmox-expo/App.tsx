@@ -13,13 +13,13 @@ import {
   useFrameworkTheme,
   type ThemeScheme
 } from '@framework/ui';
-import { createMTGInvestExpoController } from './src/bootstrap';
+import { createMintMoxExpoController } from './src/bootstrap';
 import {
   GOOGLE_FONT_FAMILIES,
   renderGoogleMaterialIcon,
   useGoogleDesignFonts
 } from './src/googleDesignSystem';
-import { MTGInvestScreen } from './src/MTGInvestScreen';
+import { MintMoxScreen } from './src/MintMoxScreen';
 import { APP_ID } from './src/mvc';
 
 const WEB_FALLBACK_METRICS = {
@@ -27,8 +27,8 @@ const WEB_FALLBACK_METRICS = {
   insets: { top: 0, right: 0, bottom: 0, left: 0 }
 };
 
-const THEME_STORAGE_KEY = 'mtginvest_theme_preference';
-const LANGUAGE_STORAGE_KEY = 'mtginvest_language_preference';
+const THEME_STORAGE_KEY = 'mintmox_theme_preference';
+const LANGUAGE_STORAGE_KEY = 'mintmox_language_preference';
 
 function getStoredThemePreference(): ThemeScheme {
   try {
@@ -54,14 +54,14 @@ function getStoredLanguagePreference(): 'es' | 'en' {
   return 'es';
 }
 
-function MTGInvestAppShell({
+function MintMoxAppShell({
   controller,
   themePreference,
   onThemePreferenceChange,
   languagePreference,
   onLanguagePreferenceChange
 }: {
-  controller: ReturnType<typeof createMTGInvestExpoController>;
+  controller: ReturnType<typeof createMintMoxExpoController>;
   themePreference: ThemeScheme;
   onThemePreferenceChange: (next: ThemeScheme) => void;
   languagePreference: 'es' | 'en';
@@ -75,7 +75,7 @@ function MTGInvestAppShell({
       edges={['top', 'bottom']}
     >
       <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
-      <MTGInvestScreen
+      <MintMoxScreen
         controller={controller}
         themePreference={themePreference}
         onThemePreferenceChange={onThemePreferenceChange}
@@ -110,7 +110,7 @@ export default function App() {
   };
 
   const controller = useMemo(
-    () => createMTGInvestExpoController(),
+    () => createMintMoxExpoController(),
     []
   );
 
@@ -156,7 +156,7 @@ export default function App() {
           fontFamilies={GOOGLE_FONT_FAMILIES}
           iconRenderer={renderGoogleMaterialIcon}
         >
-          <MTGInvestAppShell
+          <MintMoxAppShell
             controller={controller}
             themePreference={themePreference}
             onThemePreferenceChange={handleThemeChange}

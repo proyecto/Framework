@@ -8,7 +8,7 @@ import {
   parseCardsFromJson
 } from './importExport.js';
 
-describe('MTGInvest Import / Export module', () => {
+describe('MintMox Import / Export module', () => {
   const sampleCards: CardEntity[] = [
     {
       id: 'CARD-001',
@@ -56,7 +56,7 @@ describe('MTGInvest Import / Export module', () => {
 
   it('exports to JSON and round-trips correctly', () => {
     const jsonStr = exportCardsToJson(sampleCards);
-    expect(jsonStr).toContain('"app": "MTGInvest"');
+    expect(jsonStr).toContain('"app": "MintMox"');
     expect(jsonStr).toContain('"totalCards": 2');
 
     const parsed = parseCardsFromJson(jsonStr);

@@ -11,7 +11,7 @@ import type {
 } from '@framework/core';
 import type { IScryfallApiClient } from './scryfall.js';
 
-export const APP_ID = 'mtginvest';
+export const APP_ID = 'mintmox';
 export const ENTITY_NAME = 'cards';
 export const DEFAULT_COLLECTION = 'Principal';
 
@@ -137,8 +137,8 @@ export interface CardmarketSyncResult {
   syncDate: string;
 }
 
-/** Estado inmutable proyectado hacia la vista de MTGInvest. */
-export interface MtginvestViewState {
+/** Estado inmutable proyectado hacia la vista de MintMox. */
+export interface MintmoxViewState {
   items: CardEntity[];
   loading: boolean;
   busy: boolean;
@@ -148,8 +148,10 @@ export interface MtginvestViewState {
   lastPriceSyncDate?: string | null;
 }
 
+export type MtginvestViewState = MintmoxViewState;
+
 /** Contrato del Modelo (M). */
-export interface IMtginvestModel extends IModel {
+export interface IMintmoxModel extends IModel {
   getSnapshot(): CardEntity[];
   loadItems(): Promise<CardEntity[]>;
   createItem(input: CreateCardInput): Promise<CardEntity>;
@@ -198,8 +200,10 @@ export interface IMtginvestModel extends IModel {
   dispose?(): void;
 }
 
+export type IMtginvestModel = IMintmoxModel;
+
 /** Contrato del Controlador (C). */
-export interface IMtginvestController extends IController<MtginvestViewState, ViewEvent> {
+export interface IMintmoxController extends IController<MintmoxViewState, ViewEvent> {
   readonly scryfallClient: IScryfallApiClient;
   createItem(input: CreateCardInput): Promise<void>;
   updateCard(
@@ -243,6 +247,8 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
   syncNow(): Promise<void>;
   clearError(): void;
 }
+
+export type IMtginvestController = IMintmoxController;
 
 /** Módulo enchufable al backend reutilizable `@framework/server`. */
 export const SERVER_MODULE: RegisteredAppModule = {

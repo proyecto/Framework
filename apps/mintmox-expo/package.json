@@ -1,5 +1,5 @@
 {
-  "name": "@framework/mtginvest-expo",
+  "name": "@framework/mintmox-expo",
   "version": "2026.11.27",
   "private": true,
   "description": "Aplicación móvil MintMox construida sobre la arquitectura canónica (@framework/base-expo).",
@@ -17,7 +17,7 @@
     "@framework/core": "workspace:",
     "@framework/data": "workspace:",
     "@framework/expo-adapter": "workspace:",
-    "@framework/mtginvest-domain": "workspace:",
+    "@framework/mintmox-domain": "workspace:",
     "@framework/react": "workspace:",
     "@framework/ui": "workspace:",
     "expo": "catalog:",

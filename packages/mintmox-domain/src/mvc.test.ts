@@ -36,7 +36,7 @@ class SpyView implements IView<MtginvestViewState, ViewEvent> {
   }
 }
 
-describe('MTGInvest MVC domain', () => {
+describe('MintMox MVC domain', () => {
   it('correctly calculates stock-like card returns and trends', () => {
     // Subida
     const up = calculateCardReturn({ previousPrice: 29.79, currentPrice: 72.22 });
@@ -596,7 +596,7 @@ describe('MTGInvest MVC domain', () => {
 
     // Exportación a JSON y CSV
     const jsonOutput = controller.exportToJson();
-    expect(jsonOutput).toContain('"app": "MTGInvest"');
+    expect(jsonOutput).toContain('"app": "MintMox"');
 
     const csvOutput = controller.exportToCsv();
     expect(csvOutput).toContain('title,nameEn,edition');

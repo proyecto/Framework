@@ -47,6 +47,7 @@ import {
   type CardEntity,
   type CardProfitLeader,
   type ChartTimeframe,
+  type IMintmoxController,
   type IMtginvestController,
   type RoiDistributionBucket,
   type ScryfallCardData,
@@ -67,7 +68,7 @@ export type AppLanguage = 'es' | 'en';
 
 export type CardListViewMode = 'list' | 'grid';
 
-const VIEW_MODE_STORAGE_KEY = 'mtginvest_view_mode_preference';
+const VIEW_MODE_STORAGE_KEY = 'mintmox_view_mode_preference';
 
 function getInitialViewMode(): CardListViewMode {
   try {
@@ -79,13 +80,15 @@ function getInitialViewMode(): CardListViewMode {
   return 'grid';
 }
 
-export interface MTGInvestScreenProps {
-  controller: IMtginvestController;
+export interface MintMoxScreenProps {
+  controller: IMintmoxController;
   themePreference?: ThemeScheme;
   onThemePreferenceChange?: (next: ThemeScheme) => void;
   languagePreference?: AppLanguage;
   onLanguagePreferenceChange?: (next: AppLanguage) => void;
 }
+
+export type MTGInvestScreenProps = MintMoxScreenProps;
 
 export interface LanguageOptionDef {
   id: AppLanguage;
@@ -478,19 +481,19 @@ function openWebFilePicker(accept: string): Promise<{ name: string; content: str
 }
 
 /**
- * Pantalla principal de MTGInvest (@framework/mtginvest-expo).
+ * Pantalla principal de MintMox (@framework/mintmox-expo).
  *
  * Muestra la cartera de inversión en MTG con listado de cartas,
  * cotización actual, valor anterior e indicador bursátil de tendencia (subiendo/bajando).
  * Permite añadir y editar cada carta pulsando sobre ella, con selector de ediciones MTG.
  */
-export function MTGInvestScreen({
+export function MintMoxScreen({
   controller,
   themePreference: propThemePreference,
   onThemePreferenceChange,
   languagePreference: propLanguagePreference,
   onLanguagePreferenceChange
-}: MTGInvestScreenProps) {
+}: MintMoxScreenProps) {
   const { theme, preference: contextPreference, setPreference } = useFrameworkThemeContext();
   const activeThemePreference = propThemePreference ?? contextPreference;
 
@@ -5442,3 +5445,5 @@ export function MTGInvestScreen({
     </AppShell>
   );
 }
+
+export { MintMoxScreen as MTGInvestScreen };

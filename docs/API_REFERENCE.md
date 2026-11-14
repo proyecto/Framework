@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (60 símbolos exportados)
+- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (65 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (66 símbolos exportados)
@@ -1382,13 +1382,13 @@ Miembros públicos:
 - `transaction(fn: (tx: ISqlTransaction) => Promise<T>): Promise<T>`
 - `close(): Promise<void>`
 
-## `@framework/mtginvest-domain`
+## `@framework/mintmox-domain`
 
-Dominio MVC de la aplicación MTGInvest.
+Dominio MVC de la aplicación MintMox.
 
 ### `APP_ID`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 const APP_ID
@@ -1396,7 +1396,7 @@ const APP_ID
 
 ### `ENTITY_NAME`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 const ENTITY_NAME
@@ -1404,7 +1404,7 @@ const ENTITY_NAME
 
 ### `DEFAULT_COLLECTION`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 const DEFAULT_COLLECTION
@@ -1412,7 +1412,7 @@ const DEFAULT_COLLECTION
 
 ### `CardTrend`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 type CardTrend = 'up' | 'down' | 'flat'
@@ -1420,7 +1420,7 @@ type CardTrend = 'up' | 'down' | 'flat'
 
 ### `CardPricePoint`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Punto histórico de cotización de una carta.
 
 ```ts
@@ -1433,7 +1433,7 @@ Miembros públicos:
 
 ### `CardEntity`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Entidad de carta de MTG con seguimiento de inversión y cotización.
 
 ```ts
@@ -1464,7 +1464,7 @@ Miembros públicos:
 
 ### `CreateCardInput`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 interface CreateCardInput
@@ -1493,7 +1493,7 @@ Miembros públicos:
 
 ### `getCardCollections`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Obtiene la lista canónica y sin duplicados de colecciones a las que pertenece una carta. Soporta arrays `collections` o cadenas delimitadas en `collection`. Si no tiene ninguna asignada, devuelve `[DEFAULT_COLLECTION]`.
 
 ```ts
@@ -1502,7 +1502,7 @@ function getCardCollections(card: { collections?: string[] | null; collection?: 
 
 ### `ImportCardsOptions`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 interface ImportCardsOptions
@@ -1513,7 +1513,7 @@ Miembros públicos:
 
 ### `ImportCardsResult`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 
 ```ts
 interface ImportCardsResult
@@ -1525,7 +1525,7 @@ Miembros públicos:
 
 ### `calculateCardReturn`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad.
 
 ```ts
@@ -1534,7 +1534,7 @@ function calculateCardReturn(card: { currentPrice: number; previousPrice: number
 
 ### `CardmarketSyncResult`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Resultado de la sincronización de precios de Cardmarket.
 
 ```ts
@@ -1547,13 +1547,13 @@ Miembros públicos:
 - `totalCards: number`
 - `syncDate: string`
 
-### `MtginvestViewState`
+### `MintmoxViewState`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
-- Descripción: Estado inmutable proyectado hacia la vista de MTGInvest.
+- Origen: `packages/mintmox-domain/src/contracts.ts`
+- Descripción: Estado inmutable proyectado hacia la vista de MintMox.
 
 ```ts
-interface MtginvestViewState
+interface MintmoxViewState
 ```
 
 Miembros públicos:
@@ -1565,13 +1565,21 @@ Miembros públicos:
 - `isSyncingPrices?: boolean`
 - `lastPriceSyncDate?: string | null`
 
-### `IMtginvestModel`
+### `MtginvestViewState`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
+
+```ts
+type MtginvestViewState = MintmoxViewState
+```
+
+### `IMintmoxModel`
+
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Contrato del Modelo (M).
 
 ```ts
-interface IMtginvestModel extends IModel
+interface IMintmoxModel extends IModel
 ```
 
 Miembros públicos:
@@ -1593,13 +1601,21 @@ Miembros públicos:
 - `syncNow(): Promise<SyncReport>`
 - `dispose?(): void`
 
-### `IMtginvestController`
+### `IMtginvestModel`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
+
+```ts
+type IMtginvestModel = IMintmoxModel
+```
+
+### `IMintmoxController`
+
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Contrato del Controlador (C).
 
 ```ts
-interface IMtginvestController extends IController<MtginvestViewState, ViewEvent>
+interface IMintmoxController extends IController<MintmoxViewState, ViewEvent>
 ```
 
 Miembros públicos:
@@ -1620,9 +1636,17 @@ Miembros públicos:
 - `syncNow(): Promise<void>`
 - `clearError(): void`
 
+### `IMtginvestController`
+
+- Origen: `packages/mintmox-domain/src/contracts.ts`
+
+```ts
+type IMtginvestController = IMintmoxController
+```
+
 ### `SERVER_MODULE`
 
-- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Origen: `packages/mintmox-domain/src/contracts.ts`
 - Descripción: Módulo enchufable al backend reutilizable `@framework/server`.
 
 ```ts
@@ -1631,7 +1655,7 @@ const SERVER_MODULE: RegisteredAppModule
 
 ### `ScryfallImageUris`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 - Descripción: Tipos e interfaces oficiales para la integración con la API de Scryfall (https://scryfall.com/docs/api). Diseñado según los principios SOLID (ISP - Interface Segregation Principle y DIP - Dependency Inversion) para permitir desacoplamiento y extensibilidad futura (precios de mercado, autocompletado, legalidades y arte).
 
 ```ts
@@ -1648,7 +1672,7 @@ Miembros públicos:
 
 ### `ScryfallCardFace`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallCardFace
@@ -1663,7 +1687,7 @@ Miembros públicos:
 
 ### `ScryfallPrices`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallPrices
@@ -1678,7 +1702,7 @@ Miembros públicos:
 
 ### `ScryfallCardData`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallCardData
@@ -1705,7 +1729,7 @@ Miembros públicos:
 
 ### `ScryfallSearchResult`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallSearchResult
@@ -1719,7 +1743,7 @@ Miembros públicos:
 
 ### `ScryfallNamedQuery`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallNamedQuery
@@ -1732,7 +1756,7 @@ Miembros públicos:
 
 ### `ScryfallSearchOptions`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallSearchOptions
@@ -1747,7 +1771,7 @@ Miembros públicos:
 
 ### `ScryfallCardIdentifier`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallCardIdentifier
@@ -1761,7 +1785,7 @@ Miembros públicos:
 
 ### `ScryfallCollectionResult`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 
 ```ts
 interface ScryfallCollectionResult
@@ -1773,7 +1797,7 @@ Miembros públicos:
 
 ### `IScryfallApiClient`
 
-- Origen: `packages/mtginvest-domain/src/scryfall.ts`
+- Origen: `packages/mintmox-domain/src/scryfall.ts`
 - Descripción: Interfaz de cliente API para Scryfall. Permite desacoplar cualquier llamada externa y mockearla en pruebas sin red.
 
 ```ts
@@ -1790,7 +1814,7 @@ Miembros públicos:
 
 ### `HttpFetchFn`
 
-- Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
+- Origen: `packages/mintmox-domain/src/ScryfallApiClient.ts`
 
 ```ts
 type HttpFetchFn = ( input: string, init?: { method?: string; body?: string; headers?: Record<string, string>; } ) => Promise<{ ok: boolean; status: number; json(): Promise<any>; }>
@@ -1798,7 +1822,7 @@ type HttpFetchFn = ( input: string, init?: { method?: string; body?: string; hea
 
 ### `ScryfallClientConfig`
 
-- Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
+- Origen: `packages/mintmox-domain/src/ScryfallApiClient.ts`
 
 ```ts
 interface ScryfallClientConfig
@@ -1812,7 +1836,7 @@ Miembros públicos:
 
 ### `ScryfallApiClient`
 
-- Origen: `packages/mtginvest-domain/src/ScryfallApiClient.ts`
+- Origen: `packages/mintmox-domain/src/ScryfallApiClient.ts`
 - Descripción: Implementación canónica del cliente API de Scryfall (`IScryfallApiClient`). Cumple con las pautas de Scryfall (User-Agent amigable, 50-100ms de limitación de tasa y caché).
 
 ```ts
@@ -1830,7 +1854,7 @@ Miembros públicos:
 
 ### `SEED_PRICE_HISTORIES`
 
-- Origen: `packages/mtginvest-domain/src/priceHistory.ts`
+- Origen: `packages/mintmox-domain/src/priceHistory.ts`
 - Descripción: Histórico de cotizaciones de Cardmarket extraído del catálogo Excel. Registro de cotizaciones diarias para el seguimiento de inversión de cada carta.
 
 ```ts
@@ -1839,7 +1863,7 @@ const SEED_PRICE_HISTORIES: Record<string, CardPricePoint[]>
 
 ### `CardChartSeriesData`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 
 ```ts
 interface CardChartSeriesData
@@ -1852,7 +1876,7 @@ Miembros públicos:
 
 ### `buildOneYearCardChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Genera la serie de datos para graficar la evolución del precio de una carta en el último año (12 meses). Si la carta no tiene datos para los primeros meses del año, comienza en 0 hasta la fecha en que se registran sus primeras cotizaciones históricas (según requerimiento explícito del usuario).
 
 ```ts
@@ -1861,7 +1885,7 @@ function buildOneYearCardChart(card: Pick<CardEntity, 'currentPrice' | 'previous
 
 ### `buildThreeMonthCardChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Genera la serie de datos para los últimos 3 meses con resolución detallada (Cardmarket).
 
 ```ts
@@ -1870,7 +1894,7 @@ function buildThreeMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previ
 
 ### `ChartTimeframe`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 
 ```ts
 type ChartTimeframe = '1S' | '1M' | '3M' | '6M' | '1A'
@@ -1878,7 +1902,7 @@ type ChartTimeframe = '1S' | '1M' | '3M' | '6M' | '1A'
 
 ### `TIMEFRAME_LABELS`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 
 ```ts
 const TIMEFRAME_LABELS: Record<ChartTimeframe, string>
@@ -1886,7 +1910,7 @@ const TIMEFRAME_LABELS: Record<ChartTimeframe, string>
 
 ### `TIMEFRAME_DESCRIPTIONS`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 
 ```ts
 const TIMEFRAME_DESCRIPTIONS: Record<ChartTimeframe, string>
@@ -1894,7 +1918,7 @@ const TIMEFRAME_DESCRIPTIONS: Record<ChartTimeframe, string>
 
 ### `buildOneWeekCardChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Genera la serie de datos para los últimos 7 días (1S).
 
 ```ts
@@ -1903,7 +1927,7 @@ function buildOneWeekCardChart(card: Pick<CardEntity, 'currentPrice' | 'previous
 
 ### `buildOneMonthCardChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Genera la serie de datos para los últimos 30 días (1M).
 
 ```ts
@@ -1912,7 +1936,7 @@ function buildOneMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previou
 
 ### `buildSixMonthCardChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Genera la serie de datos para los últimos 6 meses (6M).
 
 ```ts
@@ -1921,7 +1945,7 @@ function buildSixMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previou
 
 ### `buildCardChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Función principal unificada para construir la gráfica según el rango temporal seleccionado.
 
 ```ts
@@ -1930,7 +1954,7 @@ function buildCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' 
 
 ### `PortfolioChartSeriesData`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Serie agregada global para la cartera de inversión completa.
 
 ```ts
@@ -1946,7 +1970,7 @@ Miembros públicos:
 
 ### `buildPortfolioChart`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Calcula la evolución temporal consolidada de toda la colección. Permite analizar la cartera a nivel macro (Valor total vs Coste, Beneficio neto y ROI %).
 
 ```ts
@@ -1955,7 +1979,7 @@ function buildPortfolioChart(items: CardEntity[], timeframe: ChartTimeframe, ref
 
 ### `RoiDistributionBucket`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Tramo de distribución de rentabilidad para la cartera.
 
 ```ts
@@ -1974,7 +1998,7 @@ Miembros públicos:
 
 ### `calculatePortfolioRoiDistribution`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Calcula la distribución porcentual de cartas en los distintos tramos de rentabilidad (ROI %).
 
 ```ts
@@ -1983,7 +2007,7 @@ function calculatePortfolioRoiDistribution(items: CardEntity[]): RoiDistribution
 
 ### `CardProfitLeader`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Registro de carta destacada por plusvalía o pérdida.
 
 ```ts
@@ -2006,20 +2030,20 @@ Miembros públicos:
 
 ### `getPortfolioProfitLeaders`
 
-- Origen: `packages/mtginvest-domain/src/chartUtils.ts`
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
 - Descripción: Obtiene las cartas líderes en plusvalía (candidatas a venta) y las cartas con mayor pérdida.
 
 ```ts
 function getPortfolioProfitLeaders(items: CardEntity[], limit = 5): { topGainers: CardProfitLeader[]; topLosers: CardProfitLeader[]; }
 ```
 
-### `MtginvestModel`
+### `MintmoxModel`
 
-- Origen: `packages/mtginvest-domain/src/MtginvestModel.ts`
-- Descripción: Modelo MVC de MTGInvest.
+- Origen: `packages/mintmox-domain/src/MintmoxModel.ts`
+- Descripción: Modelo MVC de MintMox.
 
 ```ts
-class MtginvestModel implements IMtginvestModel
+class MintmoxModel implements IMintmoxModel
 ```
 
 Miembros públicos:
@@ -2043,18 +2067,18 @@ Miembros públicos:
 - `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
 - `syncNow(): Promise<SyncReport>`
 
-### `MtginvestController`
+### `MintmoxController`
 
-- Origen: `packages/mtginvest-domain/src/MtginvestController.ts`
-- Descripción: Controlador MVC de MTGInvest.
+- Origen: `packages/mintmox-domain/src/MintmoxController.ts`
+- Descripción: Controlador MVC de MintMox.
 
 ```ts
-class MtginvestController extends BaseController<MtginvestViewState, ViewEvent> implements IMtginvestController
+class MintmoxController extends BaseController<MintmoxViewState, ViewEvent> implements IMintmoxController
 ```
 
 Miembros públicos:
 - `scryfallClient: IScryfallApiClient`
-- `constructor(private readonly model: IMtginvestModel, scryfallClient?: IScryfallApiClient)`
+- `constructor(private readonly model: IMintmoxModel, scryfallClient?: IScryfallApiClient)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
 - `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
@@ -2073,12 +2097,12 @@ Miembros públicos:
 - `clearError(): void`
 - `dispose(): void`
 
-### `CreateMtginvestControllerOptions`
+### `CreateMintmoxControllerOptions`
 
-- Origen: `packages/mtginvest-domain/src/factory.ts`
+- Origen: `packages/mintmox-domain/src/factory.ts`
 
 ```ts
-interface CreateMtginvestControllerOptions
+interface CreateMintmoxControllerOptions
 ```
 
 Miembros públicos:
@@ -2089,18 +2113,34 @@ Miembros públicos:
 - `transport?: IRemoteSyncTransport`
 - `scryfallClient?: IScryfallApiClient`
 
-### `createMtginvestController`
+### `CreateMtginvestControllerOptions`
 
-- Origen: `packages/mtginvest-domain/src/factory.ts`
+- Origen: `packages/mintmox-domain/src/factory.ts`
+
+```ts
+type CreateMtginvestControllerOptions = CreateMintmoxControllerOptions
+```
+
+### `createMintmoxController`
+
+- Origen: `packages/mintmox-domain/src/factory.ts`
 - Descripción: Factoría compartida multiplataforma (Android Expo + Web + Tests).
 
 ```ts
-function createMtginvestController(options: CreateMtginvestControllerOptions): MtginvestController
+function createMintmoxController(options: CreateMintmoxControllerOptions): MintmoxController
+```
+
+### `createMtginvestController`
+
+- Origen: `packages/mintmox-domain/src/factory.ts`
+
+```ts
+const createMtginvestController
 ```
 
 ### `MtgSet`
 
-- Origen: `packages/mtginvest-domain/src/sets.ts`
+- Origen: `packages/mintmox-domain/src/sets.ts`
 - Descripción: Catálogo canónico de ediciones/sets de Magic: The Gathering extraído de la hoja "Sets".
 
 ```ts
@@ -2114,7 +2154,7 @@ Miembros públicos:
 
 ### `MTG_SETS`
 
-- Origen: `packages/mtginvest-domain/src/sets.ts`
+- Origen: `packages/mintmox-domain/src/sets.ts`
 
 ```ts
 const MTG_SETS: MtgSet[]
@@ -2122,7 +2162,7 @@ const MTG_SETS: MtgSet[]
 
 ### `findMtgSetByCode`
 
-- Origen: `packages/mtginvest-domain/src/sets.ts`
+- Origen: `packages/mintmox-domain/src/sets.ts`
 
 ```ts
 function findMtgSetByCode(code: string): MtgSet | undefined
@@ -2130,7 +2170,7 @@ function findMtgSetByCode(code: string): MtgSet | undefined
 
 ### `findMtgSetByName`
 
-- Origen: `packages/mtginvest-domain/src/sets.ts`
+- Origen: `packages/mintmox-domain/src/sets.ts`
 
 ```ts
 function findMtgSetByName(name: string): MtgSet | undefined
@@ -2138,7 +2178,7 @@ function findMtgSetByName(name: string): MtgSet | undefined
 
 ### `SEED_CARDS`
 
-- Origen: `packages/mtginvest-domain/src/seeds.ts`
+- Origen: `packages/mintmox-domain/src/seeds.ts`
 - Descripción: Semillas de cartas iniciales basadas en el inventario real de Magic: The Gathering.
 
 ```ts
@@ -2147,7 +2187,7 @@ const SEED_CARDS: CreateCardInput[]
 
 ### `exportCardsToJson`
 
-- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Origen: `packages/mintmox-domain/src/importExport.ts`
 - Descripción: Exporta una lista de cartas a formato JSON estructurado y legible.
 
 ```ts
@@ -2156,7 +2196,7 @@ function exportCardsToJson(cards: CardEntity[]): string
 
 ### `exportCardsToCsv`
 
-- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Origen: `packages/mintmox-domain/src/importExport.ts`
 - Descripción: Exporta una lista de cartas a formato CSV estándar (RFC 4180).
 
 ```ts
@@ -2165,7 +2205,7 @@ function exportCardsToCsv(cards: CardEntity[]): string
 
 ### `parseCardsFromJson`
 
-- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Origen: `packages/mintmox-domain/src/importExport.ts`
 - Descripción: Parsea e interpreta un contenido JSON a una lista de cartas válidas para inserción. Soporta tanto arrays planos como objetos estructurados `{ cards: [...] }`.
 
 ```ts
@@ -2174,7 +2214,7 @@ function parseCardsFromJson(jsonStr: string): CreateCardInput[]
 
 ### `parseCardsFromCsv`
 
-- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Origen: `packages/mintmox-domain/src/importExport.ts`
 - Descripción: Parsea un CSV de cartas MTG asociando cabeceras flexibles en inglés y español.
 
 ```ts
@@ -2183,7 +2223,7 @@ function parseCardsFromCsv(csvStr: string): CreateCardInput[]
 
 ### `detectAndParseCards`
 
-- Origen: `packages/mtginvest-domain/src/importExport.ts`
+- Origen: `packages/mintmox-domain/src/importExport.ts`
 - Descripción: Detecta automáticamente si una cadena es JSON o CSV y la parsea a cartas.
 
 ```ts

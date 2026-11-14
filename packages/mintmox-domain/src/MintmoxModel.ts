@@ -11,6 +11,7 @@ import {
   type CardmarketSyncResult,
   type CreateCardInput,
   type CardEntity,
+  type IMintmoxModel,
   type IMtginvestModel,
   type ImportCardsOptions,
   type ImportCardsResult
@@ -28,8 +29,8 @@ function generateId(): string {
   return `card_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Modelo MVC de MTGInvest. */
-export class MtginvestModel implements IMtginvestModel {
+/** Modelo MVC de MintMox. */
+export class MintmoxModel implements IMintmoxModel {
   private items: CardEntity[] = [];
   private readonly listeners = new Set<() => void>();
   private readonly unsubRepo: () => void;
@@ -524,3 +525,5 @@ export class MtginvestModel implements IMtginvestModel {
     return report;
   }
 }
+
+export { MintmoxModel as MtginvestModel };

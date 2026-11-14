@@ -6,7 +6,7 @@ import { type CardEntity, type CreateCardInput, getCardCollections } from './con
  */
 export function exportCardsToJson(cards: CardEntity[]): string {
   const payload = {
-    app: 'MTGInvest',
+    app: 'MintMox',
     version: '2026.11',
     exportedAt: new Date().toISOString(),
     totalCards: cards.length,

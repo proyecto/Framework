@@ -1,8 +1,8 @@
 {
-  "name": "@framework/mtginvest-domain",
+  "name": "@framework/mintmox-domain",
   "version": "0.1.0",
   "private": true,
-  "description": "Dominio MVC de la aplicación MTGInvest.",
+  "description": "Dominio MVC de la aplicación MintMox.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

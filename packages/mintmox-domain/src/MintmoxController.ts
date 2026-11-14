@@ -9,16 +9,19 @@ import type {
   CardEntity,
   CardmarketSyncResult,
   CreateCardInput,
+  IMintmoxController,
+  IMintmoxModel,
   IMtginvestController,
   IMtginvestModel,
   ImportCardsOptions,
   ImportCardsResult,
+  MintmoxViewState,
   MtginvestViewState
 } from './contracts.js';
 import type { IScryfallApiClient } from './scryfall.js';
 import { ScryfallApiClient } from './ScryfallApiClient.js';
 
-const INITIAL_STATE: MtginvestViewState = {
+const INITIAL_STATE: MintmoxViewState = {
   items: [],
   loading: true,
   busy: false,
@@ -36,16 +39,16 @@ const INITIAL_STATE: MtginvestViewState = {
   }
 };
 
-/** Controlador MVC de MTGInvest. */
-export class MtginvestController
-  extends BaseController<MtginvestViewState, ViewEvent>
-  implements IMtginvestController
+/** Controlador MVC de MintMox. */
+export class MintmoxController
+  extends BaseController<MintmoxViewState, ViewEvent>
+  implements IMintmoxController
 {
   public readonly scryfallClient: IScryfallApiClient;
   private readonly unsubModel: () => void;
 
   constructor(
-    private readonly model: IMtginvestModel,
+    private readonly model: IMintmoxModel,
     scryfallClient?: IScryfallApiClient
   ) {
     super(INITIAL_STATE);
@@ -258,3 +261,5 @@ export class MtginvestController
     super.dispose();
   }
 }
+
+export { MintmoxController as MtginvestController };
