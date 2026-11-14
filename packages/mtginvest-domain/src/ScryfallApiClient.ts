@@ -130,16 +130,14 @@ export class ScryfallApiClient implements IScryfallApiClient {
   }
 
   /**
-   * Detecta si el entorno es un navegador o React Native (Hermes / JSC / Web),
-   * donde el estándar Fetch y XHR prohíben explícitamente definir la cabecera 'User-Agent'
-   * lanzando un TypeError: Refused to set unsafe header "User-Agent".
+   * Detecta si el entorno es un navegador web tradicional con DOM (donde la especificación
+   * de Fetch prohíbe explícitamente definir la cabecera 'User-Agent' por ser 'forbidden header').
+   * En React Native (Hermes / JSC en Android e iOS) y Node.js, definir 'User-Agent' está permitido
+   * y es obligatorio para que Scryfall no bloquee las peticiones con un 403 Forbidden desde Cloudflare.
    */
-  private isBrowserOrReactNative(): boolean {
+  private isBrowserDocument(): boolean {
     const g = globalThis as any;
-    if (typeof g.window !== 'undefined') return true;
-    if (typeof g.navigator !== 'undefined' && typeof g.navigator.product === 'string') return true;
-    if (typeof g.__fbBatchedBridge !== 'undefined' || typeof g.HermesInternal !== 'undefined') return true;
-    return false;
+    return typeof g.document !== 'undefined' && typeof g.document.createElement === 'function';
   }
 
   /**
@@ -149,21 +147,22 @@ export class ScryfallApiClient implements IScryfallApiClient {
     url: string,
     init: { method?: string; body?: string; headers?: Record<string, string> } = {}
   ): Promise<{ ok: boolean; status: number; json(): Promise<any> }> {
-    const isRestricted = this.isBrowserOrReactNative();
+    const isBrowser = this.isBrowserDocument();
     const headers: Record<string, string> = {
       Accept: 'application/json;q=0.9,*/*;q=0.8',
       ...(init.headers ?? {})
     };
 
-    // Solo inyectamos User-Agent manual en Node.js, CLI o entornos de servidor donde está permitido
-    if (!isRestricted && this.userAgent && !headers['User-Agent']) {
+    // Scryfall requiere obligatoriamente un User-Agent identificativo.
+    // Solo los navegadores web bloquean modificarlo en fetch(). En React Native móvil y Node.js se envía siempre.
+    if (!isBrowser && this.userAgent && !headers['User-Agent']) {
       headers['User-Agent'] = this.userAgent;
     }
 
     try {
       return await this.fetchFn(url, { ...init, headers });
     } catch (error) {
-      // Si el fetch falló por cabecera no permitida (Refused to set unsafe header "User-Agent"), reintentamos sin ella
+      // Si algún entorno restrictivo lanzara error por cabecera no permitida, reintentamos limpiamente sin User-Agent
       if (headers['User-Agent']) {
         const cleanHeaders = { ...headers };
         delete cleanHeaders['User-Agent'];
@@ -387,6 +386,7 @@ export class ScryfallApiClient implements IScryfallApiClient {
       card.imageUris?.small ??
       card.imageUris?.png ??
       card.cardFaces?.[0]?.imageUris?.normal ??
+      card.cardFaces?.[0]?.imageUris?.small ??
       card.cardFaces?.[0]?.imageUris?.large ??
       card.cardFaces?.[0]?.imageUris?.artCrop ??
       null

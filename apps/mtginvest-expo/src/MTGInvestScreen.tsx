@@ -20,6 +20,7 @@ import {
   type ThemeScheme
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
+import { clearCardImageCache, loadCardImageAsDataUri } from './cardImageLoader';
 import {
   buildCardChart,
   buildPortfolioChart,
@@ -394,8 +395,11 @@ export function MTGInvestScreen({
   const [editCurrentPrice, setEditCurrentPrice] = useState('');
   const [editCondition, setEditCondition] = useState('NM');
   const [cardArtUrl, setCardArtUrl] = useState<string | null>(null);
+  const [displayArtUri, setDisplayArtUri] = useState<string | null>(null);
   const [loadingArt, setLoadingArt] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [imageDownloading, setImageDownloading] = useState(false);
+  const [imageRetryKey, setImageRetryKey] = useState(0);
   const [chartTimeframe, setChartTimeframe] = useState<ChartTimeframe>('1A');
 
   // Estado para la barra de búsqueda y ordenación del tab principal
@@ -423,6 +427,42 @@ export function MTGInvestScreen({
   useEffect(() => {
     void controller.syncCardmarketPrices().catch(() => {});
   }, [controller]);
+
+  // Resuelve la imagen a Data URI local en móvil para eludir bloqueos 403 de Cloudflare a OkHttp
+  useEffect(() => {
+    let active = true;
+
+    if (!cardArtUrl) {
+      setDisplayArtUri(null);
+      setImageDownloading(false);
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      setDisplayArtUri(cardArtUrl);
+      setImageDownloading(false);
+      return;
+    }
+
+    setImageDownloading(true);
+    setImageLoadError(false);
+
+    loadCardImageAsDataUri(cardArtUrl)
+      .then((dataUri) => {
+        if (!active) return;
+        setDisplayArtUri(dataUri);
+        setImageDownloading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDisplayArtUri(cardArtUrl);
+        setImageDownloading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [cardArtUrl, imageRetryKey]);
 
   // Opción de ordenación activa
   const activeSortOption: SortOptionDef = useMemo(
@@ -587,6 +627,7 @@ export function MTGInvestScreen({
 
     // Arte de la carta desde Scryfall
     setImageLoadError(false);
+    setImageDownloading(Boolean(card.imageUrl));
     if (card.imageUrl) {
       setCardArtUrl(card.imageUrl);
       setLoadingArt(false);
@@ -597,10 +638,12 @@ export function MTGInvestScreen({
         .getCardImageUrl(card)
         .then((url) => {
           setCardArtUrl(url);
+          setImageDownloading(Boolean(url));
           setLoadingArt(false);
         })
         .catch(() => {
           setCardArtUrl(null);
+          setImageDownloading(false);
           setLoadingArt(false);
         });
     }
@@ -610,6 +653,10 @@ export function MTGInvestScreen({
     if (!editingCard) return;
     setLoadingArt(true);
     setImageLoadError(false);
+    if (cardArtUrl) {
+      clearCardImageCache(cardArtUrl);
+    }
+    setImageRetryKey((k) => k + 1);
     try {
       const url = await controller.scryfallClient.resolveCardImageUrl({
         title: editTitle,
@@ -625,6 +672,7 @@ export function MTGInvestScreen({
       }
     } catch {
       setCardArtUrl(null);
+      setImageDownloading(false);
       setToast('Error al conectar con Scryfall.');
     } finally {
       setLoadingArt(false);
@@ -1259,7 +1307,7 @@ export function MTGInvestScreen({
                   padding: theme.spacing.sm,
                   borderWidth: 1,
                   borderColor: theme.colors.border,
-                  minHeight: 180
+                  minHeight: 230
                 }}
               >
                 {loadingArt ? (
@@ -1277,31 +1325,68 @@ export function MTGInvestScreen({
                   </View>
                 ) : cardArtUrl && !imageLoadError ? (
                   <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-                    <Image
-                      source={{
-                        uri: cardArtUrl,
-                        headers:
-                          Platform.OS !== 'web'
-                            ? {
-                                'User-Agent':
-                                  'Mozilla/5.0 (Linux; Android 10; Mobile) MTGInvest/2026.11',
-                                Accept: 'image/webp,image/png,image/jpeg,image/*;q=0.8'
-                              }
-                            : undefined
-                      }}
+                    <View
                       style={{
                         width: 154,
                         height: 215,
                         borderRadius: 8,
-                        backgroundColor: theme.colors.surface
+                        overflow: 'hidden',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border
                       }}
-                      resizeMode="contain"
-                      onError={() => {
-                        setImageLoadError(true);
-                      }}
-                    />
+                    >
+                      {imageDownloading || !displayArtUri ? (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            zIndex: 1,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <ActivityIndicator size="small" color={theme.colors.accent} />
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: 10,
+                              ...textTypographyStyle(theme, 'medium')
+                            }}
+                          >
+                            Cargando...
+                          </Text>
+                        </View>
+                      ) : null}
+                      {displayArtUri ? (
+                        <Image
+                          key={`${displayArtUri.slice(0, 40)}-${imageRetryKey}`}
+                          source={{ uri: displayArtUri }}
+                          style={{
+                            width: 154,
+                            height: 215,
+                            borderRadius: 8,
+                            backgroundColor: 'transparent'
+                          }}
+                          resizeMode="contain"
+                          onLoadStart={() => {
+                            setImageDownloading(true);
+                            setImageLoadError(false);
+                          }}
+                          onLoadEnd={() => {
+                            setImageDownloading(false);
+                          }}
+                          onError={() => {
+                            setImageDownloading(false);
+                            setImageLoadError(true);
+                          }}
+                        />
+                      ) : null}
+                    </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                      <Badge label="Scryfall API" tone="accent" />
+                      <Badge label="Scryfall CDN" tone="accent" />
                       {editingCard?.lastPriceSyncDate ? (
                         <Badge label={`Cardmarket: ${editingCard.lastPriceSyncDate}`} tone="neutral" />
                       ) : null}
@@ -1310,6 +1395,10 @@ export function MTGInvestScreen({
                         accessibilityLabel="Recargar arte desde Scryfall"
                         onPress={() => {
                           setImageLoadError(false);
+                          if (cardArtUrl) {
+                            clearCardImageCache(cardArtUrl);
+                          }
+                          setImageRetryKey((k) => k + 1);
                           void handleRefreshArt();
                         }}
                         hitSlop={6}
@@ -1353,6 +1442,10 @@ export function MTGInvestScreen({
                       label={imageLoadError ? 'Reintentar carga' : 'Buscar en Scryfall'}
                       onPress={() => {
                         setImageLoadError(false);
+                        if (cardArtUrl) {
+                          clearCardImageCache(cardArtUrl);
+                        }
+                        setImageRetryKey((k) => k + 1);
                         void handleRefreshArt();
                       }}
                     />
