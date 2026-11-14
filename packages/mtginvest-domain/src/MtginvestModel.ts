@@ -342,8 +342,11 @@ export class MtginvestModel implements IMtginvestModel {
   ): Promise<CardmarketSyncResult> {
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    // Si no se fuerza y ya se han sincronizado hoy todas las cartas existentes, evitamos llamadas innecesarias
-    if (!options?.force && this.items.length > 0 && this.items.every((c) => c.lastPriceSyncDate === todayStr)) {
+    // Si no se fuerza, y ya se han sincronizado hoy todas las cartas existentes Y todas tienen imagen, evitamos llamadas innecesarias
+    const allHaveImages = this.items.length > 0 && this.items.every((c) => Boolean(c.imageUrl));
+    const allSyncedToday = this.items.length > 0 && this.items.every((c) => c.lastPriceSyncDate === todayStr);
+
+    if (!options?.force && allHaveImages && allSyncedToday) {
       return {
         alreadyUpToDate: true,
         updatedCount: 0,
@@ -381,9 +384,16 @@ export class MtginvestModel implements IMtginvestModel {
       });
 
       if (!cardData) {
-        // Marcamos la fecha de sincronización de hoy para no insistir en cartas no encontradas
+        // Si no se encontró por set exacto en el lote, pero no tiene imagen, intentamos resolverla con el resolver flexible
+        let fallbackImageUrl = item.imageUrl;
+        if (!fallbackImageUrl) {
+          try {
+            fallbackImageUrl = (await scryfallClient.resolveCardImageUrl(item)) ?? undefined;
+          } catch {}
+        }
         await this.repository.save({
           ...item,
+          imageUrl: fallbackImageUrl,
           lastPriceSyncDate: todayStr,
           updatedAt: new Date().toISOString()
         });
@@ -413,6 +423,7 @@ export class MtginvestModel implements IMtginvestModel {
       const imageUrl =
         item.imageUrl ??
         cardData.imageUris?.normal ??
+        cardData.imageUris?.small ??
         cardData.imageUris?.large ??
         cardData.cardFaces?.[0]?.imageUris?.normal;
 

@@ -23,6 +23,19 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 const cardImageDataCache = new Map<string, string>();
 
 /**
+ * Devuelve la URL de menor resolución ('small') a partir de una URL de Scryfall ('normal').
+ * Esto optimiza el consumo de datos y la velocidad de carga de miniaturas en la lista y cuadrícula.
+ */
+export function getSmallImageUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (trimmed.includes('/normal/')) {
+    return trimmed.replace('/normal/', '/small/');
+  }
+  return trimmed;
+}
+
+/**
  * Resuelve una URL remota de Scryfall a una URI segura y mostrable.
  * En navegadores web, devuelve la URL remota directamente (el navegador envía su User-Agent estándar).
  * En dispositivos móviles (React Native Android e iOS), descarga la imagen usando JavaScript `fetch`

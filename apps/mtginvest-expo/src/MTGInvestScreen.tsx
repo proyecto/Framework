@@ -21,6 +21,7 @@ import {
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
 import { clearCardImageCache, loadCardImageAsDataUri } from './cardImageLoader';
+import { CardThumbnail } from './CardThumbnail';
 import {
   buildCardChart,
   buildPortfolioChart,
@@ -40,6 +41,20 @@ import { APP_VERSION, BASE_VERSION } from './version';
 export type MTGTab = 'main' | 'analytics' | 'settings';
 
 export type AppLanguage = 'es' | 'en';
+
+export type CardListViewMode = 'list' | 'grid';
+
+const VIEW_MODE_STORAGE_KEY = 'mtginvest_view_mode_preference';
+
+function getInitialViewMode(): CardListViewMode {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (saved === 'list' || saved === 'grid') return saved;
+    }
+  } catch {}
+  return 'grid';
+}
 
 export interface MTGInvestScreenProps {
   controller: IMtginvestController;
@@ -407,6 +422,21 @@ export function MTGInvestScreen({
   const [sortBy, setSortBy] = useState<MtgSortKey>('price_desc');
   const [showSortModal, setShowSortModal] = useState(false);
 
+  // Modo de visualización del listado: 'grid' (Galería visual) o 'list' (Lista compacta con miniaturas)
+  const [viewMode, setViewMode] = useState<CardListViewMode>(getInitialViewMode);
+
+  const toggleViewMode = () => {
+    setViewMode((prev) => {
+      const next = prev === 'list' ? 'grid' : 'list';
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
+        }
+      } catch {}
+      return next;
+    });
+  };
+
   // Estado para la pestaña de Gráficas de la Cartera completa
   const [portfolioTimeframe, setPortfolioTimeframe] = useState<ChartTimeframe>('1A');
   const [activeMetricChart, setActiveMetricChart] = useState<'value' | 'profit' | 'roi'>('value');
@@ -423,10 +453,11 @@ export function MTGInvestScreen({
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // Al abrir la aplicación, sincroniza en segundo plano las cotizaciones de Cardmarket si es un nuevo día
+  // Al abrir la aplicación, sincroniza en segundo plano las cotizaciones y portadas de Scryfall/Cardmarket
   useEffect(() => {
-    void controller.syncCardmarketPrices().catch(() => {});
-  }, [controller]);
+    const hasMissingImages = state.items.length > 0 && state.items.some((c) => !c.imageUrl);
+    void controller.syncCardmarketPrices({ force: hasMissingImages }).catch(() => {});
+  }, [controller, state.items.length]);
 
   // Resuelve la imagen a Data URI local en móvil para eludir bloqueos 403 de Cloudflare a OkHttp
   useEffect(() => {
@@ -965,9 +996,34 @@ export function MTGInvestScreen({
                 {activeSortOption.label}
               </Text>
             </Pressable>
+
+            {/* Selector de vista: Galería (Cuadrícula) vs Lista compacta */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={viewMode === 'list' ? 'Cambiar a vista galería' : 'Cambiar a vista lista'}
+              onPress={toggleViewMode}
+              hitSlop={4}
+              style={({ pressed }) => ({
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: viewMode === 'grid' ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                borderColor: viewMode === 'grid' ? theme.colors.accent : theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.md,
+                height: 44,
+                width: 44,
+                opacity: pressed ? 0.8 : 1
+              })}
+            >
+              <GoogleIcon
+                name={viewMode === 'list' ? 'grid-view' : 'view-list'}
+                size={20}
+                color={viewMode === 'grid' ? theme.colors.accent : theme.colors.textPrimary}
+              />
+            </Pressable>
           </View>
 
-          {/* 2. Listado de Cartas: Pulsar para editar */}
+          {/* 2. Listado de Cartas: Galería visual o Lista compacta */}
           <View style={{ gap: theme.spacing.sm }}>
             {filteredAndSortedCards.length === 0 ? (
               <View
@@ -1011,7 +1067,205 @@ export function MTGInvestScreen({
                   onPress={() => setSearchQuery('')}
                 />
               </View>
+            ) : viewMode === 'grid' ? (
+              /* MODO CUADRÍCULA / GALERÍA VISUAL (BINDER) */
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: theme.spacing.sm,
+                  justifyContent: 'space-between'
+                }}
+              >
+                {filteredAndSortedCards.map((card: CardEntity) => {
+                  const { diff, percent, trend } = calculateCardReturn(card);
+                  const isUp = trend === 'up';
+                  const isDown = trend === 'down';
+                  const trendColor = isUp
+                    ? theme.colors.success
+                    : isDown
+                    ? theme.colors.danger
+                    : theme.colors.textSecondary;
+                  const trendBg = isUp
+                    ? theme.colors.successSoft
+                    : isDown
+                    ? theme.colors.dangerSoft
+                    : theme.colors.surfaceMuted;
+
+                  return (
+                    <Pressable
+                      key={card.id}
+                      onPress={() => openEditModal(card)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ver detalles de ${card.title}`}
+                      style={({ pressed }) => ({
+                        width: '48.4%',
+                        backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+                        borderColor: theme.colors.border,
+                        borderWidth: 1,
+                        borderRadius: theme.radius.lg,
+                        overflow: 'hidden',
+                        opacity: pressed ? 0.9 : 1,
+                        marginBottom: theme.spacing.xs
+                      })}
+                    >
+                      {/* Portada de la carta con badges flotantes */}
+                      <View
+                        style={{
+                          position: 'relative',
+                          width: '100%',
+                          height: 185,
+                          backgroundColor: theme.colors.surfaceMuted
+                        }}
+                      >
+                        <CardThumbnail
+                          imageUrl={card.imageUrl}
+                          title={card.title}
+                          width="100%"
+                          height={185}
+                          borderRadius={0}
+                          resizeMode="cover"
+                          showBorder={false}
+                          onResolveMissing={() => controller.getCardImageUrl(card)}
+                        />
+
+                        {/* Insignia de edición en esquina superior izquierda */}
+                        <View style={{ position: 'absolute', top: 6, left: 6, zIndex: 2 }}>
+                          <Badge
+                            label={card.editionCode ? card.editionCode.toUpperCase() : card.edition}
+                            tone="accent"
+                          />
+                        </View>
+
+                        {/* Insignia de estado en esquina superior derecha */}
+                        {card.condition ? (
+                          <View style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
+                            <Badge label={card.condition} tone="neutral" />
+                          </View>
+                        ) : null}
+
+                        {/* Pastilla flotante con cotización actual en esquina inferior derecha */}
+                        <View
+                          style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            right: 6,
+                            zIndex: 2,
+                            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                            paddingHorizontal: 7,
+                            paddingVertical: 3,
+                            borderRadius: theme.radius.sm,
+                            borderWidth: 1,
+                            borderColor: 'rgba(255, 255, 255, 0.15)'
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: '#FFFFFF',
+                              fontSize: 12,
+                              fontVariant: ['tabular-nums'],
+                              ...textTypographyStyle(theme, 'bold')
+                            }}
+                          >
+                            {card.currentPrice.toFixed(2)} €
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Información en el pie de la tarjeta */}
+                      <View style={{ padding: theme.spacing.sm, gap: 3 }}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 4
+                          }}
+                        >
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              flex: 1,
+                              color: theme.colors.textPrimary,
+                              fontSize: theme.typography.captionSize + 1,
+                              ...textTypographyStyle(theme, 'bold')
+                            }}
+                          >
+                            {card.title}
+                          </Text>
+                          {(card.quantity ?? 1) > 1 ? (
+                            <Badge label={`x${card.quantity}`} tone="accent" />
+                          ) : null}
+                        </View>
+
+                        {card.nameEn && card.nameEn !== card.title ? (
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: 11,
+                              fontStyle: 'italic',
+                              ...textTypographyStyle(theme, 'regular')
+                            }}
+                          >
+                            {card.nameEn}
+                          </Text>
+                        ) : null}
+
+                        {/* Ticker de revalorización */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginTop: 4
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: 11,
+                              fontVariant: ['tabular-nums'],
+                              ...textTypographyStyle(theme, 'regular')
+                            }}
+                          >
+                            Ant: {card.previousPrice.toFixed(2)} €
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 2,
+                              backgroundColor: trendBg,
+                              paddingHorizontal: 5,
+                              paddingVertical: 1,
+                              borderRadius: theme.radius.sm
+                            }}
+                          >
+                            <GoogleIcon
+                              name={isUp ? 'trending-up' : isDown ? 'trending-down' : 'trending-flat'}
+                              size={12}
+                              color={trendColor}
+                            />
+                            <Text
+                              style={{
+                                color: trendColor,
+                                fontSize: 10,
+                                fontVariant: ['tabular-nums'],
+                                ...textTypographyStyle(theme, 'bold')
+                              }}
+                            >
+                              {percent >= 0 ? '+' : ''}{percent}%
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
             ) : (
+              /* MODO LISTA COMPACTA CON MINIATURAS VISUALES */
               filteredAndSortedCards.map((card: CardEntity) => {
                 const { diff, percent, trend } = calculateCardReturn(card);
                 const isUp = trend === 'up';
@@ -1040,39 +1294,49 @@ export function MTGInvestScreen({
                       borderColor: theme.colors.border,
                       borderWidth: 1,
                       borderRadius: theme.radius.lg,
-                      padding: theme.spacing.md,
-                      gap: theme.spacing.xs,
+                      padding: theme.spacing.sm,
                       opacity: pressed ? 0.88 : 1
                     })}
                   >
                     <View
                       style={{
                         flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start'
+                        alignItems: 'center',
+                        gap: theme.spacing.sm
                       }}
                     >
-                      {/* Datos de la carta: Nombre (cantidad) y Edición */}
-                      <View style={{ flex: 1, paddingRight: theme.spacing.sm }}>
+                      {/* Miniatura visual de la carta */}
+                      <CardThumbnail
+                        imageUrl={card.imageUrl}
+                        title={card.title}
+                        width={44}
+                        height={62}
+                        borderRadius={6}
+                        resizeMode="cover"
+                        onResolveMissing={() => controller.getCardImageUrl(card)}
+                      />
+
+                      {/* Datos de la carta: Nombre, Nombre original y Edición */}
+                      <View style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text
+                            numberOfLines={1}
                             style={{
                               color: theme.colors.textPrimary,
-                              fontSize: theme.typography.bodySize + 1,
+                              fontSize: theme.typography.bodySize,
                               ...textTypographyStyle(theme, 'bold')
                             }}
                           >
-                            {card.title} ({card.quantity ?? 1})
+                            {card.title}
                           </Text>
-                          <GoogleIcon
-                            name="edit"
-                            size={14}
-                            color={theme.colors.textSecondary}
-                          />
+                          {(card.quantity ?? 1) > 1 ? (
+                            <Badge label={`x${card.quantity}`} tone="accent" />
+                          ) : null}
                         </View>
 
                         {card.nameEn && card.nameEn !== card.title ? (
                           <Text
+                            numberOfLines={1}
                             style={{
                               color: theme.colors.textSecondary,
                               fontSize: theme.typography.captionSize,
@@ -1089,8 +1353,9 @@ export function MTGInvestScreen({
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            gap: 6,
-                            marginTop: 6
+                            flexWrap: 'wrap',
+                            gap: 4,
+                            marginTop: 4
                           }}
                         >
                           {card.editionCode ? (
@@ -1109,37 +1374,32 @@ export function MTGInvestScreen({
                       </View>
 
                       {/* Precios y Ticker Bursátil */}
-                      <View style={{ alignItems: 'flex-end', minWidth: 120 }}>
-                        {/* Valor Actual por unidad */}
+                      <View style={{ alignItems: 'flex-end', minWidth: 105 }}>
                         <Text
                           style={{
                             color: theme.colors.textPrimary,
-                            fontSize: theme.typography.bodySize + 2,
+                            fontSize: theme.typography.bodySize + 1,
                             fontVariant: ['tabular-nums'],
                             ...textTypographyStyle(theme, 'bold')
                           }}
                         >
                           {card.currentPrice.toFixed(2)} €
                         </Text>
-
-                        {/* Valor Anterior por unidad */}
                         <Text
                           style={{
                             color: theme.colors.textSecondary,
-                            fontSize: theme.typography.captionSize,
+                            fontSize: 11,
                             fontVariant: ['tabular-nums'],
                             ...textTypographyStyle(theme, 'regular')
                           }}
                         >
                           Ant: {card.previousPrice.toFixed(2)} €
                         </Text>
-
-                        {/* Si tiene más de una unidad, mostrar valor total acumulado */}
                         {(card.quantity ?? 1) > 1 ? (
                           <Text
                             style={{
                               color: theme.colors.accent,
-                              fontSize: theme.typography.captionSize,
+                              fontSize: 11,
                               fontVariant: ['tabular-nums'],
                               ...textTypographyStyle(theme, 'medium')
                             }}
@@ -1147,35 +1407,32 @@ export function MTGInvestScreen({
                             Total: {totalCardValue.toFixed(2)} €
                           </Text>
                         ) : null}
-
-                        {/* Variación estilo Bolsa (Subiendo/Bajando) */}
                         <View
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            gap: 3,
+                            gap: 2,
                             backgroundColor: trendBg,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
+                            paddingHorizontal: 5,
+                            paddingVertical: 1,
                             borderRadius: theme.radius.sm,
-                            marginTop: 4
+                            marginTop: 2
                           }}
                         >
                           <GoogleIcon
                             name={isUp ? 'trending-up' : isDown ? 'trending-down' : 'trending-flat'}
-                            size={14}
+                            size={12}
                             color={trendColor}
                           />
                           <Text
                             style={{
                               color: trendColor,
-                              fontSize: theme.typography.captionSize,
+                              fontSize: 10,
                               fontVariant: ['tabular-nums'],
                               ...textTypographyStyle(theme, 'bold')
                             }}
                           >
-                            {diff >= 0 ? '+' : ''}
-                            {diff.toFixed(2)} € ({percent >= 0 ? '+' : ''}
+                            {diff >= 0 ? '+' : ''}{diff.toFixed(2)} € ({percent >= 0 ? '+' : ''}
                             {percent}%)
                           </Text>
                         </View>
