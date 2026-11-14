@@ -108,7 +108,7 @@ export interface ImportCardsResult {
   replaced: boolean;
 }
 
-/** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad. */
+/** Calcula la variación absoluta, porcentual y la tendencia de cotización por unidad. */
 export function calculateCardReturn(card: {
   currentPrice: number;
   previousPrice: number;

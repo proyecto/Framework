@@ -23,12 +23,29 @@ export function escapeCsvCell(val: unknown): string {
 }
 
 /**
- * Parsea un contenido de texto CSV según la especificación RFC 4180 soportando celdas multilínea y con comillas.
+ * Parsea un contenido de texto CSV según la especificación RFC 4180 soportando celdas multilínea,
+ * comillas y autodetección de delimitador (, ; \t) para compatibilidad con Excel europeo y Cardmarket.
  *
  * @param text Cadena de texto completa en formato CSV.
+ * @param delimiter Delimitador opcional; si se omite, se autodetecta entre ',', ';' y '\t'.
  * @returns Matriz bidimensional de celdas (filas y columnas).
  */
-export function parseCsvRows(text: string): string[][] {
+export function parseCsvRows(text: string, delimiter?: string): string[][] {
+  let delim = delimiter;
+  if (!delim) {
+    const firstLine = text.split(/[\r\n]+/)[0] ?? '';
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semiCount = (firstLine.match(/;/g) || []).length;
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    if (semiCount > commaCount && semiCount > tabCount) {
+      delim = ';';
+    } else if (tabCount > commaCount && tabCount > semiCount) {
+      delim = '\t';
+    } else {
+      delim = ',';
+    }
+  }
+
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentCell = '';
@@ -61,7 +78,7 @@ export function parseCsvRows(text: string): string[][] {
         inQuotes = true;
         i++;
         continue;
-      } else if (char === ',') {
+      } else if (char === delim) {
         currentRow.push(currentCell.trim());
         currentCell = '';
         i++;

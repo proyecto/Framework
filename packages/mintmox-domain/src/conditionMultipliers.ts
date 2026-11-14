@@ -88,14 +88,49 @@ export const ORDERED_CARD_CONDITIONS: CardCondition[] = ['NM', 'EX', 'GD', 'LP',
  */
 export function normalizeCardCondition(condition?: string | null): CardCondition {
   if (!condition) return 'NM';
-  const clean = condition.trim().toUpperCase();
+  const clean = condition.trim().toUpperCase().replace(/[-_]/g, ' ');
 
-  if (clean === 'NM' || clean === 'M' || clean === 'MINT' || clean === 'NEAR MINT') return 'NM';
-  if (clean === 'EX' || clean === 'EXCELLENT') return 'EX';
-  if (clean === 'GD' || clean === 'GOOD' || clean === 'VG' || clean === 'VERY GOOD') return 'GD';
-  if (clean === 'LP' || clean === 'LIGHTLY PLAYED' || clean === 'SP' || clean === 'SLIGHTLY PLAYED') return 'LP';
-  if (clean === 'PL' || clean === 'PLAYED' || clean === 'MP' || clean === 'MODERATELY PLAYED') return 'PL';
-  if (clean === 'PO' || clean === 'POOR' || clean === 'DMG' || clean === 'DAMAGED' || clean === 'HP' || clean === 'HEAVILY PLAYED') return 'PO';
+  if (
+    clean === 'NM' ||
+    clean === 'M' ||
+    clean === 'MINT' ||
+    clean === 'NEAR MINT' ||
+    clean === 'NEARMINT' ||
+    clean === 'N'
+  ) return 'NM';
+  if (clean === 'EX' || clean === 'EXCELLENT' || clean === 'EXC') return 'EX';
+  if (
+    clean === 'GD' ||
+    clean === 'GOOD' ||
+    clean === 'GOOD (LIGHTLY PLAYED)' ||
+    clean === 'VG' ||
+    clean === 'VERY GOOD'
+  ) return 'GD';
+  if (
+    clean === 'LP' ||
+    clean === 'LIGHTLY PLAYED' ||
+    clean === 'LIGHTLYPLAYED' ||
+    clean === 'SP' ||
+    clean === 'SLIGHTLY PLAYED' ||
+    clean === 'SLIGHTLYPLAYED'
+  ) return 'LP';
+  if (
+    clean === 'PL' ||
+    clean === 'PLAYED' ||
+    clean === 'MP' ||
+    clean === 'MODERATELY PLAYED' ||
+    clean === 'MODERATELYPLAYED'
+  ) return 'PL';
+  if (
+    clean === 'PO' ||
+    clean === 'POOR' ||
+    clean === 'DMG' ||
+    clean === 'DAMAGED' ||
+    clean === 'D' ||
+    clean === 'HP' ||
+    clean === 'HEAVILY PLAYED' ||
+    clean === 'HEAVILYPLAYED'
+  ) return 'PO';
 
   return 'NM';
 }

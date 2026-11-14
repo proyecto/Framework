@@ -14,6 +14,8 @@
       --accent-soft: rgba(56, 189, 248, 0.12);
       --border: #334155;
       --success: #34d399;
+      --warning: #fbbf24;
+      --warning-soft: rgba(251, 191, 36, 0.12);
     }
     @media (prefers-color-scheme: light) {
       :root {
@@ -25,6 +27,8 @@
         --accent-soft: rgba(2, 132, 199, 0.08);
         --border: #e2e8f0;
         --success: #059669;
+        --warning: #d97706;
+        --warning-soft: rgba(217, 119, 6, 0.08);
       }
     }
     * {
@@ -102,6 +106,13 @@
       border-radius: 0 8px 8px 0;
       margin: 1.25rem 0;
     }
+    .disclaimer-box {
+      background-color: var(--warning-soft);
+      border-left: 4px solid var(--warning);
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.25rem 0;
+    }
     .lang-switch {
       display: flex;
       gap: 0.5rem;
@@ -152,16 +163,16 @@
         <strong>Resumen de Privacidad:</strong> MintMox es una aplicación <strong>100% gratuita, local y sin publicidad</strong>. No recopilamos, no almacenamos en servidores externos y no compartimos ningún dato personal de los usuarios. Tu colección se guarda exclusivamente en la memoria de tu dispositivo.
       </div>
 
-      <h2>1. Información que NO recopilamos</h2>
+      <h2>1. Información que NO recopilamos en el estado actual</h2>
       <p>MintMox ha sido diseñada bajo el principio de <em>Privacidad por Diseño</em> (Privacy by Design). La aplicación <strong>no requiere cuenta de usuario ni registro</strong> y en ningún caso recopila:</p>
       <ul>
         <li>Nombres, correos electrónicos, números de teléfono o direcciones.</li>
-        <li>Datos de ubicación geográfica (GPS o red).</li>
-        <li>Identificadores publicitarios (Advertising ID / GAID), huellas digitales o datos biométricos.</li>
+        <li>Datos de ubicación geográfica (GPS o triangulación de red).</li>
+        <li>Identificadores publicitarios (Advertising ID / GAID / IDFA), huellas digitales o datos biométricos.</li>
         <li>Contactos, fotos del carrete o archivos personales del dispositivo.</li>
       </ul>
 
-      <h2>2. Almacenamiento Local (Local-First)</h2>
+      <h2>2. Almacenamiento Local (Local-First) y Propiedad del Usuario</h2>
       <p>Toda la información que introduces en la aplicación (inventario de cartas, precios de compra, cantidades, carpetas y archivadores de colecciones, notas o preferencias de tema):</p>
       <ul>
         <li>Se almacena única y exclusivamente de forma local en tu dispositivo mediante una base de datos <strong>SQLite embebida</strong> dentro del espacio de almacenamiento seguro de la app.</li>
@@ -177,23 +188,34 @@
       </ul>
       <p>Estas peticiones son anónimas, de sólo lectura y no transmiten información personal, identificadores del dispositivo ni el contenido total de tu colección.</p>
 
-      <h2>4. Publicidad, Analíticas y Rastreo</h2>
+      <h2>4. Transparencia sobre Servicios Futuros (Nube e Inteligencia Artificial)</h2>
+      <p>MintMox se concibe como una herramienta modular y escalable. Si en el futuro se incorporasen funciones de valor añadido:</p>
+      <ul>
+        <li><strong>Sincronización Multidispositivo (Cloud Sync):</strong> El usuario podrá optar voluntariamente por crear una cuenta para respaldar su inventario en la nube. La transmisión y almacenamiento se realizarán bajo cifrado riguroso (TLS y cifrado en reposo). Cualquier cobro asociado a este servicio retribuirá estrictamente los costes de servidores, bases de datos y ancho de banda, nunca los contenidos o marcas de Magic.</li>
+        <li><strong>Cómputo de Inteligencia Artificial (AI Compute):</strong> Los módulos opcionales de IA para análisis y proyecciones de tendencias de cartas procesarán únicamente datos cuantitativos agregados. Los datos del usuario no se usarán para entrenar modelos públicos ni se venderán a intermediarios. Las posibles tarifas cubrirán únicamente la capacidad de cómputo y consumo de tokens de los modelos de IA.</li>
+      </ul>
+
+      <div class="disclaimer-box">
+        <strong>5. Descargo Financiero y Modelos Predictivos:</strong> MintMox es una herramienta informativa y lúdica. Ni los datos históricos ni las estimaciones o predicciones estadísticas generadas por IA constituyen asesoramiento financiero ni recomendaciones de inversión. El mercado de coleccionables es volátil y el usuario es el único responsable de sus decisiones de compra/venta.
+      </div>
+
+      <h2>6. Publicidad, Analíticas y Rastreo</h2>
       <ul>
         <li><strong>Cero Anuncios:</strong> La app no incluye SDKs de redes publicitarias (sin AdMob, Unity Ads, etc.).</li>
         <li><strong>Cero Rastreadores (Trackers):</strong> No utilizamos herramientas de analítica de comportamiento (sin Google Analytics, Firebase Analytics, Facebook SDK ni servicios similares).</li>
         <li><strong>Cero Cookies:</strong> No se implementan cookies ni mecanismos de rastreo entre aplicaciones o sitios web.</li>
       </ul>
 
-      <h2>5. Privacidad de Menores (COPPA)</h2>
+      <h2>7. Privacidad de Menores (COPPA y RGPD-K)</h2>
       <p>MintMox no está dirigida específicamente a menores de 13 años pero es apta para todos los públicos. Al no recopilar ningún tipo de información personal, cumple estrictamente con las directrices de protección de la privacidad infantil (COPPA y RGPD).</p>
 
-      <h2>6. Derechos del Usuario y Eliminación de Datos</h2>
+      <h2>8. Derechos del Usuario y Eliminación de Datos</h2>
       <p>Conforme al RGPD y la CCPA, el usuario tiene el derecho absoluto sobre su información. Puedes ejercer la eliminación total de tus datos directamente desde la app en cualquier momento pulsando en <em>Ajustes > Reiniciar / Vaciar Cartera</em>, o simplemente desinstalando la aplicación de tu dispositivo.</p>
 
-      <h2>7. Propiedad Intelectual y Aviso de Contenido de Fans</h2>
-      <p>MintMox es contenido de fans no oficial permitido bajo la Política de Contenido de Fans de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. &copy;Wizards of the Coast LLC. Magic: The Gathering, Scryfall y Cardmarket son marcas registradas de sus respectivos propietarios.</p>
+      <h2>9. Propiedad Intelectual y Aviso de Contenido de Fans</h2>
+      <p>MintMox es contenido de fans no oficial permitido bajo la Política de Contenido de Fans de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. &copy;Wizards of the Coast LLC. Magic: The Gathering, Scryfall y Cardmarket son marcas registradas de sus respectivos propietarios. El acceso a los datos de cartas y contenido de fans es y será siempre 100% gratuito.</p>
 
-      <h2>8. Contacto</h2>
+      <h2>10. Contacto</h2>
       <p>Si tienes cualquier duda o consulta sobre esta política de privacidad o sobre el funcionamiento de la aplicación, puedes ponerte en contacto con el desarrollador a través del repositorio oficial del proyecto o por correo electrónico.</p>
     </div>
 
@@ -203,12 +225,12 @@
         <strong>Privacy Summary:</strong> MintMox is a <strong>100% free, local-first, and ad-free</strong> application. We do not collect, store on external servers, or share any personal user data. Your collection is saved exclusively in your device's local memory.
       </div>
 
-      <h2>1. Information We Do NOT Collect</h2>
+      <h2>1. Information We Do NOT Collect (Current State)</h2>
       <p>MintMox is built upon the principle of <em>Privacy by Design</em>. The application <strong>requires no account creation or login</strong> and never collects:</p>
       <ul>
         <li>Names, email addresses, phone numbers, or physical addresses.</li>
         <li>Geographic location data (GPS or network).</li>
-        <li>Advertising IDs (GAID), device fingerprints, or biometric data.</li>
+        <li>Advertising IDs (GAID/IDFA), device fingerprints, or biometric data.</li>
         <li>Contacts, camera photos, or personal files stored on the device.</li>
       </ul>
 
@@ -228,23 +250,34 @@
       </ul>
       <p>These requests are anonymous, read-only, and do not convey any personal information, device identifiers, or user collection contents.</p>
 
-      <h2>4. Advertising, Analytics & Tracking</h2>
+      <h2>4. Transparency on Future Services (Cloud Sync & AI Predictions)</h2>
+      <p>MintMox is designed as a forward-looking application. If optional value-added services are introduced in the future:</p>
+      <ul>
+        <li><strong>Multi-Device Cloud Synchronization (Cloud Sync):</strong> Users may voluntarily create an account to back up and sync their inventories. All data transmission and storage will be strongly encrypted (TLS and encryption at rest). Any service fee will exclusively fund server hosting, databases, and network bandwidth, never MTG assets.</li>
+        <li><strong>AI Computing for Market Predictions:</strong> Optional AI forecasting tools will process solely anonymous quantitative data. User collections will never be sold to data brokers or used to train public models. Fees will strictly cover compute power and token inference costs.</li>
+      </ul>
+
+      <div class="disclaimer-box">
+        <strong>5. Financial Disclaimer & Predictive AI:</strong> MintMox is an informational and entertainment tool. Historical quotes and AI statistical projections do NOT constitute financial or investment advice. Collectible markets are speculative and users assume full responsibility for their buying and selling decisions.
+      </div>
+
+      <h2>6. Advertising, Analytics & Tracking</h2>
       <ul>
         <li><strong>Zero Ads:</strong> The app contains no advertising SDKs (no AdMob, Unity Ads, etc.).</li>
         <li><strong>Zero Trackers:</strong> We use no telemetry or behavioral analytics SDKs (no Google Analytics, Firebase, Facebook SDK, etc.).</li>
         <li><strong>Zero Cookies:</strong> No cookies or cross-app tracking mechanisms are used.</li>
       </ul>
 
-      <h2>5. Children's Privacy (COPPA & GDPR-K)</h2>
+      <h2>7. Children's Privacy (COPPA & GDPR-K)</h2>
       <p>MintMox is suitable for general audiences. Because no personal data is collected, it strictly adheres to child online privacy protection standards.</p>
 
-      <h2>6. User Rights & Data Deletion</h2>
+      <h2>8. User Rights & Data Deletion</h2>
       <p>Under GDPR, CCPA, and Google Play Store policies, you hold full control over your data. You may delete all stored data at any time via <em>Settings > Reset Inventory</em> or by uninstalling the app from your device.</p>
 
-      <h2>7. Intellectual Property & Fan Content Notice</h2>
-      <p>MintMox is unofficial Fan Content permitted under the Wizards of the Coast Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC. Magic: The Gathering, Scryfall, and Cardmarket are trademarks of their respective owners.</p>
+      <h2>9. Intellectual Property & Fan Content Notice</h2>
+      <p>MintMox is unofficial Fan Content permitted under the Wizards of the Coast Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC. Magic: The Gathering, Scryfall, and Cardmarket are trademarks of their respective owners. Access to card data and fan content is and will always remain 100% free.</p>
 
-      <h2>8. Contact</h2>
+      <h2>10. Contact</h2>
       <p>If you have any questions or feedback regarding this Privacy Policy, please reach out via the official project repository or developer contact.</p>
     </div>
 
@@ -264,4 +297,3 @@
   </script>
 </body>
 </html>
-

@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (75 símbolos exportados)
+- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (81 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (66 símbolos exportados)
@@ -811,10 +811,10 @@ function escapeCsvCell(val: unknown): string
 ### `parseCsvRows`
 
 - Origen: `packages/core/src/csv.ts`
-- Descripción: Parsea un contenido de texto CSV según la especificación RFC 4180 soportando celdas multilínea y con comillas.
+- Descripción: Parsea un contenido de texto CSV según la especificación RFC 4180 soportando celdas multilínea, comillas y autodetección de delimitador (, ; \t) para compatibilidad con Excel europeo y Cardmarket.
 
 ```ts
-function parseCsvRows(text: string): string[][]
+function parseCsvRows(text: string, delimiter?: string): string[][]
 ```
 
 ## `@framework/data`
@@ -1526,7 +1526,7 @@ Miembros públicos:
 ### `calculateCardReturn`
 
 - Origen: `packages/mintmox-domain/src/contracts.ts`
-- Descripción: Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad.
+- Descripción: Calcula la variación absoluta, porcentual y la tendencia de cotización por unidad.
 
 ```ts
 function calculateCardReturn(card: { currentPrice: number; previousPrice: number; buyPrice?: number; }): { diff: number; percent: number; trend: CardTrend; }
@@ -2197,6 +2197,46 @@ function findMtgSetByName(name: string): MtgSet | undefined
 const SEED_CARDS: CreateCardInput[]
 ```
 
+### `DetectedImportResult`
+
+- Origen: `packages/mintmox-domain/src/importExport.ts`
+
+```ts
+interface DetectedImportResult
+```
+
+Miembros públicos:
+- `format: 'json' | 'csv' | 'decklist'`
+- `sourceApp: string`
+- `cards: CreateCardInput[]`
+
+### `normalizeLanguageCode`
+
+- Origen: `packages/mintmox-domain/src/importExport.ts`
+- Descripción: Normaliza nombres o códigos de idioma a código de 2/3 letras estándar (EN, ES, FR, etc.).
+
+```ts
+function normalizeLanguageCode(lang?: string | null): string
+```
+
+### `parseFoilValue`
+
+- Origen: `packages/mintmox-domain/src/importExport.ts`
+- Descripción: Detecta si una celda indica que la carta es foil (soporta ManaBox, Dragon Shield, Cardmarket, TCGplayer, etc.).
+
+```ts
+function parseFoilValue(v: string | undefined): boolean
+```
+
+### `detectSourceAppFromHeaders`
+
+- Origen: `packages/mintmox-domain/src/importExport.ts`
+- Descripción: Detecta automáticamente la aplicación de origen a partir de los encabezados de un archivo CSV.
+
+```ts
+function detectSourceAppFromHeaders(headerMap: Map<string, number>): string
+```
+
 ### `exportCardsToJson`
 
 - Origen: `packages/mintmox-domain/src/importExport.ts`
@@ -2224,6 +2264,15 @@ function exportCardsToCsv(cards: CardEntity[]): string
 function parseCardsFromJson(jsonStr: string): CreateCardInput[]
 ```
 
+### `parseCardsFromCsvWithMetadata`
+
+- Origen: `packages/mintmox-domain/src/importExport.ts`
+- Descripción: Parsea un CSV de cartas MTG asociando cabeceras flexibles en inglés y español con soporte para ManaBox, Moxfield, Delver Lens, Dragon Shield, Deckbox, Cardmarket, TCGplayer y Archidekt.
+
+```ts
+function parseCardsFromCsvWithMetadata(csvStr: string): { cards: CreateCardInput[]; sourceApp: string }
+```
+
 ### `parseCardsFromCsv`
 
 - Origen: `packages/mintmox-domain/src/importExport.ts`
@@ -2233,13 +2282,22 @@ function parseCardsFromJson(jsonStr: string): CreateCardInput[]
 function parseCardsFromCsv(csvStr: string): CreateCardInput[]
 ```
 
+### `parseCardsFromDecklist`
+
+- Origen: `packages/mintmox-domain/src/importExport.ts`
+- Descripción: Parsea listas de baraja en texto plano estándar (MTG Arena, MTGO, Moxfield, ManaBox texto). Soporta líneas como: 4 Lightning Bolt 1 Sol Ring (2ED) 2 Counterspell (2ED) 54 1x Serra Angel [2ED] y secciones con cabeceras de tipo // Sideboard, Sideboard:, Commander:, etc.
+
+```ts
+function parseCardsFromDecklist(text: string): CreateCardInput[]
+```
+
 ### `detectAndParseCards`
 
 - Origen: `packages/mintmox-domain/src/importExport.ts`
-- Descripción: Detecta automáticamente si una cadena es JSON o CSV y la parsea a cartas.
+- Descripción: Detecta automáticamente si una cadena es JSON, CSV o lista de texto MTG/Arena y la parsea a cartas.
 
 ```ts
-function detectAndParseCards(content: string): { format: 'json' | 'csv'; cards: CreateCardInput[] }
+function detectAndParseCards(content: string): DetectedImportResult
 ```
 
 ### `CardCondition`

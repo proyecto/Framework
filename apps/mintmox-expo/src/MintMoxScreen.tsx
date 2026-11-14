@@ -199,10 +199,11 @@ export const I18N_STRINGS = {
     importButton: 'Importar cartas (JSON o CSV)',
     aboutCardTitle: 'Acerca de MintMox',
     aboutCardSubtitle: 'Gestor de Colecciones e Inversiones MTG',
-    aboutDescription: 'Aplicación de gestión y valoración bursátil de colecciones e inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.',
+    aboutDescription: 'Aplicación de gestión y valoración de colecciones e inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.',
     legalDisclaimerTitle: 'Aviso Legal y Propiedad Intelectual',
-    wotcDisclaimer: 'MintMox es contenido de fans no oficial permitido bajo la Política de Contenido de Fans de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.',
-    thirdPartyDisclaimer: 'Las imágenes y cotizaciones son obtenidas mediante la API de Scryfall con fines informativos. Magic: The Gathering, Scryfall y Cardmarket son marcas registradas de sus respectivos propietarios. MintMox es una aplicación independiente, gratuita y de código abierto sin afiliación con dichas entidades.',
+    wotcDisclaimer: 'MintMox es contenido de fans no oficial permitido bajo la Política de Contenido de Fans de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC. El acceso a los datos de cartas y contenido de fans es y será siempre 100% gratuito.',
+    thirdPartyDisclaimer: 'Las imágenes y cotizaciones son obtenidas mediante la API de Scryfall con fines informativos. Magic: The Gathering, Scryfall y Cardmarket son marcas registradas de sus respectivos propietarios. MintMox es una aplicación independiente de código abierto. Cualquier servicio opcional futuro (como sincronización en la nube o computación de IA) corresponderá estrictamente a costes de servidores e infraestructura técnica, nunca a la propiedad intelectual de MTG.',
+    financialDisclaimer: 'Aviso Financiero: MintMox no ofrece asesoramiento financiero ni recomendaciones de inversión. Las cotizaciones de mercado y cualquier estimación predictiva asistida por IA son meramente orientativas y estadísticas. Las decisiones de compra/venta son responsabilidad exclusiva del usuario.',
     privacyPolicyButton: 'Política de Privacidad',
     privacyPolicyTitle: 'Política de Privacidad',
     privacyPolicySubtitle: 'Compromiso de Privacidad y Almacenamiento Local',
@@ -214,6 +215,10 @@ export const I18N_STRINGS = {
     privacyP3Desc: 'La aplicación únicamente realiza solicitudes anónimas de sólo lectura a la API pública de Scryfall para obtener imágenes de cartas y precios de mercado en Euros provistos por Cardmarket.',
     privacyP4Title: 'Control y Borrado Total',
     privacyP4Desc: 'Puedes exportar tus datos a JSON/CSV o eliminarlos por completo en cualquier momento desde los ajustes de la app.',
+    privacyP5Title: 'Transparencia y Servicios Futuros',
+    privacyP5Desc: 'Cualquier función opcional futura (como copia en la nube o cómputo de IA predictiva) requerirá consentimiento expreso y se limitará a cubrir costes de servidores e infraestructura técnica, sin comercializar nunca la propiedad intelectual de MTG.',
+    privacyP6Title: 'Descargo Financiero y Predicciones de IA',
+    privacyP6Desc: 'MintMox no presta asesoramiento financiero. Toda métrica histórica o predicción asistida por IA es meramente estadística y orientativa. El usuario asume el riesgo íntegro de sus decisiones de compraventa.',
     searchPlaceholder: 'Buscar por nombre, edición (ej. 2ED) o idioma...',
     sortButton: 'Ordenar',
     sortModalTitle: 'Ordenar cartas',
@@ -282,8 +287,9 @@ export const I18N_STRINGS = {
     aboutCardSubtitle: 'MTG Portfolio & Collection Manager',
     aboutDescription: 'Magic: The Gathering investment tracking and valuation app built on the modular Framework architecture.',
     legalDisclaimerTitle: 'Legal Information & Copyright',
-    wotcDisclaimer: 'MintMox is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.',
-    thirdPartyDisclaimer: 'Card images and market quotes are obtained via the Scryfall API for informational purposes. Magic: The Gathering, Scryfall, and Cardmarket are trademarks of their respective owners. MintMox is an independent, free, and open-source application with no affiliation to these entities.',
+    wotcDisclaimer: 'MintMox is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Access to card data and fan content is and will always remain 100% free.',
+    thirdPartyDisclaimer: 'Card images and market quotes are obtained via the Scryfall API for informational purposes. Magic: The Gathering, Scryfall, and Cardmarket are trademarks of their respective owners. MintMox is an independent, open-source application. Any future optional services (such as cloud synchronization or predictive AI computing) will strictly cover technical infrastructure and server hosting, never MTG intellectual property.',
+    financialDisclaimer: 'Financial Disclaimer: MintMox provides no financial advice or investment recommendations. Market quotes and potential AI predictive analyses are purely statistical and informational. All buying and selling decisions are solely the user\'s responsibility.',
     privacyPolicyButton: 'Privacy Policy',
     privacyPolicyTitle: 'Privacy Policy',
     privacyPolicySubtitle: 'Privacy Commitment & Local-First Storage',
@@ -295,6 +301,10 @@ export const I18N_STRINGS = {
     privacyP3Desc: 'The app only performs anonymous, read-only requests to the public Scryfall API to fetch card artwork and EUR market quotes provided by Cardmarket.',
     privacyP4Title: 'Full User Control & Deletion',
     privacyP4Desc: 'You can export your portfolio to JSON/CSV or completely wipe all stored data at any time from the app settings.',
+    privacyP5Title: 'Future Cloud & AI Services',
+    privacyP5Desc: 'Any optional future features (such as multi-device synchronization or predictive AI computing) will require explicit consent and solely cover server hosting and infrastructure costs, never MTG intellectual property.',
+    privacyP6Title: 'Financial Disclaimer & AI Predictions',
+    privacyP6Desc: 'MintMox does not provide financial advice. All metrics and AI-assisted predictions are strictly statistical and informational. The user assumes full responsibility for trading decisions.',
     searchPlaceholder: 'Search by card name, edition (e.g. 2ED), or language...',
     sortButton: 'Sort',
     sortModalTitle: 'Sort cards',
@@ -532,7 +542,7 @@ function openWebFilePicker(accept: string): Promise<{ name: string; content: str
  * Pantalla principal de MintMox (@framework/mintmox-expo).
  *
  * Muestra la cartera de inversión en MTG con listado de cartas,
- * cotización actual, valor anterior e indicador bursátil de tendencia (subiendo/bajando).
+ * cotización actual, valor anterior e indicador de tendencia (subiendo/bajando).
  * Permite añadir y editar cada carta pulsando sobre ella, con selector de ediciones MTG.
  */
 export function MintMoxScreen({
@@ -1364,7 +1374,8 @@ export function MintMoxScreen({
     if (!trimmed) {
       return {
         cards: [] as CreateCardInput[],
-        format: null as 'json' | 'csv' | null,
+        format: null as 'json' | 'csv' | 'decklist' | null,
+        sourceApp: null as string | null,
         error: null as string | null
       };
     }
@@ -1374,13 +1385,14 @@ export function MintMoxScreen({
         return {
           cards: [] as CreateCardInput[],
           format: res.format,
+          sourceApp: res.sourceApp,
           error: 'No se encontraron cartas válidas en el contenido.'
         };
       }
-      return { cards: res.cards, format: res.format, error: null };
+      return { cards: res.cards, format: res.format, sourceApp: res.sourceApp, error: null };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al parsear el contenido.';
-      return { cards: [] as CreateCardInput[], format: null, error: msg };
+      return { cards: [] as CreateCardInput[], format: null, sourceApp: null, error: msg };
     }
   }, [importText]);
 
@@ -1664,7 +1676,7 @@ export function MintMoxScreen({
                 </Text>
               </View>
 
-              {/* Indicador Global Bursátil */}
+              {/* Indicador Global de Mercado */}
               <View
                 style={{
                   alignItems: 'flex-end',
@@ -2241,7 +2253,7 @@ export function MintMoxScreen({
                         </View>
                       </View>
 
-                      {/* Precios y Ticker Bursátil */}
+                      {/* Precios y Ticker de Cotización */}
                       <View style={{ alignItems: 'flex-end', minWidth: 105 }}>
                         <Text
                           style={{
@@ -5022,9 +5034,10 @@ export function MintMoxScreen({
                 {t.importExportDescription}
               </Text>
 
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+              <View style={{ flexDirection: 'column', gap: theme.spacing.sm }}>
                 <Button
                   size="sm"
+                  fullWidth={true}
                   variant="primary"
                   icon="file-download"
                   label={t.importButton}
@@ -5032,6 +5045,7 @@ export function MintMoxScreen({
                 />
                 <Button
                   size="sm"
+                  fullWidth={true}
                   variant="outline"
                   icon="code"
                   label={t.exportJsonButton}
@@ -5039,6 +5053,7 @@ export function MintMoxScreen({
                 />
                 <Button
                   size="sm"
+                  fullWidth={true}
                   variant="outline"
                   icon="table-chart"
                   label={t.exportCsvButton}
@@ -5109,6 +5124,19 @@ export function MintMoxScreen({
                   }}
                 >
                   {t.thirdPartyDisclaimer}
+                </Text>
+
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize - 1,
+                    lineHeight: 16,
+                    marginTop: 4,
+                    fontStyle: 'italic',
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  {t.financialDisclaimer}
                 </Text>
 
                 <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'flex-start' }}>
@@ -5223,7 +5251,7 @@ export function MintMoxScreen({
       <ModalDialog
         visible={showImportModal}
         title="Importar cartas a la cartera"
-        description="Pega contenido en formato JSON o CSV, o selecciona un archivo desde tu dispositivo."
+        description="Importa tu inventario o barajas directamente desde ManaBox, Moxfield, Delver Lens, Dragon Shield, Deckbox, Cardmarket, TCGplayer o listas de texto de MTG Arena."
         confirmLabel={
           isImporting
             ? 'Importando...'
@@ -5242,9 +5270,32 @@ export function MintMoxScreen({
             setShowImportModal(false);
           }
         }}
-        contentMaxHeight={480}
+        contentMaxHeight={520}
       >
         <View style={{ gap: theme.spacing.md }}>
+          {/* Fila de aplicaciones compatibles */}
+          <View style={{ gap: 4 }}>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: 11,
+                ...textTypographyStyle(theme, 'medium')
+              }}
+            >
+              Apps y formatos reconocidos automáticamente:
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+              <Badge label="ManaBox (CSV)" tone="accent" />
+              <Badge label="Moxfield" tone="neutral" />
+              <Badge label="Delver Lens" tone="neutral" />
+              <Badge label="Dragon Shield" tone="neutral" />
+              <Badge label="Cardmarket" tone="neutral" />
+              <Badge label="Deckbox" tone="neutral" />
+              <Badge label="TCGplayer" tone="neutral" />
+              <Badge label="MTG Arena / Texto" tone="neutral" />
+            </View>
+          </View>
+
           {/* Botón para seleccionar archivo en Web */}
           {Platform.OS === 'web' ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.sm }}>
@@ -5252,7 +5303,7 @@ export function MintMoxScreen({
                 size="sm"
                 variant="outline"
                 icon="file-upload"
-                label="Seleccionar archivo (.json, .csv)"
+                label="Seleccionar archivo (.csv, .json, .txt)"
                 onPress={handlePickFileForImport}
               />
               {importFileName ? (
@@ -5270,7 +5321,7 @@ export function MintMoxScreen({
                 ...textTypographyStyle(theme, 'medium')
               }}
             >
-              Contenido JSON o CSV:
+              Pega el contenido o archivo de tu app:
             </Text>
             <TextInput
               multiline
@@ -5280,7 +5331,7 @@ export function MintMoxScreen({
                 setImportText(txt);
                 setImportFileName(null);
               }}
-              placeholder={`Pega aquí el contenido JSON o CSV. Ejemplos:\nJSON: [{"title": "Black Lotus", "edition": "Alpha", "quantity": 1, "buyPrice": 5000}]\nCSV: title,edition,quantity,buyPrice,currentPrice,language,condition\nBlack Lotus,Alpha,1,5000,12000,EN,NM`}
+              placeholder={`Pega aquí el contenido exportado de ManaBox, Moxfield, Dragon Shield, Cardmarket o lista de MTGA...\n\nFormatos soportados automáticamente:\n• ManaBox: Binder Name,Name,Set code,Purchase price,Condition...\n• Moxfield: Count,Name,Edition,Condition,Foil...\n• Delver Lens: Count,Name,Edition code,Scryfall ID...\n• Dragon Shield: Folder Name,Quantity,Card Name,Printing...\n• Lista de texto / MTGA: 4 Lightning Bolt (2ED)\n• MintMox CSV o JSON`}
               placeholderTextColor={theme.colors.textSecondary}
               style={{
                 backgroundColor: theme.colors.surfaceMuted,
@@ -5310,17 +5361,25 @@ export function MintMoxScreen({
                 gap: 4
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <GoogleIcon name="check-circle" size={16} color={theme.colors.success} />
-                <Text
-                  style={{
-                    color: theme.colors.success,
-                    fontSize: theme.typography.captionSize,
-                    ...textTypographyStyle(theme, 'bold')
-                  }}
-                >
-                  Formato {parsedImport.format.toUpperCase()} válido · {parsedImport.cards.length} carta(s) detectada(s)
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <GoogleIcon name="check-circle" size={16} color={theme.colors.success} />
+                  <Text
+                    style={{
+                      color: theme.colors.success,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {parsedImport.sourceApp
+                      ? `${parsedImport.sourceApp} detectado`
+                      : `Formato ${parsedImport.format.toUpperCase()} válido`} · {parsedImport.cards.length} carta(s) detectada(s)
+                  </Text>
+                </View>
+                <Badge
+                  label={parsedImport.format.toUpperCase()}
+                  tone="success"
+                />
               </View>
               <Text
                 style={{
@@ -5329,7 +5388,7 @@ export function MintMoxScreen({
                   ...textTypographyStyle(theme, 'regular')
                 }}
               >
-                Muestra: {parsedImport.cards.slice(0, 3).map((c) => `${c.title} (${c.edition || 'General'})`).join(', ')}
+                Muestra: {parsedImport.cards.slice(0, 3).map((c) => `${c.title} [${c.editionCode || c.edition || 'General'}] (${c.condition || 'NM'}${c.isFoil ? ' · Foil' : ''})`).join(', ')}
                 {parsedImport.cards.length > 3 ? ` ...y ${parsedImport.cards.length - 3} más` : ''}
               </Text>
             </View>
@@ -5580,7 +5639,7 @@ export function MintMoxScreen({
               >
                 Muestra de cartas a importar ({parsedImport.cards.length} en total):
               </Text>
-              <Badge label={parsedImport.format?.toUpperCase() ?? 'ARCHIVO'} tone="neutral" />
+              <Badge label={parsedImport.sourceApp ?? (parsedImport.format?.toUpperCase() ?? 'ARCHIVO')} tone="accent" />
             </View>
             <Text
               style={{
@@ -5871,6 +5930,50 @@ export function MintMoxScreen({
               }}
             >
               {t.privacyP4Desc}
+            </Text>
+          </View>
+
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text
+              style={{
+                color: theme.colors.textPrimary,
+                fontSize: theme.typography.bodySize,
+                ...textTypographyStyle(theme, 'bold')
+              }}
+            >
+              5. {t.privacyP5Title}
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.captionSize,
+                lineHeight: 18,
+                ...textTypographyStyle(theme, 'regular')
+              }}
+            >
+              {t.privacyP5Desc}
+            </Text>
+          </View>
+
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text
+              style={{
+                color: theme.colors.textPrimary,
+                fontSize: theme.typography.bodySize,
+                ...textTypographyStyle(theme, 'bold')
+              }}
+            >
+              6. {t.privacyP6Title}
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.captionSize,
+                lineHeight: 18,
+                ...textTypographyStyle(theme, 'regular')
+              }}
+            >
+              {t.privacyP6Desc}
             </Text>
           </View>
         </View>
