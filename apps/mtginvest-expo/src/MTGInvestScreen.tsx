@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFrameworkEnvironment, useMvcController } from '@framework/react';
 import {
   AppShell,
@@ -33,6 +33,8 @@ import {
   type ChartTimeframe,
   type IMtginvestController,
   type RoiDistributionBucket,
+  type ScryfallCardData,
+  type ScryfallSearchResult,
   MTG_SETS,
   TIMEFRAME_DESCRIPTIONS
 } from './mvc';
@@ -52,7 +54,7 @@ function getInitialViewMode(): CardListViewMode {
       const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
       if (saved === 'list' || saved === 'grid') return saved;
     }
-  } catch {}
+  } catch { }
   return 'grid';
 }
 
@@ -376,16 +378,6 @@ export function MTGInvestScreen({
   const [activeTab, setActiveTab] = useState<MTGTab>('main');
   const [toast, setToast] = useState<string | null>(null);
 
-  // Opciones de ediciones de Magic extraídas de la hoja Sets
-  const setOptions: SelectOption<string>[] = useMemo(() => {
-    return MTG_SETS.map((s) => ({
-      value: s.name,
-      label: s.name,
-      badge: s.code,
-      description: s.year ? `Año ${s.year} · [${s.code}]` : `[${s.code}]`
-    }));
-  }, []);
-
   // Estado del formulario modal para añadir una nueva carta
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -397,6 +389,35 @@ export function MTGInvestScreen({
   const [newBuyPrice, setNewBuyPrice] = useState('');
   const [newCurrentPrice, setNewCurrentPrice] = useState('');
   const [newCondition, setNewCondition] = useState('NM');
+
+  // Estado para la búsqueda inteligente y autocompletado en Scryfall al añadir carta
+  const [scryfallSearchText, setScryfallSearchText] = useState('');
+  const [scryfallSuggestions, setScryfallSuggestions] = useState<ScryfallCardData[]>([]);
+  const [isSearchingScryfall, setIsSearchingScryfall] = useState(false);
+  const [scryfallSearchError, setScryfallSearchError] = useState<string | null>(null);
+  const [selectedScryfallCard, setSelectedScryfallCard] = useState<ScryfallCardData | null>(null);
+  const [newImageUrl, setNewImageUrl] = useState<string | undefined>(undefined);
+  const [newScryfallId, setNewScryfallId] = useState<string | undefined>(undefined);
+
+  // Opciones de ediciones de Magic extraídas de la hoja Sets
+  const setOptions: SelectOption<string>[] = useMemo(() => {
+    const list: SelectOption<string>[] = MTG_SETS.map((s) => ({
+      value: s.name,
+      label: s.name,
+      badge: s.code,
+      description: s.year ? `Año ${s.year} · [${s.code}]` : `[${s.code}]`
+    }));
+    // Si la edición actual seleccionada no está en el catálogo predefinido, la añadimos dinámicamente
+    if (newEdition && !list.some((opt) => opt.value === newEdition)) {
+      list.unshift({
+        value: newEdition,
+        label: newEdition,
+        badge: newEditionCode || undefined,
+        description: `Edición de Scryfall [${newEditionCode || ''}]`
+      });
+    }
+    return list;
+  }, [newEdition, newEditionCode]);
 
   // Estado del formulario modal para editar una carta existente al pulsar sobre ella
   const [editingCard, setEditingCard] = useState<CardEntity | null>(null);
@@ -432,7 +453,7 @@ export function MTGInvestScreen({
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
         }
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -456,7 +477,7 @@ export function MTGInvestScreen({
   // Al abrir la aplicación, sincroniza en segundo plano las cotizaciones y portadas de Scryfall/Cardmarket
   useEffect(() => {
     const hasMissingImages = state.items.length > 0 && state.items.some((c) => !c.imageUrl);
-    void controller.syncCardmarketPrices({ force: hasMissingImages }).catch(() => {});
+    void controller.syncCardmarketPrices({ force: hasMissingImages }).catch(() => { });
   }, [controller, state.items.length]);
 
   // Resuelve la imagen a Data URI local en móvil para eludir bloqueos 403 de Cloudflare a OkHttp
@@ -610,6 +631,178 @@ export function MTGInvestScreen({
     return buildCardChart(cardSnapshot, chartTimeframe);
   }, [editingCard, editCurrentPrice, editBuyPrice, chartTimeframe]);
 
+  // Autocompletado reactivo con Scryfall al escribir en el buscador del modal de añadir carta
+  useEffect(() => {
+    const query = scryfallSearchText.trim();
+    if (query.length < 2) {
+      setScryfallSuggestions([]);
+      setIsSearchingScryfall(false);
+      setScryfallSearchError(null);
+      return;
+    }
+
+    let active = true;
+    setIsSearchingScryfall(true);
+    setScryfallSearchError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        let results: ScryfallSearchResult | null = null;
+
+        // 1. Si la consulta es el nombre de una carta (ej. "Taiga", "Black Lotus", "Serra Angel"):
+        // Buscamos primero por nombre exacto con todas sus ediciones físicas (unique: 'prints', ordenadas cronológicamente)
+        if (!query.includes(':') && !query.includes('*') && !query.includes('!')) {
+          try {
+            const exactRes = await controller.scryfallClient.searchCards(
+              `!"${query}" game:paper`,
+              { unique: 'prints', order: 'released', dir: 'asc' }
+            );
+            if (exactRes && exactRes.data.length > 0) {
+              results = exactRes;
+            }
+          } catch { }
+        }
+
+        // 2. Si no es un nombre exacto o no hubo coincidencia, buscamos impresiones físicas generales
+        if (!results || results.data.length === 0) {
+          try {
+            const generalRes = await controller.scryfallClient.searchCards(
+              query.includes(':') ? query : `${query} game:paper`,
+              { unique: 'prints', order: 'released', dir: 'asc' }
+            );
+            if (generalRes && generalRes.data.length > 0) {
+              results = generalRes;
+            }
+          } catch { }
+        }
+
+        // 3. Fallback con comodín si solo se escribió una palabra parcial (ej. "tai*", "mox*")
+        if ((!results || results.data.length === 0) && !query.includes(':') && !query.includes('*')) {
+          try {
+            const wildRes = await controller.scryfallClient.searchCards(
+              `${query}* game:paper`,
+              { unique: 'prints', order: 'released', dir: 'asc' }
+            );
+            if (wildRes && wildRes.data.length > 0) {
+              results = wildRes;
+            }
+          } catch { }
+        }
+
+        // 4. Fallback internacional si está en español u otro idioma (ej. "Ángel de Serra")
+        if ((!results || results.data.length === 0) && !query.includes(':')) {
+          try {
+            const langRes = await controller.scryfallClient.searchCards(
+              `lang:any ${query}`,
+              { unique: 'prints', order: 'released', dir: 'asc' }
+            );
+            if (langRes && langRes.data.length > 0) {
+              results = langRes;
+            }
+          } catch { }
+        }
+
+        // 5. Fallback general sin filtro game:paper por si se busca un set o edición especial
+        if (!results || results.data.length === 0) {
+          try {
+            const anyRes = await controller.scryfallClient.searchCards(query, {
+              unique: 'prints',
+              order: 'released',
+              dir: 'asc'
+            });
+            if (anyRes && anyRes.data.length > 0) {
+              results = anyRes;
+            }
+          } catch { }
+        }
+
+        if (!active) return;
+        setScryfallSuggestions(results?.data?.slice(0, 30) ?? []);
+        setIsSearchingScryfall(false);
+      } catch {
+        if (!active) return;
+        setScryfallSuggestions([]);
+        setIsSearchingScryfall(false);
+        setScryfallSearchError('No se pudo conectar con Scryfall.');
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [scryfallSearchText, controller]);
+
+  const handleSelectScryfallSuggestion = (card: ScryfallCardData) => {
+    setSelectedScryfallCard(card);
+
+    // 1. Título preferente (español si existe) y nombre original en inglés
+    const primaryTitle = card.printedName?.trim() || card.name.trim();
+    const originalEn = card.name.trim();
+    setNewTitle(primaryTitle);
+    setNewNameEn(originalEn);
+
+    // 2. Edición y código de set
+    const setCodeUpper = card.set.toUpperCase();
+    const foundSet = MTG_SETS.find((s) => s.code.toUpperCase() === setCodeUpper);
+    if (foundSet) {
+      setNewEdition(foundSet.name);
+      setNewEditionCode(foundSet.code);
+    } else {
+      setNewEdition(card.setName || setCodeUpper);
+      setNewEditionCode(setCodeUpper);
+    }
+
+    // 3. Cotización actual de Cardmarket en EUR (o USD como referencia)
+    const eurPrice = card.prices?.eur ?? card.prices?.eurFoil;
+    const usdPrice = card.prices?.usd ?? card.prices?.usdFoil;
+    if (eurPrice) {
+      setNewCurrentPrice(eurPrice);
+      if (!newBuyPrice || newBuyPrice === '0' || newBuyPrice === '') {
+        setNewBuyPrice(eurPrice);
+      }
+    } else if (usdPrice) {
+      setNewCurrentPrice(usdPrice);
+      if (!newBuyPrice || newBuyPrice === '0' || newBuyPrice === '') {
+        setNewBuyPrice(usdPrice);
+      }
+    }
+
+    // 4. Portada de la carta y UUID canónico en Scryfall
+    const imgUrl =
+      card.imageUris?.normal ??
+      card.imageUris?.large ??
+      card.imageUris?.small ??
+      card.cardFaces?.[0]?.imageUris?.normal ??
+      card.cardFaces?.[0]?.imageUris?.small ??
+      undefined;
+
+    setNewImageUrl(imgUrl);
+    setNewScryfallId(card.id);
+
+    // Limpia la búsqueda para dejar ver el formulario completo con la previa
+    setScryfallSuggestions([]);
+    setScryfallSearchText('');
+    setToast(`Datos de "${card.name}" [${setCodeUpper}] importados desde Scryfall.`);
+  };
+
+  const handleClearAddCardForm = () => {
+    setNewTitle('');
+    setNewNameEn('');
+    setNewEdition('Unlimited Edition');
+    setNewEditionCode('2ED');
+    setNewLanguage('EN');
+    setNewQuantity('1');
+    setNewBuyPrice('');
+    setNewCurrentPrice('');
+    setNewCondition('NM');
+    setSelectedScryfallCard(null);
+    setScryfallSearchText('');
+    setScryfallSuggestions([]);
+    setNewImageUrl(undefined);
+    setNewScryfallId(undefined);
+  };
+
   const handleAddCard = async () => {
     if (!newTitle.trim()) {
       setToast('Indica al menos el nombre de la carta.');
@@ -628,18 +821,13 @@ export function MTGInvestScreen({
       quantity: qty,
       currentPrice: current,
       previousPrice: previous,
-      condition: newCondition.trim() || undefined
+      condition: newCondition.trim() || undefined,
+      imageUrl: newImageUrl || undefined,
+      scryfallId: newScryfallId || undefined,
+      lastPriceSyncDate: current > 0 ? new Date().toISOString().split('T')[0] : undefined
     });
 
-    setNewTitle('');
-    setNewNameEn('');
-    setNewEdition('Unlimited Edition');
-    setNewEditionCode('2ED');
-    setNewLanguage('EN');
-    setNewQuantity('1');
-    setNewBuyPrice('');
-    setNewCurrentPrice('');
-    setNewCondition('NM');
+    handleClearAddCardForm();
     setShowAddModal(false);
     setToast('Carta añadida a la cartera.');
   };
@@ -841,8 +1029,8 @@ export function MTGInvestScreen({
                     portfolioSummary.trend === 'up'
                       ? theme.colors.successSoft
                       : portfolioSummary.trend === 'down'
-                      ? theme.colors.dangerSoft
-                      : theme.colors.surface,
+                        ? theme.colors.dangerSoft
+                        : theme.colors.surface,
                   paddingHorizontal: theme.spacing.sm,
                   paddingVertical: theme.spacing.xs,
                   borderRadius: theme.radius.md
@@ -854,16 +1042,16 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'trending-up'
                         : portfolioSummary.trend === 'down'
-                        ? 'trending-down'
-                        : 'trending-flat'
+                          ? 'trending-down'
+                          : 'trending-flat'
                     }
                     size={18}
                     color={
                       portfolioSummary.trend === 'up'
                         ? theme.colors.success
                         : portfolioSummary.trend === 'down'
-                        ? theme.colors.danger
-                        : theme.colors.textSecondary
+                          ? theme.colors.danger
+                          : theme.colors.textSecondary
                     }
                   />
                   <Text
@@ -872,8 +1060,8 @@ export function MTGInvestScreen({
                         portfolioSummary.trend === 'up'
                           ? theme.colors.success
                           : portfolioSummary.trend === 'down'
-                          ? theme.colors.danger
-                          : theme.colors.textSecondary,
+                            ? theme.colors.danger
+                            : theme.colors.textSecondary,
                       fontSize: theme.typography.bodySize,
                       fontVariant: ['tabular-nums'],
                       ...textTypographyStyle(theme, 'bold')
@@ -889,8 +1077,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? theme.colors.success
                         : portfolioSummary.trend === 'down'
-                        ? theme.colors.danger
-                        : theme.colors.textSecondary,
+                          ? theme.colors.danger
+                          : theme.colors.textSecondary,
                     fontSize: theme.typography.captionSize,
                     fontVariant: ['tabular-nums'],
                     ...textTypographyStyle(theme, 'semibold')
@@ -1084,13 +1272,13 @@ export function MTGInvestScreen({
                   const trendColor = isUp
                     ? theme.colors.success
                     : isDown
-                    ? theme.colors.danger
-                    : theme.colors.textSecondary;
+                      ? theme.colors.danger
+                      : theme.colors.textSecondary;
                   const trendBg = isUp
                     ? theme.colors.successSoft
                     : isDown
-                    ? theme.colors.dangerSoft
-                    : theme.colors.surfaceMuted;
+                      ? theme.colors.dangerSoft
+                      : theme.colors.surfaceMuted;
 
                   return (
                     <Pressable
@@ -1273,13 +1461,13 @@ export function MTGInvestScreen({
                 const trendColor = isUp
                   ? theme.colors.success
                   : isDown
-                  ? theme.colors.danger
-                  : theme.colors.textSecondary;
+                    ? theme.colors.danger
+                    : theme.colors.textSecondary;
                 const trendBg = isUp
                   ? theme.colors.successSoft
                   : isDown
-                  ? theme.colors.dangerSoft
-                  : theme.colors.surfaceMuted;
+                    ? theme.colors.dangerSoft
+                    : theme.colors.surfaceMuted;
 
                 const totalCardValue = card.currentPrice * (card.quantity ?? 1);
 
@@ -1448,13 +1636,306 @@ export function MTGInvestScreen({
           <ModalDialog
             visible={showAddModal}
             title="Añadir Carta a la Cartera"
-            description="Registra una nueva carta indicando su nombre, cantidad, edición y cotización."
-            confirmLabel="Guardar"
+            description="Busca una carta en Scryfall para autocompletar edición, cotización en € y portada, o indícala manualmente."
+            contentMaxHeight={540}
+            confirmLabel="Guardar en Cartera"
             cancelLabel="Cancelar"
-            onCancel={() => setShowAddModal(false)}
+            onCancel={() => {
+              setShowAddModal(false);
+              handleClearAddCardForm();
+            }}
             onConfirm={() => void handleAddCard()}
           >
             <View style={{ gap: theme.spacing.sm }}>
+              {/* Buscador inteligente en Scryfall */}
+              <View
+                style={{
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderRadius: theme.radius.md,
+                  padding: theme.spacing.sm,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  gap: theme.spacing.xs
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <GoogleIcon name="auto-awesome" size={16} color={theme.colors.accent} />
+                    <Text
+                      style={{
+                        color: theme.colors.textPrimary,
+                        fontSize: theme.typography.captionSize,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      Búsqueda en Scryfall (Autocompletar)
+                    </Text>
+                  </View>
+                  <Badge label="API Scryfall" tone="accent" />
+                </View>
+
+                <SearchInput
+                  placeholder="Escribe el nombre (ej. Black Lotus, Serra, Sol Ring)..."
+                  value={scryfallSearchText}
+                  onChangeText={setScryfallSearchText}
+                  onClear={() => {
+                    setScryfallSearchText('');
+                    setScryfallSuggestions([]);
+                  }}
+                />
+
+                {isSearchingScryfall ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+                    <ActivityIndicator size="small" color={theme.colors.accent} />
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      Buscando cartas y cotizaciones en Scryfall...
+                    </Text>
+                  </View>
+                ) : null}
+
+                {scryfallSearchError ? (
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      fontSize: 11,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    {scryfallSearchError}
+                  </Text>
+                ) : null}
+
+                {/* Sugerencias devueltas por Scryfall con scroll propio y área acotada */}
+                {scryfallSuggestions.length > 0 ? (
+                  <View
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: theme.colors.border,
+                      paddingTop: theme.spacing.xs,
+                      gap: 6
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingHorizontal: 2
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontSize: 10,
+                          ...textTypographyStyle(theme, 'bold')
+                        }}
+                      >
+                        RESULTADOS ENCONTRADOS ({scryfallSuggestions.length})
+                      </Text>
+                      <Pressable
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cerrar sugerencias"
+                        onPress={() => setScryfallSuggestions([])}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          opacity: pressed ? 0.7 : 1
+                        })}
+                      >
+                        <GoogleIcon name="close" size={14} color={theme.colors.textSecondary} />
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: 10,
+                            ...textTypographyStyle(theme, 'medium')
+                          }}
+                        >
+                          Cerrar
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    {/* Contenedor con altura delimitada, overflow oculto y scroll vertical nativo */}
+                    <View
+                      style={{
+                        height: 210,
+                        backgroundColor: theme.colors.surface,
+                        borderRadius: theme.radius.sm,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <ScrollView
+                        nestedScrollEnabled={true}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={true}
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{ padding: 6, gap: 6 }}
+                      >
+                        {scryfallSuggestions.map((card) => {
+                          const eurVal = card.prices?.eur ?? card.prices?.eurFoil;
+                          const usdVal = card.prices?.usd ?? card.prices?.usdFoil;
+                          const thumbUri =
+                            card.imageUris?.small ??
+                            card.imageUris?.normal ??
+                            card.cardFaces?.[0]?.imageUris?.small ??
+                            undefined;
+                          const setUpper = card.set.toUpperCase();
+                          const foundSet = MTG_SETS.find((s) => s.code.toUpperCase() === setUpper);
+                          const setLabel = foundSet?.name || card.setName || setUpper;
+                          const yearLabel = foundSet?.year ? ` · ${foundSet.year}` : '';
+                          return (
+                            <Pressable
+                              key={card.id}
+                              onPress={() => handleSelectScryfallSuggestion(card)}
+                              style={({ pressed }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: 6,
+                                borderRadius: theme.radius.sm,
+                                backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+                                borderWidth: 1,
+                                borderColor: pressed ? theme.colors.accent : theme.colors.border
+                              })}
+                            >
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                                <CardThumbnail
+                                  imageUrl={thumbUri}
+                                  title={card.name}
+                                  width={28}
+                                  height={39}
+                                  borderRadius={4}
+                                />
+                                <View style={{ flex: 1 }}>
+                                  <Text
+                                    numberOfLines={1}
+                                    style={{
+                                      color: theme.colors.textPrimary,
+                                      fontSize: theme.typography.captionSize,
+                                      ...textTypographyStyle(theme, 'bold')
+                                    }}
+                                  >
+                                    {card.name}
+                                  </Text>
+                                  <Text
+                                    numberOfLines={1}
+                                    style={{
+                                      color: theme.colors.textSecondary,
+                                      fontSize: 10,
+                                      ...textTypographyStyle(theme, 'regular')
+                                    }}
+                                  >
+                                    [{setUpper}] {setLabel}{yearLabel}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <View style={{ alignItems: 'flex-end', marginLeft: 6 }}>
+                                {eurVal ? (
+                                  <Badge label={`${eurVal} €`} tone="success" />
+                                ) : usdVal ? (
+                                  <Badge label={`~${usdVal} $`} tone="neutral" />
+                                ) : (
+                                  <Badge label="Sin cotización" tone="neutral" />
+                                )}
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Vista previa de la carta seleccionada desde Scryfall */}
+              {newImageUrl ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.accent,
+                    borderWidth: 1,
+                    borderRadius: theme.radius.md,
+                    padding: theme.spacing.sm,
+                    gap: theme.spacing.sm
+                  }}
+                >
+                  <CardThumbnail
+                    imageUrl={newImageUrl}
+                    title={newTitle}
+                    width={48}
+                    height={68}
+                    borderRadius={6}
+                  />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Badge label="Scryfall & Cardmarket" tone="accent" />
+                      {newEditionCode ? <Badge label={newEditionCode} tone="neutral" /> : null}
+                    </View>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        color: theme.colors.textPrimary,
+                        fontSize: theme.typography.bodySize,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      {newTitle}
+                    </Text>
+                    {newNameEn && newNameEn !== newTitle ? (
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontSize: theme.typography.captionSize,
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                      >
+                        {newNameEn}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      {newEdition} · Mercado: {newCurrentPrice || '0.00'} €
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Eliminar selección"
+                    onPress={() => {
+                      setSelectedScryfallCard(null);
+                      setNewImageUrl(undefined);
+                      setNewScryfallId(undefined);
+                    }}
+                    style={{
+                      padding: 6,
+                      borderRadius: theme.radius.sm,
+                      backgroundColor: theme.colors.surface
+                    }}
+                  >
+                    <GoogleIcon name="close" size={18} color={theme.colors.textSecondary} />
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {/* Formulario editable */}
               <TextField
                 label="Nombre de la carta (ES)"
                 placeholder="Ej. Black Lotus"
@@ -1896,8 +2377,8 @@ export function MTGInvestScreen({
                       backgroundColor: isSelected
                         ? theme.colors.accentSoft
                         : pressed
-                        ? theme.colors.surfaceMuted
-                        : theme.colors.surface,
+                          ? theme.colors.surfaceMuted
+                          : theme.colors.surface,
                       borderColor: isSelected ? theme.colors.accent : theme.colors.border,
                       borderWidth: 1,
                       borderRadius: theme.radius.md,
@@ -2076,8 +2557,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.08)'
                         : portfolioSummary.trend === 'down'
-                        ? 'rgba(239, 68, 68, 0.08)'
-                        : theme.colors.surfaceMuted,
+                          ? 'rgba(239, 68, 68, 0.08)'
+                          : theme.colors.surfaceMuted,
                     padding: theme.spacing.md,
                     borderRadius: theme.radius.md,
                     borderWidth: 1,
@@ -2085,8 +2566,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.25)'
                         : portfolioSummary.trend === 'down'
-                        ? 'rgba(239, 68, 68, 0.25)'
-                        : theme.colors.border,
+                          ? 'rgba(239, 68, 68, 0.25)'
+                          : theme.colors.border,
                     gap: 3
                   }}
                 >
@@ -2105,8 +2586,8 @@ export function MTGInvestScreen({
                         portfolioSummary.trend === 'up'
                           ? '#10B981'
                           : portfolioSummary.trend === 'down'
-                          ? '#EF4444'
-                          : theme.colors.textPrimary,
+                            ? '#EF4444'
+                            : theme.colors.textPrimary,
                       fontSize: theme.typography.titleSize - 2,
                       ...textTypographyStyle(theme, 'bold')
                     }}
@@ -2138,8 +2619,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.08)'
                         : portfolioSummary.trend === 'down'
-                        ? 'rgba(239, 68, 68, 0.08)'
-                        : theme.colors.surfaceMuted,
+                          ? 'rgba(239, 68, 68, 0.08)'
+                          : theme.colors.surfaceMuted,
                     padding: theme.spacing.md,
                     borderRadius: theme.radius.md,
                     borderWidth: 1,
@@ -2147,8 +2628,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.25)'
                         : portfolioSummary.trend === 'down'
-                        ? 'rgba(239, 68, 68, 0.25)'
-                        : theme.colors.border,
+                          ? 'rgba(239, 68, 68, 0.25)'
+                          : theme.colors.border,
                     gap: 3
                   }}
                 >
@@ -2167,8 +2648,8 @@ export function MTGInvestScreen({
                         portfolioSummary.trend === 'up'
                           ? '#10B981'
                           : portfolioSummary.trend === 'down'
-                          ? '#EF4444'
-                          : theme.colors.textPrimary,
+                            ? '#EF4444'
+                            : theme.colors.textPrimary,
                       fontSize: theme.typography.titleSize - 2,
                       ...textTypographyStyle(theme, 'bold')
                     }}

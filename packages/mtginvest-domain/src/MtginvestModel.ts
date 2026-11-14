@@ -249,6 +249,8 @@ export class MtginvestModel implements IMtginvestModel {
       previousPrice,
       condition: input.condition ?? 'NM',
       imageUrl: input.imageUrl?.trim() || undefined,
+      scryfallId: input.scryfallId?.trim() || undefined,
+      lastPriceSyncDate: input.lastPriceSyncDate?.trim() || undefined,
       priceHistory: input.priceHistory ?? [],
       isFavorite: false,
       createdAt: now,
