@@ -9,3 +9,4 @@ export * from './factory.js';
 export * from './sets.js';
 export * from './seeds.js';
 export * from './importExport.js';
+export * from './conditionMultipliers.js';

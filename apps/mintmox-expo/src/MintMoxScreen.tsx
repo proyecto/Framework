@@ -41,24 +41,31 @@ import { CardThumbnail } from './CardThumbnail';
 import {
   buildCardChart,
   buildPortfolioChart,
+  calculateAdjustedCardPrice,
   calculateCardReturn,
   calculatePortfolioRoiDistribution,
+  CONDITION_DEFINITIONS,
+  DEFAULT_CONDITION_MULTIPLIERS,
+  detectAndParseCards,
+  exportCardsToCsv,
+  exportCardsToJson,
+  getCardCollections,
+  getConditionMultiplier,
   getPortfolioProfitLeaders,
+  MTG_SETS,
+  ORDERED_CARD_CONDITIONS,
+  TIMEFRAME_DESCRIPTIONS,
+  type CardCondition,
   type CardEntity,
   type CardProfitLeader,
   type ChartTimeframe,
+  type ConditionMultipliers,
+  type CreateCardInput,
   type IMintmoxController,
   type IMtginvestController,
   type RoiDistributionBucket,
   type ScryfallCardData,
-  type ScryfallSearchResult,
-  type CreateCardInput,
-  detectAndParseCards,
-  getCardCollections,
-  exportCardsToCsv,
-  exportCardsToJson,
-  MTG_SETS,
-  TIMEFRAME_DESCRIPTIONS
+  type ScryfallSearchResult
 } from './mvc';
 import { APP_VERSION, BASE_VERSION } from './version';
 
@@ -69,6 +76,8 @@ export type AppLanguage = 'es' | 'en';
 export type CardListViewMode = 'list' | 'grid';
 
 const VIEW_MODE_STORAGE_KEY = 'mintmox_view_mode_preference';
+const CONDITION_PRICING_STORAGE_KEY = 'mintmox_condition_pricing_enabled';
+const CONDITION_MULTIPLIERS_STORAGE_KEY = 'mintmox_condition_multipliers';
 
 function getInitialViewMode(): CardListViewMode {
   try {
@@ -78,6 +87,31 @@ function getInitialViewMode(): CardListViewMode {
     }
   } catch { }
   return 'grid';
+}
+
+function getInitialConditionPricingEnabled(): boolean {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(CONDITION_PRICING_STORAGE_KEY);
+      if (saved !== null) return saved === 'true';
+    }
+  } catch { }
+  return true;
+}
+
+function getInitialConditionMultipliers(): ConditionMultipliers {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(CONDITION_MULTIPLIERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...DEFAULT_CONDITION_MULTIPLIERS, ...parsed };
+        }
+      }
+    }
+  } catch { }
+  return { ...DEFAULT_CONDITION_MULTIPLIERS };
 }
 
 export interface MintMoxScreenProps {
@@ -188,7 +222,14 @@ export const I18N_STRINGS = {
     portfolioInvested: 'Inversión',
     portfolioProfit: 'Plusvalía Neta',
     portfolioRoi: 'ROI Global',
-    totalCards: 'Total Copias'
+    totalCards: 'Total Copias',
+    conditionCardTitle: 'Ponderación por Estado de Carta',
+    conditionCardSubtitle: 'Ajuste de cotización según conservación (NM, EX, LP...)',
+    conditionDescription: 'La cotización de Scryfall refleja el precio base de mercado (habitualmente Near Mint). Puedes activar este ajuste porcentual para valorar cada carta según su estado de conservación real en tu inventario.',
+    conditionToggleLabel: 'Ajustar cotización por estado',
+    conditionToggleDesc: 'Calcula el valor de cada carta aplicando el factor según su condición.',
+    conditionResetButton: 'Restablecer porcentajes por defecto',
+    conditionResetToast: 'Factores por estado restablecidos a valores estándar.'
   },
   en: {
     tabMain: 'Portfolio',
@@ -262,7 +303,14 @@ export const I18N_STRINGS = {
     portfolioInvested: 'Invested',
     portfolioProfit: 'Net Profit',
     portfolioRoi: 'Overall ROI',
-    totalCards: 'Total Copies'
+    totalCards: 'Total Copies',
+    conditionCardTitle: 'Condition Price Multipliers',
+    conditionCardSubtitle: 'Market price adjustments by condition (NM, EX, LP...)',
+    conditionDescription: 'The Scryfall API reports standard market trend pricing (usually Near Mint). You can enable this percentage adjustment to accurately evaluate your physical collection.',
+    conditionToggleLabel: 'Adjust prices by condition',
+    conditionToggleDesc: 'Evaluates each card applying its condition percentage factor.',
+    conditionResetButton: 'Reset to default multipliers',
+    conditionResetToast: 'Condition multipliers reset to standard defaults.'
   }
 };
 
@@ -520,6 +568,46 @@ export function MintMoxScreen({
   const env = useFrameworkEnvironment();
   const [activeTab, setActiveTab] = useState<MTGTab>('main');
   const [toast, setToast] = useState<string | null>(null);
+
+  // Ponderación de cotización según condición física de la carta
+  const [conditionPricingEnabled, setConditionPricingEnabled] = useState<boolean>(getInitialConditionPricingEnabled);
+  const [conditionMultipliers, setConditionMultipliers] = useState<ConditionMultipliers>(getInitialConditionMultipliers);
+
+  const handleToggleConditionPricing = (enabled: boolean) => {
+    setConditionPricingEnabled(enabled);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CONDITION_PRICING_STORAGE_KEY, String(enabled));
+      }
+    } catch {}
+    setToast(
+      enabled
+        ? 'Ajuste de cotización por estado activado.'
+        : 'Ajuste desactivado (usando cotización base de mercado).'
+    );
+  };
+
+  const handleUpdateConditionMultiplier = (cond: CardCondition, delta: number) => {
+    const current = conditionMultipliers[cond] ?? DEFAULT_CONDITION_MULTIPLIERS[cond];
+    const nextVal = Math.max(0, Math.min(2.0, Number((current + delta).toFixed(2))));
+    const next = { ...conditionMultipliers, [cond]: nextVal };
+    setConditionMultipliers(next);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CONDITION_MULTIPLIERS_STORAGE_KEY, JSON.stringify(next));
+      }
+    } catch {}
+  };
+
+  const handleResetConditionMultipliers = () => {
+    setConditionMultipliers({ ...DEFAULT_CONDITION_MULTIPLIERS });
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(CONDITION_MULTIPLIERS_STORAGE_KEY);
+      }
+    } catch {}
+    setToast(t.conditionResetToast);
+  };
 
   // Estado del formulario modal para añadir una nueva carta
   const [showAddModal, setShowAddModal] = useState(false);
@@ -811,27 +899,29 @@ export function MintMoxScreen({
       );
     });
 
-    // 2. Ordenación según el criterio seleccionado
+    // 2. Ordenación según el criterio seleccionado (aplicando ponderación por estado)
     return filtered.sort((a, b) => {
+      const priceA = calculateAdjustedCardPrice(a.currentPrice, a.condition, conditionMultipliers, conditionPricingEnabled);
+      const priceB = calculateAdjustedCardPrice(b.currentPrice, b.condition, conditionMultipliers, conditionPricingEnabled);
       const baseA = a.buyPrice !== undefined && a.buyPrice > 0 ? a.buyPrice : a.previousPrice;
       const baseB = b.buyPrice !== undefined && b.buyPrice > 0 ? b.buyPrice : b.previousPrice;
       switch (sortBy) {
         case 'price_desc':
-          return b.currentPrice - a.currentPrice;
+          return priceB - priceA;
         case 'price_asc':
-          return a.currentPrice - b.currentPrice;
+          return priceA - priceB;
         case 'gain_desc': {
-          const gainA = (a.currentPrice - baseA) * (a.quantity ?? 1);
-          const gainB = (b.currentPrice - baseB) * (b.quantity ?? 1);
+          const gainA = (priceA - baseA) * (a.quantity ?? 1);
+          const gainB = (priceB - baseB) * (b.quantity ?? 1);
           return gainB - gainA;
         }
         case 'loss_asc': {
-          const gainA = (a.currentPrice - baseA) * (a.quantity ?? 1);
-          const gainB = (b.currentPrice - baseB) * (b.quantity ?? 1);
+          const gainA = (priceA - baseA) * (a.quantity ?? 1);
+          const gainB = (priceB - baseB) * (b.quantity ?? 1);
           return gainA - gainB;
         }
         case 'quantity_desc':
-          return (b.quantity ?? 1) - (a.quantity ?? 1) || b.currentPrice - a.currentPrice;
+          return (b.quantity ?? 1) - (a.quantity ?? 1) || priceB - priceA;
         case 'alpha_asc':
           return a.title.localeCompare(b.title, 'es', { sensitivity: 'base' });
         case 'recent': {
@@ -843,9 +933,9 @@ export function MintMoxScreen({
           return 0;
       }
     });
-  }, [state.items, searchQuery, sortBy, selectedCollectionFilter]);
+  }, [state.items, searchQuery, sortBy, selectedCollectionFilter, conditionMultipliers, conditionPricingEnabled]);
 
-  // Cálculos globales de la cartera de inversión ponderando cantidad de cada carta
+  // Cálculos globales de la cartera de inversión ponderando cantidad de cada carta y estado
   const portfolioSummary = useMemo(() => {
     let totalInvested = 0;
     let totalCurrent = 0;
@@ -856,7 +946,13 @@ export function MintMoxScreen({
       totalQuantity += qty;
       const baseCost = card.buyPrice !== undefined && card.buyPrice > 0 ? card.buyPrice : card.previousPrice;
       totalInvested += baseCost * qty;
-      totalCurrent += card.currentPrice * qty;
+      const effectivePrice = calculateAdjustedCardPrice(
+        card.currentPrice,
+        card.condition,
+        conditionMultipliers,
+        conditionPricingEnabled
+      );
+      totalCurrent += effectivePrice * qty;
     }
 
     const totalDiff = totalCurrent - totalInvested;
@@ -872,24 +968,36 @@ export function MintMoxScreen({
       uniqueCards: state.items.length,
       trend
     };
-  }, [state.items]);
+  }, [state.items, conditionMultipliers, conditionPricingEnabled]);
 
   // Series temporales agregadas para la pestaña "Gráficas" de la colección completa
   const portfolioChartData = useMemo(
-    () => buildPortfolioChart(state.items, portfolioTimeframe),
-    [state.items, portfolioTimeframe]
+    () =>
+      buildPortfolioChart(state.items, portfolioTimeframe, new Date('2026-11-13T00:00:00Z'), {
+        conditionMultipliers,
+        conditionPricingEnabled
+      }),
+    [state.items, portfolioTimeframe, conditionMultipliers, conditionPricingEnabled]
   );
 
   // Distribución de cartas según tramos de rentabilidad (ROI %)
   const roiDistribution = useMemo(
-    () => calculatePortfolioRoiDistribution(state.items),
-    [state.items]
+    () =>
+      calculatePortfolioRoiDistribution(state.items, {
+        conditionMultipliers,
+        conditionPricingEnabled
+      }),
+    [state.items, conditionMultipliers, conditionPricingEnabled]
   );
 
   // Líderes de plusvalía y pérdida (candidatas a venta vs revisión)
   const profitLeaders = useMemo(
-    () => getPortfolioProfitLeaders(state.items, 5),
-    [state.items]
+    () =>
+      getPortfolioProfitLeaders(state.items, 5, {
+        conditionMultipliers,
+        conditionPricingEnabled
+      }),
+    [state.items, conditionMultipliers, conditionPricingEnabled]
   );
 
   // Gráfica de evolución temporal para la carta en edición/detalle
@@ -1782,7 +1890,17 @@ export function MintMoxScreen({
                 }}
               >
                 {filteredAndSortedCards.map((card: CardEntity) => {
-                  const { diff, percent, trend } = calculateCardReturn(card);
+                  const effectivePrice = calculateAdjustedCardPrice(
+                    card.currentPrice,
+                    card.condition,
+                    conditionMultipliers,
+                    conditionPricingEnabled
+                  );
+                  const { diff, percent, trend } = calculateCardReturn({
+                    currentPrice: effectivePrice,
+                    previousPrice: card.previousPrice,
+                    buyPrice: card.buyPrice
+                  });
                   const isUp = trend === 'up';
                   const isDown = trend === 'down';
                   const trendColor = isUp
@@ -1889,7 +2007,7 @@ export function MintMoxScreen({
                               ...textTypographyStyle(theme, 'bold')
                             }}
                           >
-                            {card.currentPrice.toFixed(2)} €
+                            {effectivePrice.toFixed(2)} €
                           </Text>
                         </View>
                       </View>
@@ -1920,19 +2038,17 @@ export function MintMoxScreen({
                           ) : null}
                         </View>
 
-                        {card.nameEn && card.nameEn !== card.title ? (
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              color: theme.colors.textSecondary,
-                              fontSize: 11,
-                              fontStyle: 'italic',
-                              ...textTypographyStyle(theme, 'regular')
-                            }}
-                          >
-                            {card.nameEn}
-                          </Text>
-                        ) : null}
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: 11,
+                            fontStyle: 'italic',
+                            ...textTypographyStyle(theme, 'regular')
+                          }}
+                        >
+                          {card.nameEn || card.title}
+                        </Text>
 
                         {getCardCollections(card).filter((c) => c !== 'Principal').length > 0 ? (
                           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 1 }}>
@@ -2002,7 +2118,18 @@ export function MintMoxScreen({
             ) : (
               /* MODO LISTA COMPACTA CON MINIATURAS VISUALES */
               filteredAndSortedCards.map((card: CardEntity) => {
-                const { diff, percent, trend } = calculateCardReturn(card);
+                const effectivePrice = calculateAdjustedCardPrice(
+                  card.currentPrice,
+                  card.condition,
+                  conditionMultipliers,
+                  conditionPricingEnabled
+                );
+                const factor = getConditionMultiplier(card.condition, conditionMultipliers);
+                const { diff, percent, trend } = calculateCardReturn({
+                  currentPrice: effectivePrice,
+                  previousPrice: card.previousPrice,
+                  buyPrice: card.buyPrice
+                });
                 const isUp = trend === 'up';
                 const isDown = trend === 'down';
                 const trendColor = isUp
@@ -2016,7 +2143,7 @@ export function MintMoxScreen({
                     ? theme.colors.dangerSoft
                     : theme.colors.surfaceMuted;
 
-                const totalCardValue = card.currentPrice * (card.quantity ?? 1);
+                const totalCardValue = effectivePrice * (card.quantity ?? 1);
 
                 return (
                   <Pressable
@@ -2069,20 +2196,18 @@ export function MintMoxScreen({
                           ) : null}
                         </View>
 
-                        {card.nameEn && card.nameEn !== card.title ? (
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              color: theme.colors.textSecondary,
-                              fontSize: theme.typography.captionSize,
-                              fontStyle: 'italic',
-                              marginTop: 1,
-                              ...textTypographyStyle(theme, 'regular')
-                            }}
-                          >
-                            {card.nameEn}
-                          </Text>
-                        ) : null}
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.captionSize,
+                            fontStyle: 'italic',
+                            marginTop: 1,
+                            ...textTypographyStyle(theme, 'regular')
+                          }}
+                        >
+                          {card.nameEn || card.title}
+                        </Text>
 
                         <View
                           style={{
@@ -2126,8 +2251,20 @@ export function MintMoxScreen({
                             ...textTypographyStyle(theme, 'bold')
                           }}
                         >
-                          {card.currentPrice.toFixed(2)} €
+                          {effectivePrice.toFixed(2)} €
                         </Text>
+                        {conditionPricingEnabled && factor !== 1 ? (
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: 10,
+                              fontVariant: ['tabular-nums'],
+                              ...textTypographyStyle(theme, 'regular')
+                            }}
+                          >
+                            Base {card.currentPrice.toFixed(2)} € ({Math.round(factor * 100)}%)
+                          </Text>
+                        ) : null}
                         <Text
                           style={{
                             color: theme.colors.textSecondary,
@@ -2451,18 +2588,17 @@ export function MintMoxScreen({
                     >
                       {newTitle}
                     </Text>
-                    {newNameEn && newNameEn !== newTitle ? (
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          color: theme.colors.textSecondary,
-                          fontSize: theme.typography.captionSize,
-                          ...textTypographyStyle(theme, 'regular')
-                        }}
-                      >
-                        {newNameEn}
-                      </Text>
-                    ) : null}
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: theme.typography.captionSize,
+                        fontStyle: 'italic',
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      {newNameEn || newTitle}
+                    </Text>
                     <Text
                       style={{
                         color: theme.colors.textSecondary,
@@ -2571,6 +2707,45 @@ export function MintMoxScreen({
                   />
                 </View>
               </View>
+
+              {conditionPricingEnabled ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: theme.colors.surfaceMuted,
+                    paddingHorizontal: theme.spacing.sm,
+                    paddingVertical: 6,
+                    borderRadius: theme.radius.sm,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <GoogleIcon name="tune" size={14} color={theme.colors.textSecondary} />
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      Valor estimado según estado ({newCondition}):
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: 12,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {calculateAdjustedCardPrice(parseFloat(newCurrentPrice) || 0, newCondition, conditionMultipliers, true).toFixed(2)} €
+                    {' '}({Math.round(getConditionMultiplier(newCondition, conditionMultipliers) * 100)}%)
+                  </Text>
+                </View>
+              ) : null}
 
               {/* Atributos especiales de coleccionismo físico */}
               <View style={{ gap: 4, marginTop: 2 }}>
@@ -2979,6 +3154,45 @@ export function MintMoxScreen({
                   />
                 </View>
               </View>
+
+              {conditionPricingEnabled ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: theme.colors.surfaceMuted,
+                    paddingHorizontal: theme.spacing.sm,
+                    paddingVertical: 6,
+                    borderRadius: theme.radius.sm,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <GoogleIcon name="tune" size={14} color={theme.colors.textSecondary} />
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'regular')
+                      }}
+                    >
+                      Valor estimado según estado ({editCondition}):
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: 12,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {calculateAdjustedCardPrice(parseFloat(editCurrentPrice) || 0, editCondition, conditionMultipliers, true).toFixed(2)} €
+                    {' '}({Math.round(getConditionMultiplier(editCondition, conditionMultipliers) * 100)}%)
+                  </Text>
+                </View>
+              ) : null}
 
               {/* Atributos especiales de coleccionismo físico */}
               <View style={{ gap: 4, marginTop: 2 }}>
@@ -3999,6 +4213,7 @@ export function MintMoxScreen({
                     showLegend={true}
                     showDots={true}
                     showGrid={true}
+                    zeroBaseline={true}
                   />
                 ) : activeMetricChart === 'profit' ? (
                   <SimpleLineChart
@@ -4162,6 +4377,17 @@ export function MintMoxScreen({
                       <Text
                         style={{
                           color: theme.colors.textSecondary,
+                          fontSize: 11,
+                          fontStyle: 'italic',
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                        numberOfLines={1}
+                      >
+                        {card.nameEn || card.title}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
                           fontSize: theme.typography.captionSize,
                           ...textTypographyStyle(theme, 'regular')
                         }}
@@ -4246,6 +4472,17 @@ export function MintMoxScreen({
                         numberOfLines={1}
                       >
                         {card.title} {card.quantity > 1 ? `(${card.quantity})` : ''}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontSize: 11,
+                          fontStyle: 'italic',
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                        numberOfLines={1}
+                      >
+                        {card.nameEn || card.title}
                       </Text>
                       <Text
                         style={{
@@ -4537,6 +4774,202 @@ export function MintMoxScreen({
                     const res = await controller.syncCardmarketPrices({ force: true });
                     setToast(t.syncDoneToast(res.updatedCount));
                   }}
+                />
+              </View>
+            </View>
+          </Card>
+
+          {/* Ponderación por Estado de Conservación de la Carta */}
+          <Card
+            title={t.conditionCardTitle}
+            subtitle={t.conditionCardSubtitle}
+            icon="tune"
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.bodySize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                {t.conditionDescription}
+              </Text>
+
+              {/* Interruptor de activación */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: theme.colors.surfaceMuted,
+                  padding: theme.spacing.md,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: conditionPricingEnabled ? theme.colors.accent : theme.colors.border
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: theme.spacing.sm }}>
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: theme.typography.bodySize,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {t.conditionToggleLabel}
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      marginTop: 2,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    {t.conditionToggleDesc}
+                  </Text>
+                </View>
+
+                <Pressable
+                  accessibilityRole="switch"
+                  accessibilityLabel={t.conditionToggleLabel}
+                  accessibilityState={{ checked: conditionPricingEnabled }}
+                  onPress={() => handleToggleConditionPricing(!conditionPricingEnabled)}
+                  style={{
+                    backgroundColor: conditionPricingEnabled ? theme.colors.accent : theme.colors.border,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: theme.radius.full
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: conditionPricingEnabled ? theme.colors.textInverse : theme.colors.textSecondary,
+                      fontSize: 12,
+                      ...textTypographyStyle(theme, 'bold')
+                    }}
+                  >
+                    {conditionPricingEnabled ? 'Activado' : 'Desactivado'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Lista interactiva de los 6 estados con steppers -5% / +5% */}
+              <View style={{ gap: theme.spacing.xs, opacity: conditionPricingEnabled ? 1 : 0.5 }}>
+                {ORDERED_CARD_CONDITIONS.map((cond) => {
+                  const def = CONDITION_DEFINITIONS[cond];
+                  const factor = conditionMultipliers[cond] ?? DEFAULT_CONDITION_MULTIPLIERS[cond];
+                  const percent = Math.round(factor * 100);
+
+                  return (
+                    <View
+                      key={cond}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        backgroundColor: theme.colors.surfaceMuted,
+                        paddingVertical: 8,
+                        paddingHorizontal: theme.spacing.sm,
+                        borderRadius: theme.radius.md,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border
+                      }}
+                    >
+                      {/* Badge y nombre */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
+                        <Badge label={cond} tone={def.badgeTone} />
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              color: theme.colors.textPrimary,
+                              fontSize: 13,
+                              ...textTypographyStyle(theme, 'semibold')
+                            }}
+                          >
+                            {def.name}
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.colors.textSecondary,
+                              fontSize: 11,
+                              ...textTypographyStyle(theme, 'regular')
+                            }}
+                          >
+                            {def.description}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Stepper interactivo */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Reducir porcentaje para ${cond}`}
+                          disabled={!conditionPricingEnabled || percent <= 0}
+                          onPress={() => handleUpdateConditionMultiplier(cond, -0.05)}
+                          style={({ pressed }) => ({
+                            width: 32,
+                            height: 32,
+                            borderRadius: theme.radius.sm,
+                            backgroundColor: pressed ? theme.colors.border : theme.colors.surface,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: percent <= 0 ? 0.4 : 1
+                          })}
+                        >
+                          <GoogleIcon name="remove" size={16} color={theme.colors.textPrimary} />
+                        </Pressable>
+
+                        <View style={{ minWidth: 48, alignItems: 'center' }}>
+                          <Text
+                            style={{
+                              color: percent === 100 ? theme.colors.accentText : theme.colors.textPrimary,
+                              fontSize: 14,
+                              fontVariant: ['tabular-nums'],
+                              ...textTypographyStyle(theme, 'bold')
+                            }}
+                          >
+                            {percent} %
+                          </Text>
+                        </View>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Aumentar porcentaje para ${cond}`}
+                          disabled={!conditionPricingEnabled || percent >= 200}
+                          onPress={() => handleUpdateConditionMultiplier(cond, +0.05)}
+                          style={({ pressed }) => ({
+                            width: 32,
+                            height: 32,
+                            borderRadius: theme.radius.sm,
+                            backgroundColor: pressed ? theme.colors.border : theme.colors.surface,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: percent >= 200 ? 0.4 : 1
+                          })}
+                        >
+                          <GoogleIcon name="add" size={16} color={theme.colors.textPrimary} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Botón para restablecer a los valores por defecto */}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4 }}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon="restart-alt"
+                  label={t.conditionResetButton}
+                  onPress={handleResetConditionMultipliers}
                 />
               </View>
             </View>

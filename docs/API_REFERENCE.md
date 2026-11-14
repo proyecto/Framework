@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (65 símbolos exportados)
+- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (75 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (66 símbolos exportados)
@@ -1861,6 +1861,18 @@ Miembros públicos:
 const SEED_PRICE_HISTORIES: Record<string, CardPricePoint[]>
 ```
 
+### `PortfolioPricingOptions`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+interface PortfolioPricingOptions
+```
+
+Miembros públicos:
+- `conditionMultipliers?: Partial<Record<string, number>>`
+- `conditionPricingEnabled?: boolean`
+
 ### `CardChartSeriesData`
 
 - Origen: `packages/mintmox-domain/src/chartUtils.ts`
@@ -1974,7 +1986,7 @@ Miembros públicos:
 - Descripción: Calcula la evolución temporal consolidada de toda la colección. Permite analizar la cartera a nivel macro (Valor total vs Coste, Beneficio neto y ROI %).
 
 ```ts
-function buildPortfolioChart(items: CardEntity[], timeframe: ChartTimeframe, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): PortfolioChartSeriesData
+function buildPortfolioChart(items: CardEntity[], timeframe: ChartTimeframe, referenceDate: Date = new Date('2026-11-13T00:00:00Z'), pricingOptions?: PortfolioPricingOptions): PortfolioChartSeriesData
 ```
 
 ### `RoiDistributionBucket`
@@ -2002,7 +2014,7 @@ Miembros públicos:
 - Descripción: Calcula la distribución porcentual de cartas en los distintos tramos de rentabilidad (ROI %).
 
 ```ts
-function calculatePortfolioRoiDistribution(items: CardEntity[]): RoiDistributionBucket[]
+function calculatePortfolioRoiDistribution(items: CardEntity[], pricingOptions?: PortfolioPricingOptions): RoiDistributionBucket[]
 ```
 
 ### `CardProfitLeader`
@@ -2034,7 +2046,7 @@ Miembros públicos:
 - Descripción: Obtiene las cartas líderes en plusvalía (candidatas a venta) y las cartas con mayor pérdida.
 
 ```ts
-function getPortfolioProfitLeaders(items: CardEntity[], limit = 5): { topGainers: CardProfitLeader[]; topLosers: CardProfitLeader[]; }
+function getPortfolioProfitLeaders(items: CardEntity[], limit = 5, pricingOptions?: PortfolioPricingOptions): { topGainers: CardProfitLeader[]; topLosers: CardProfitLeader[]; }
 ```
 
 ### `MintmoxModel`
@@ -2228,6 +2240,90 @@ function parseCardsFromCsv(csvStr: string): CreateCardInput[]
 
 ```ts
 function detectAndParseCards(content: string): { format: 'json' | 'csv'; cards: CreateCardInput[] }
+```
+
+### `CardCondition`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+- Descripción: Gestión de factores de ponderación de precio según el estado de conservación de la carta (Card Condition). Dado que la API pública de Scryfall / Cardmarket proporciona una única cotización base en Euros (habitualmente referenciada a estado Near Mint o tendencia general), MintMox permite ajustar porcentualmente el valor estimado de cada copia según su estado físico real.
+
+```ts
+type CardCondition = 'NM' | 'EX' | 'GD' | 'LP' | 'PL' | 'PO'
+```
+
+### `ConditionMultipliers`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+
+```ts
+type ConditionMultipliers = Record<CardCondition, number>
+```
+
+### `DEFAULT_CONDITION_MULTIPLIERS`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+- Descripción: Factores de ponderación estándar de la industria (ManaBox, Cardmarket, TCGplayer). - NM (Near Mint): 100% - EX (Excellent): 90% - GD (Good): 85% - LP (Lightly Played): 80% - PL (Played): 65% - PO (Poor / Damaged): 40%
+
+```ts
+const DEFAULT_CONDITION_MULTIPLIERS: ConditionMultipliers
+```
+
+### `ConditionDefinition`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+
+```ts
+interface ConditionDefinition
+```
+
+Miembros públicos:
+- `code: CardCondition`
+- `name: string`
+- `nameEn: string`
+- `description: string`
+- `badgeTone: 'accent' | 'neutral' | 'success' | 'warning' | 'danger'`
+
+### `CONDITION_DEFINITIONS`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+
+```ts
+const CONDITION_DEFINITIONS: Record<CardCondition, ConditionDefinition>
+```
+
+### `ORDERED_CARD_CONDITIONS`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+
+```ts
+const ORDERED_CARD_CONDITIONS: CardCondition[]
+```
+
+### `normalizeCardCondition`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+- Descripción: Normaliza cualquier variante de texto de estado hacia uno de los códigos canónicos (NM, EX, GD, LP, PL, PO).
+
+```ts
+function normalizeCardCondition(condition?: string | null): CardCondition
+```
+
+### `getConditionMultiplier`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+- Descripción: Obtiene el multiplicador decimal aplicable a una condición dada.
+
+```ts
+function getConditionMultiplier(condition?: string | null, customMultipliers?: Partial<Record<string, number>>): number
+```
+
+### `calculateAdjustedCardPrice`
+
+- Origen: `packages/mintmox-domain/src/conditionMultipliers.ts`
+- Descripción: Calcula el precio estimado ajustado por estado de conservación.
+
+```ts
+function calculateAdjustedCardPrice(basePrice: number, condition?: string | null, customMultipliers?: Partial<Record<string, number>>, enabled: boolean = true): number
 ```
 
 ## `@framework/react`
@@ -3027,6 +3123,7 @@ Miembros públicos:
 - `height?: number`
 - `unit?: string`
 - `autoScale?: boolean`
+- `zeroBaseline?: boolean`
 - `showDots?: boolean`
 - `showGrid?: boolean`
 - `showLegend?: boolean`
@@ -3042,7 +3139,7 @@ Miembros públicos:
 - Descripción: Gráfica de líneas simple y multiserie implementada con primitivas estándar de React Native. Características: - Soporta 1, 2 o más series simultáneas (ej. comparar varias acciones o métricas). - Selector integrado de período temporal (1D, 1S, 1M, 1A). - Leyenda interactiva para mostrar u ocultar series pulsando sobre ellas. - Cursor táctil interactivo (scrubbing) con línea guía y tooltip flotante con fecha y valores. - Cero dependencias nativas externas: funciona de forma idéntica en Expo Android, iOS y Web.
 
 ```ts
-function SimpleLineChart({ series, labels, height = 190, unit = '', autoScale = true, showDots = true, showGrid = true, showLegend = true, strokeWidth = 2.5, timeframeOptions, activeTimeframe, onTimeframeChange, emptyMessage = 'Sin datos para graficar' }: SimpleLineChartProps)
+function SimpleLineChart({ series, labels, height = 190, unit = '', autoScale = true, zeroBaseline = false, showDots = true, showGrid = true, showLegend = true, strokeWidth = 2.5, timeframeOptions, activeTimeframe, onTimeframeChange, emptyMessage = 'Sin datos para graficar' }: SimpleLineChartProps)
 ```
 
 ### `MarkedDateConfig`

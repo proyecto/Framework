@@ -1,4 +1,10 @@
 import type { CardEntity, CardPricePoint } from './contracts.js';
+import { calculateAdjustedCardPrice } from './conditionMultipliers.js';
+
+export interface PortfolioPricingOptions {
+  conditionMultipliers?: Partial<Record<string, number>>;
+  conditionPricingEnabled?: boolean;
+}
 
 export interface CardChartSeriesData {
   labels: string[];
@@ -325,7 +331,8 @@ export interface PortfolioChartSeriesData {
 export function buildPortfolioChart(
   items: CardEntity[],
   timeframe: ChartTimeframe,
-  referenceDate: Date = new Date('2026-11-13T00:00:00Z')
+  referenceDate: Date = new Date('2026-11-13T00:00:00Z'),
+  pricingOptions?: PortfolioPricingOptions
 ): PortfolioChartSeriesData {
   if (items.length === 0) {
     return {
@@ -410,14 +417,26 @@ export function buildPortfolioChart(
     if (isLast) {
       for (const card of items) {
         const qty = Math.max(1, card.quantity ?? 1);
-        portVal += card.currentPrice * qty;
+        const effectivePrice = calculateAdjustedCardPrice(
+          card.currentPrice,
+          card.condition,
+          pricingOptions?.conditionMultipliers,
+          pricingOptions?.conditionPricingEnabled ?? false
+        );
+        portVal += effectivePrice * qty;
       }
     } else {
       for (const card of items) {
         const qty = Math.max(1, card.quantity ?? 1);
         const history = card.priceHistory ?? [];
         if (history.length === 0) {
-          portVal += card.currentPrice * qty;
+          const effectivePrice = calculateAdjustedCardPrice(
+            card.currentPrice,
+            card.condition,
+            pricingOptions?.conditionMultipliers,
+            pricingOptions?.conditionPricingEnabled ?? false
+          );
+          portVal += effectivePrice * qty;
           continue;
         }
 
@@ -427,7 +446,14 @@ export function buildPortfolioChart(
         );
 
         if (validPoints.length > 0) {
-          portVal += validPoints[validPoints.length - 1]!.price * qty;
+          const rawPrice = validPoints[validPoints.length - 1]!.price;
+          const effectivePrice = calculateAdjustedCardPrice(
+            rawPrice,
+            card.condition,
+            pricingOptions?.conditionMultipliers,
+            pricingOptions?.conditionPricingEnabled ?? false
+          );
+          portVal += effectivePrice * qty;
         } else {
           // Antes de empezar a tener registros históricos
           portVal += 0;
@@ -476,7 +502,10 @@ export interface RoiDistributionBucket {
 /**
  * Calcula la distribución porcentual de cartas en los distintos tramos de rentabilidad (ROI %).
  */
-export function calculatePortfolioRoiDistribution(items: CardEntity[]): RoiDistributionBucket[] {
+export function calculatePortfolioRoiDistribution(
+  items: CardEntity[],
+  pricingOptions?: PortfolioPricingOptions
+): RoiDistributionBucket[] {
   const totalCards = items.length;
   const buckets: Array<Omit<RoiDistributionBucket, 'count' | 'percentage'> & { count: number }> = [
     { id: 'loss', label: 'En pérdida', rangeLabel: '< 0%', minPercent: -Infinity, maxPercent: 0, count: 0, color: '#EF4444' },
@@ -488,7 +517,13 @@ export function calculatePortfolioRoiDistribution(items: CardEntity[]): RoiDistr
 
   for (const card of items) {
     const prev = card.previousPrice || card.currentPrice;
-    const roi = prev > 0 ? ((card.currentPrice - prev) / prev) * 100 : 0;
+    const cur = calculateAdjustedCardPrice(
+      card.currentPrice,
+      card.condition,
+      pricingOptions?.conditionMultipliers,
+      pricingOptions?.conditionPricingEnabled ?? false
+    );
+    const roi = prev > 0 ? ((cur - prev) / prev) * 100 : 0;
 
     for (const b of buckets) {
       if (b.id === 'loss' && roi < 0) {
@@ -531,7 +566,8 @@ export interface CardProfitLeader {
  */
 export function getPortfolioProfitLeaders(
   items: CardEntity[],
-  limit = 5
+  limit = 5,
+  pricingOptions?: PortfolioPricingOptions
 ): {
   topGainers: CardProfitLeader[];
   topLosers: CardProfitLeader[];
@@ -539,7 +575,12 @@ export function getPortfolioProfitLeaders(
   const mapped: CardProfitLeader[] = items.map((card) => {
     const qty = Math.max(1, card.quantity ?? 1);
     const unitBuy = card.previousPrice ?? card.currentPrice;
-    const unitCur = card.currentPrice;
+    const unitCur = calculateAdjustedCardPrice(
+      card.currentPrice,
+      card.condition,
+      pricingOptions?.conditionMultipliers,
+      pricingOptions?.conditionPricingEnabled ?? false
+    );
     const totalInvested = Number((unitBuy * qty).toFixed(2));
     const totalCurrent = Number((unitCur * qty).toFixed(2));
     const totalProfit = Number((totalCurrent - totalInvested).toFixed(2));

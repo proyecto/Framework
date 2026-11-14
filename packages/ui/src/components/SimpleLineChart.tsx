@@ -25,6 +25,7 @@ export interface SimpleLineChartProps {
   height?: number;
   unit?: string;
   autoScale?: boolean;
+  zeroBaseline?: boolean;
   showDots?: boolean;
   showGrid?: boolean;
   showLegend?: boolean;
@@ -53,6 +54,7 @@ export function SimpleLineChart({
   height = 190,
   unit = '',
   autoScale = true,
+  zeroBaseline = false,
   showDots = true,
   showGrid = true,
   showLegend = true,
@@ -103,13 +105,22 @@ export function SimpleLineChart({
       max += 1;
     }
 
+    if (zeroBaseline) {
+      const topPadding = (max - Math.min(0, min)) * 0.08;
+      return {
+        minVal: Math.min(0, min),
+        maxVal: max + topPadding
+      };
+    }
+
     if (autoScale) {
       const padding = (max - min) * 0.12;
-      return { minVal: min - padding, maxVal: max + padding };
+      const computedMin = min >= 0 ? Math.max(0, min - padding) : min - padding;
+      return { minVal: computedMin, maxVal: max + padding };
     }
 
     return { minVal: Math.min(0, min), maxVal: max * 1.05 };
-  }, [activeSeries, autoScale]);
+  }, [activeSeries, autoScale, zeroBaseline]);
 
   const yPaddingTop = 18;
   const yPaddingBottom = 26;
@@ -214,11 +225,11 @@ export function SimpleLineChart({
         style={{
           flexDirection: 'row',
           justifyContent: 'space-between',
-          alignItems: 'baseline',
+          alignItems: 'flex-start',
           paddingHorizontal: 2
         }}
       >
-        <View style={{ gap: 2 }}>
+        <View style={{ gap: 4, flex: 1 }}>
           <Text
             style={{
               color: theme.colors.textSecondary,
@@ -228,7 +239,7 @@ export function SimpleLineChart({
           >
             {selectedIndex !== null ? `Selección: ${activeLabel}` : `Último registro (${activeLabel})`}
           </Text>
-          <View style={{ flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' }}>
+          <View style={{ gap: 4 }}>
             {activeSeries.map((s) => {
               const currentVal = s.values[activeIndex];
               return (
@@ -258,7 +269,7 @@ export function SimpleLineChart({
         </View>
 
         {selectedIndex !== null ? (
-          <Pressable onPress={() => setSelectedIndex(null)} hitSlop={8}>
+          <Pressable onPress={() => setSelectedIndex(null)} hitSlop={8} style={{ paddingTop: 2 }}>
             <Text
               style={{
                 color: theme.colors.accentText,
@@ -324,7 +335,7 @@ export function SimpleLineChart({
                         ...textTypographyStyle(theme, 'regular')
                       }}
                     >
-                      {tick.value.toFixed(0)}
+                      {Math.abs(tick.value) < 0.001 ? '0' : tick.value.toFixed(0)}
                     </Text>
                     <View
                       style={{
