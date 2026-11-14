@@ -45,6 +45,8 @@ export interface ScryfallCardData {
   imageUris?: ScryfallImageUris;
   cardFaces?: ScryfallCardFace[];
   prices?: ScryfallPrices;
+  digital?: boolean;
+  games?: string[];
 }
 
 export interface ScryfallSearchResult {
@@ -65,6 +67,7 @@ export interface ScryfallSearchOptions {
   unique?: 'cards' | 'art' | 'prints';
   order?: 'name' | 'set' | 'released' | 'rarity' | 'color' | 'usd' | 'eur';
   dir?: 'auto' | 'asc' | 'desc';
+  paperOnly?: boolean;
 }
 
 export interface ScryfallCardIdentifier {

@@ -95,6 +95,8 @@ function mapScryfallCard(raw: any): ScryfallCardData {
     manaCost: raw.mana_cost,
     typeLine: raw.type_line,
     oracleText: raw.oracle_text,
+    digital: Boolean(raw.digital),
+    games: Array.isArray(raw.games) ? raw.games : undefined,
     imageUris: mapImageUris(raw.image_uris),
     cardFaces,
     prices
@@ -283,7 +285,13 @@ export class ScryfallApiClient implements IScryfallApiClient {
   }
 
   async searchCards(query: string, options?: ScryfallSearchOptions): Promise<ScryfallSearchResult> {
-    const queryParts: string[] = [`q=${encodeURIComponent(query)}`];
+    const isPaperEnforced = options?.paperOnly !== false;
+    let cleanQuery = query.trim();
+    if (isPaperEnforced && !cleanQuery.includes('game:') && !cleanQuery.includes('is:digital')) {
+      cleanQuery = `${cleanQuery} game:paper -is:digital`;
+    }
+
+    const queryParts: string[] = [`q=${encodeURIComponent(cleanQuery)}`];
     if (options?.page) {
       queryParts.push(`page=${options.page}`);
     }
@@ -303,11 +311,16 @@ export class ScryfallApiClient implements IScryfallApiClient {
       return { totalCards: 0, hasMore: false, data: [] };
     }
 
+    const mapped = raw.data.map(mapScryfallCard);
+    const filtered = isPaperEnforced
+      ? mapped.filter((c: ScryfallCardData) => !c.digital && (!c.games || c.games.includes('paper')))
+      : mapped;
+
     return {
-      totalCards: raw.total_cards ?? raw.data.length,
+      totalCards: filtered.length,
       hasMore: Boolean(raw.has_more),
       nextPage: raw.next_page,
-      data: raw.data.map(mapScryfallCard)
+      data: filtered
     };
   }
 
@@ -324,7 +337,7 @@ export class ScryfallApiClient implements IScryfallApiClient {
 
   /**
    * Resuelve la mejor URL de imagen para una carta de nuestro catálogo.
-   * Aplica un algoritmo de resolución multinivel con tolerancia a idiomas y sets.
+   * Aplica un algoritmo de resolución multinivel exclusivamente sobre cartas físicas.
    */
   async resolveCardImageUrl(card: {
     title: string;
@@ -339,36 +352,56 @@ export class ScryfallApiClient implements IScryfallApiClient {
     // 1. Prioridad: Nombre original en inglés + Código de edición exacto
     if (englishName && setCode) {
       const match = await this.getCardNamed({ fuzzy: englishName, set: setCode });
-      const img = this.extractImage(match);
-      if (img) return img;
+      if (match && !match.digital) {
+        const img = this.extractImage(match);
+        if (img) return img;
+      }
     }
 
     // 2. Segunda opción: Título de la carta + Código de edición
     if (setCode) {
       const match = await this.getCardNamed({ fuzzy: primaryName, set: setCode });
-      const img = this.extractImage(match);
-      if (img) return img;
+      if (match && !match.digital) {
+        const img = this.extractImage(match);
+        if (img) return img;
+      }
     }
 
-    // 3. Fallback: Nombre original en inglés sin restricción de edición
+    // 3. Fallback: Nombre original en inglés sin restricción de edición (solo cartas físicas)
     if (englishName) {
-      const match = await this.getCardNamed({ fuzzy: englishName });
-      const img = this.extractImage(match);
-      if (img) return img;
+      const searchRes = await this.searchCards(`!"${englishName}"`, {
+        unique: 'prints',
+        order: 'released',
+        dir: 'asc'
+      });
+      if (searchRes.data.length > 0) {
+        const img = this.extractImage(searchRes.data[0]);
+        if (img) return img;
+      }
     }
 
-    // 4. Fallback: Título sin restricción de edición
+    // 4. Fallback: Título sin restricción de edición (solo cartas físicas)
     {
-      const match = await this.getCardNamed({ fuzzy: primaryName });
-      const img = this.extractImage(match);
-      if (img) return img;
+      const searchRes = await this.searchCards(`!"${primaryName}"`, {
+        unique: 'prints',
+        order: 'released',
+        dir: 'asc'
+      });
+      if (searchRes.data.length > 0) {
+        const img = this.extractImage(searchRes.data[0]);
+        if (img) return img;
+      }
     }
 
-    // 5. Fallback avanzado: Búsqueda libre en Scryfall (soporta cartas impresas en otros idiomas)
+    // 5. Fallback avanzado: Búsqueda libre en Scryfall (soporta cartas impresas en otros idiomas físicas)
     const searchQuery = englishName
       ? `!"${englishName}"`
       : `!"${primaryName}" lang:any`;
-    const searchRes = await this.searchCards(searchQuery);
+    const searchRes = await this.searchCards(searchQuery, {
+      unique: 'prints',
+      order: 'released',
+      dir: 'asc'
+    });
     if (searchRes.data.length > 0) {
       const img = this.extractImage(searchRes.data[0]);
       if (img) return img;
@@ -378,7 +411,7 @@ export class ScryfallApiClient implements IScryfallApiClient {
   }
 
   private extractImage(card: ScryfallCardData | null | undefined): string | null {
-    if (!card) return null;
+    if (!card || card.digital) return null;
     return (
       card.imageUris?.normal ??
       card.imageUris?.large ??

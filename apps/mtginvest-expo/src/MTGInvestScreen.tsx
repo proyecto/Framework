@@ -654,8 +654,8 @@ export function MTGInvestScreen({
         if (!query.includes(':') && !query.includes('*') && !query.includes('!')) {
           try {
             const exactRes = await controller.scryfallClient.searchCards(
-              `!"${query}" game:paper`,
-              { unique: 'prints', order: 'released', dir: 'asc' }
+              `!"${query}" game:paper -is:digital`,
+              { unique: 'prints', order: 'released', dir: 'asc', paperOnly: true }
             );
             if (exactRes && exactRes.data.length > 0) {
               results = exactRes;
@@ -667,8 +667,8 @@ export function MTGInvestScreen({
         if (!results || results.data.length === 0) {
           try {
             const generalRes = await controller.scryfallClient.searchCards(
-              query.includes(':') ? query : `${query} game:paper`,
-              { unique: 'prints', order: 'released', dir: 'asc' }
+              query.includes(':') ? query : `${query} game:paper -is:digital`,
+              { unique: 'prints', order: 'released', dir: 'asc', paperOnly: true }
             );
             if (generalRes && generalRes.data.length > 0) {
               results = generalRes;
@@ -680,8 +680,8 @@ export function MTGInvestScreen({
         if ((!results || results.data.length === 0) && !query.includes(':') && !query.includes('*')) {
           try {
             const wildRes = await controller.scryfallClient.searchCards(
-              `${query}* game:paper`,
-              { unique: 'prints', order: 'released', dir: 'asc' }
+              `${query}* game:paper -is:digital`,
+              { unique: 'prints', order: 'released', dir: 'asc', paperOnly: true }
             );
             if (wildRes && wildRes.data.length > 0) {
               results = wildRes;
@@ -693,8 +693,8 @@ export function MTGInvestScreen({
         if ((!results || results.data.length === 0) && !query.includes(':')) {
           try {
             const langRes = await controller.scryfallClient.searchCards(
-              `lang:any ${query}`,
-              { unique: 'prints', order: 'released', dir: 'asc' }
+              `lang:any ${query} game:paper -is:digital`,
+              { unique: 'prints', order: 'released', dir: 'asc', paperOnly: true }
             );
             if (langRes && langRes.data.length > 0) {
               results = langRes;
@@ -702,14 +702,13 @@ export function MTGInvestScreen({
           } catch {}
         }
 
-        // 5. Fallback general sin filtro game:paper por si se busca un set o edición especial
+        // 5. Fallback por si la consulta incluye sintaxis avanzada, asegurando exclusión digital
         if (!results || results.data.length === 0) {
           try {
-            const anyRes = await controller.scryfallClient.searchCards(query, {
-              unique: 'prints',
-              order: 'released',
-              dir: 'asc'
-            });
+            const anyRes = await controller.scryfallClient.searchCards(
+              query.includes('game:') ? query : `${query} game:paper -is:digital`,
+              { unique: 'prints', order: 'released', dir: 'asc', paperOnly: true }
+            );
             if (anyRes && anyRes.data.length > 0) {
               results = anyRes;
             }
@@ -717,7 +716,11 @@ export function MTGInvestScreen({
         }
 
         if (!active) return;
-        setScryfallSuggestions(results?.data?.slice(0, 30) ?? []);
+        // Filtro estricto en cliente: solo cartas físicas reales de coleccionismo
+        const paperCards = (results?.data ?? []).filter(
+          (c) => !c.digital && (!c.games || c.games.includes('paper'))
+        );
+        setScryfallSuggestions(paperCards.slice(0, 30));
         setIsSearchingScryfall(false);
       } catch {
         if (!active) return;
@@ -1636,7 +1639,7 @@ export function MTGInvestScreen({
           <ModalDialog
             visible={showAddModal}
             title="Añadir Carta a la Cartera"
-            description="Busca una carta en Scryfall para autocompletar edición, cotización en € y portada, o indícala manualmente."
+            description="Busca una carta física en Scryfall para autocompletar edición, cotización en € y portada, o indícala manualmente."
             contentMaxHeight={540}
             confirmLabel="Guardar en Cartera"
             cancelLabel="Cancelar"
@@ -1668,14 +1671,14 @@ export function MTGInvestScreen({
                         ...textTypographyStyle(theme, 'bold')
                       }}
                     >
-                      Búsqueda en Scryfall (Autocompletar)
+                      Búsqueda de cartas físicas (Scryfall)
                     </Text>
                   </View>
-                  <Badge label="API Scryfall" tone="accent" />
+                  <Badge label="Coleccionismo Físico" tone="accent" />
                 </View>
 
                 <SearchInput
-                  placeholder="Escribe el nombre (ej. Black Lotus, Serra, Sol Ring)..."
+                  placeholder="Buscar carta física (ej. Taiga, Black Lotus, Serra)..."
                   value={scryfallSearchText}
                   onChangeText={setScryfallSearchText}
                   onClear={() => {
@@ -1694,7 +1697,7 @@ export function MTGInvestScreen({
                         ...textTypographyStyle(theme, 'regular')
                       }}
                     >
-                      Buscando cartas y cotizaciones en Scryfall...
+                      Buscando ediciones físicas y cotizaciones en Scryfall...
                     </Text>
                   </View>
                 ) : null}
@@ -1736,7 +1739,7 @@ export function MTGInvestScreen({
                           ...textTypographyStyle(theme, 'bold')
                         }}
                       >
-                        RESULTADOS ENCONTRADOS ({scryfallSuggestions.length})
+                        EDICIONES FÍSICAS ENCONTRADAS ({scryfallSuggestions.length})
                       </Text>
                       <Pressable
                         hitSlop={8}

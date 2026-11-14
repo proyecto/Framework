@@ -1623,6 +1623,8 @@ Miembros públicos:
 - `imageUris?: ScryfallImageUris`
 - `cardFaces?: ScryfallCardFace[]`
 - `prices?: ScryfallPrices`
+- `digital?: boolean`
+- `games?: string[]`
 
 ### `ScryfallSearchResult`
 
@@ -1664,6 +1666,7 @@ Miembros públicos:
 - `unique?: 'cards' | 'art' | 'prints'`
 - `order?: 'name' | 'set' | 'released' | 'rarity' | 'color' | 'usd' | 'eur'`
 - `dir?: 'auto' | 'asc' | 'desc'`
+- `paperOnly?: boolean`
 
 ### `ScryfallCardIdentifier`
 
