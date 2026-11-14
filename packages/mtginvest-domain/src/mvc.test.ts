@@ -54,6 +54,12 @@ describe('MTGInvest MVC domain', () => {
     expect(flat.diff).toBe(0);
     expect(flat.percent).toBe(0);
     expect(flat.trend).toBe('flat');
+
+    // Retorno basado en precio de compra (buyPrice) en vez de previousPrice
+    const withBuyPrice = calculateCardReturn({ buyPrice: 20, previousPrice: 38, currentPrice: 40 });
+    expect(withBuyPrice.diff).toBe(20);
+    expect(withBuyPrice.percent).toBe(100);
+    expect(withBuyPrice.trend).toBe('up');
   });
 
   it('supports offline local storage, auto-seeds portfolio and manages cards', async () => {
@@ -74,20 +80,28 @@ describe('MTGInvest MVC domain', () => {
     expect(serraAngel?.previousPrice).toBe(29.79);
     expect(serraAngel?.language).toBe('EN');
 
-    // Permite dar de alta una nueva carta
+    // Permite dar de alta una nueva carta con atributos de coleccionismo
     await controller.createItem({
       title: 'Mox Sapphire',
       nameEn: 'Mox Sapphire',
       edition: 'Unlimited Edition',
       editionCode: '2ed',
       language: 'EN',
+      buyPrice: 4200,
       previousPrice: 4500,
-      currentPrice: 5100
+      currentPrice: 5100,
+      isFoil: true,
+      isAltered: false,
+      isSigned: true
     });
 
     const mox = view.latest.items.find((c) => c.title === 'Mox Sapphire');
     expect(mox).toBeDefined();
     expect(mox?.currentPrice).toBe(5100);
+    expect(mox?.buyPrice).toBe(4200);
+    expect(mox?.isFoil).toBe(true);
+    expect(mox?.isAltered).toBe(false);
+    expect(mox?.isSigned).toBe(true);
 
     // Actualiza cotización
     if (mox) {

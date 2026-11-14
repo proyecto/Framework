@@ -169,6 +169,11 @@ export class MtginvestModel implements IMtginvestModel {
       if (!title) continue;
       const currentPrice = Number(cardInput.currentPrice ?? 0);
       const previousPrice = Number(cardInput.previousPrice ?? currentPrice);
+      const buyPrice =
+        cardInput.buyPrice !== undefined ? Number(cardInput.buyPrice) : previousPrice;
+      const isFoil = Boolean(cardInput.isFoil);
+      const isAltered = Boolean(cardInput.isAltered);
+      const isSigned = Boolean(cardInput.isSigned);
       const quantity = Math.max(1, Number(cardInput.quantity ?? 1));
       const language = cardInput.language?.trim().toUpperCase() || 'EN';
       const now = new Date().toISOString();
@@ -183,6 +188,10 @@ export class MtginvestModel implements IMtginvestModel {
         quantity,
         currentPrice,
         previousPrice,
+        buyPrice,
+        isFoil,
+        isAltered,
+        isSigned,
         condition: cardInput.condition ?? 'NM',
         imageUrl: cardInput.imageUrl?.trim() || undefined,
         scryfallId: cardInput.scryfallId?.trim() || undefined,
@@ -219,6 +228,10 @@ export class MtginvestModel implements IMtginvestModel {
     }
     const currentPrice = Number(input.currentPrice ?? 0);
     const previousPrice = Number(input.previousPrice ?? currentPrice);
+    const buyPrice = input.buyPrice !== undefined ? Number(input.buyPrice) : previousPrice;
+    const isFoil = Boolean(input.isFoil);
+    const isAltered = Boolean(input.isAltered);
+    const isSigned = Boolean(input.isSigned);
     const quantity = Math.max(1, Number(input.quantity ?? 1));
     const language = (input.language?.trim().toUpperCase()) || 'EN';
     const now = new Date().toISOString();
@@ -233,6 +246,10 @@ export class MtginvestModel implements IMtginvestModel {
       quantity,
       currentPrice,
       previousPrice,
+      buyPrice,
+      isFoil,
+      isAltered,
+      isSigned,
       condition: input.condition ?? 'NM',
       imageUrl: input.imageUrl?.trim() || undefined,
       scryfallId: input.scryfallId?.trim() || undefined,
@@ -261,6 +278,10 @@ export class MtginvestModel implements IMtginvestModel {
         | 'quantity'
         | 'currentPrice'
         | 'previousPrice'
+        | 'buyPrice'
+        | 'isFoil'
+        | 'isAltered'
+        | 'isSigned'
         | 'condition'
         | 'imageUrl'
         | 'scryfallId'
@@ -289,6 +310,10 @@ export class MtginvestModel implements IMtginvestModel {
       quantity: patch.quantity !== undefined ? Math.max(1, Number(patch.quantity)) : current.quantity,
       currentPrice: patch.currentPrice !== undefined ? Number(patch.currentPrice) : current.currentPrice,
       previousPrice: patch.previousPrice !== undefined ? Number(patch.previousPrice) : current.previousPrice,
+      buyPrice: patch.buyPrice !== undefined ? Number(patch.buyPrice) : current.buyPrice,
+      isFoil: patch.isFoil !== undefined ? Boolean(patch.isFoil) : current.isFoil,
+      isAltered: patch.isAltered !== undefined ? Boolean(patch.isAltered) : current.isAltered,
+      isSigned: patch.isSigned !== undefined ? Boolean(patch.isSigned) : current.isSigned,
       condition: patch.condition !== undefined ? patch.condition : current.condition,
       imageUrl: patch.imageUrl !== undefined ? (patch.imageUrl?.trim() || undefined) : current.imageUrl,
       scryfallId: patch.scryfallId !== undefined ? (patch.scryfallId.trim() || undefined) : current.scryfallId,
@@ -398,7 +423,9 @@ export class MtginvestModel implements IMtginvestModel {
       }
 
       // El precio en euros de Scryfall proviene directamente de Cardmarket (eur = normal, eurFoil = foil)
-      const eurPriceStr = cardData.prices?.eur ?? cardData.prices?.eurFoil;
+      const eurPriceStr = item.isFoil
+        ? (cardData.prices?.eurFoil ?? cardData.prices?.eur)
+        : (cardData.prices?.eur ?? cardData.prices?.eurFoil);
       const eurPrice = eurPriceStr ? parseFloat(eurPriceStr) : null;
       const isValidPrice = typeof eurPrice === 'number' && !isNaN(eurPrice) && eurPrice > 0;
 

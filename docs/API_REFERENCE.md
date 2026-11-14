@@ -48,7 +48,6 @@ interface BaseWorkspaceItem extends EntityBase
 ```
 
 Miembros públicos:
-
 - `title: string`
 - `description: string`
 - `level: number`
@@ -65,7 +64,6 @@ interface CreateBaseItemInput
 ```
 
 Miembros públicos:
-
 - `title: string`
 - `description?: string`
 - `level?: number`
@@ -80,7 +78,6 @@ interface BaseAppViewState extends AsyncCommandState
 ```
 
 Miembros públicos:
-
 - `items: BaseWorkspaceItem[]`
 - `selectedItemId: string | null`
 - `onlyEnabledFilter: boolean`
@@ -97,7 +94,6 @@ interface IBaseAppModel extends IModel
 ```
 
 Miembros públicos:
-
 - `getItemsSnapshot(): BaseWorkspaceItem[]`
 - `loadItems(): Promise<BaseWorkspaceItem[]>`
 - `createItem(input: CreateBaseItemInput): Promise<BaseWorkspaceItem>`
@@ -118,7 +114,6 @@ interface IBaseAppController extends IController<BaseAppViewState, ViewEvent>
 ```
 
 Miembros públicos:
-
 - `selectItem(id: string | null): void`
 - `setOnlyEnabledFilter(enabledOnly: boolean): void`
 - `createItem(input: CreateBaseItemInput): Promise<void>`
@@ -151,7 +146,6 @@ class BaseAppModel extends ObservableModel implements IBaseAppModel
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly repository: ISyncableRepository<BaseWorkspaceItem>)`
 - `getItemsSnapshot(): BaseWorkspaceItem[]`
 - `loadItems(): Promise<BaseWorkspaceItem[]>`
@@ -173,7 +167,6 @@ class BaseAppController extends StatefulMvcController<BaseAppViewState, ViewEven
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly model: IBaseAppModel)`
 - `init(): Promise<void>`
 - `selectItem(id: string | null): void`
@@ -197,7 +190,6 @@ interface CreateBaseAppControllerOptions
 ```
 
 Miembros públicos:
-
 - `store: IEntityStoreDriver`
 - `kv: IKeyValueStore`
 - `deviceId: string`
@@ -236,7 +228,6 @@ class FrameworkError extends Error
 ```
 
 Miembros públicos:
-
 - `code: FrameworkErrorCode`
 - `statusCode: number`
 - `constructor(code: FrameworkErrorCode, message: string, statusCode = 400)`
@@ -251,7 +242,6 @@ class ValidationError extends FrameworkError
 ```
 
 Miembros públicos:
-
 - `constructor(message: string)`
 
 ### `CloudEntitlementError`
@@ -264,7 +254,6 @@ class CloudEntitlementError extends FrameworkError
 ```
 
 Miembros públicos:
-
 - `constructor(message = 'Se requiere suscripción Pro para sincronizar datos en la nube.')`
 
 ### `getErrorMessage`
@@ -295,7 +284,6 @@ interface ViewEvent
 ```
 
 Miembros públicos:
-
 - `type: ViewEventType`
 - `message: string`
 - `metadata?: Record<string, unknown>`
@@ -310,7 +298,6 @@ interface IView<TState, TEvent = ViewEvent>
 ```
 
 Miembros públicos:
-
 - `render(state: TState): void`
 - `onEvent?(event: TEvent): void`
 
@@ -324,7 +311,6 @@ interface IController<TState, TEvent = ViewEvent>
 ```
 
 Miembros públicos:
-
 - `init(): Promise<void>`
 - `getState(): TState`
 - `attachView(view: IView<TState, TEvent>): () => void`
@@ -340,7 +326,6 @@ interface IModel
 ```
 
 Miembros públicos:
-
 - `subscribe(listener: () => void): () => void`
 - `dispose?(): void`
 
@@ -354,7 +339,6 @@ abstract class ObservableModel implements IModel
 ```
 
 Miembros públicos:
-
 - `subscribe(listener: () => void): () => void`
 - `dispose(): void`
 
@@ -368,7 +352,6 @@ interface AsyncCommandState
 ```
 
 Miembros públicos:
-
 - `busy: boolean`
 - `errorMessage: string | null`
 
@@ -382,7 +365,6 @@ interface CommandExecutionOptions<TResult, TEvent = ViewEvent>
 ```
 
 Miembros públicos:
-
 - `trackBusy?: boolean`
 - `emitErrorEvent?: boolean`
 - `syncAfterError?: boolean`
@@ -398,7 +380,6 @@ abstract class BaseController<TState, TEvent = ViewEvent> implements IController
 ```
 
 Miembros públicos:
-
 - `constructor(initialState: TState)`
 - `init(): Promise<void>`
 - `getState(): TState`
@@ -415,7 +396,6 @@ abstract class StatefulMvcController<TState extends AsyncCommandState, TEvent = 
 ```
 
 Miembros públicos:
-
 - `clearError(): void`
 - `dispose(): void`
 
@@ -465,7 +445,6 @@ interface SqlExecuteResult
 ```
 
 Miembros públicos:
-
 - `rowsAffected: number`
 - `lastInsertRowId?: string | number`
 
@@ -479,7 +458,6 @@ interface ISqlTransaction
 ```
 
 Miembros públicos:
-
 - `execute(sql: string, params?: SqlValue[]): Promise<SqlExecuteResult>`
 - `query(sql: string, params?: SqlValue[]): Promise<TRow[]>`
 
@@ -493,7 +471,6 @@ interface ISqlDriver
 ```
 
 Miembros públicos:
-
 - `driverName: string`
 - `initialize(): Promise<void>`
 - `execute(sql: string, params?: SqlValue[]): Promise<SqlExecuteResult>`
@@ -511,7 +488,6 @@ interface SqlMigration
 ```
 
 Miembros públicos:
-
 - `version: number`
 - `name: string`
 - `up: string[]`
@@ -526,7 +502,6 @@ interface IKeyValueStore
 ```
 
 Miembros públicos:
-
 - `get(key: string): Promise<string | null>`
 - `set(key: string, value: string): Promise<void>`
 - `remove(key: string): Promise<void>`
@@ -541,7 +516,6 @@ interface EntityBase
 ```
 
 Miembros públicos:
-
 - `id: string`
 - `createdAt: string`
 - `updatedAt: string`
@@ -558,7 +532,6 @@ interface StorageStatus
 ```
 
 Miembros públicos:
-
 - `mode: StorageMode`
 - `plan: UserPlan`
 - `cloudEnabled: boolean`
@@ -577,7 +550,6 @@ interface SyncReport
 ```
 
 Miembros públicos:
-
 - `pushed: number`
 - `pulled: number`
 - `syncedAt: string`
@@ -593,7 +565,6 @@ interface EntitlementStatus
 ```
 
 Miembros públicos:
-
 - `appId: string`
 - `userId: string`
 - `plan: UserPlan`
@@ -610,7 +581,6 @@ interface SyncVersionComparable
 ```
 
 Miembros públicos:
-
 - `updatedAt: string`
 - `version: number`
 
@@ -624,7 +594,6 @@ interface IConflictResolutionStrategy
 ```
 
 Miembros públicos:
-
 - `name: string`
 - `shouldAcceptIncoming(incoming: SyncVersionComparable, existing: SyncVersionComparable | null | undefined, options?: { acceptEqualVersion?: boolean }): boolean`
 
@@ -638,7 +607,6 @@ interface IRepository<T extends EntityBase>
 ```
 
 Miembros públicos:
-
 - `entityName: string`
 - `list(options?: { includeDeleted?: boolean }): Promise<T[]>`
 - `findById(id: string): Promise<T | null>`
@@ -655,7 +623,6 @@ interface ISyncableRepository<T extends EntityBase> extends IRepository<T>
 ```
 
 Miembros públicos:
-
 - `getPendingCount(): Promise<number>`
 - `getStorageStatus(): Promise<StorageStatus>`
 - `setStorageMode(mode: StorageMode): Promise<StorageStatus>`
@@ -673,7 +640,6 @@ interface SyncRecordEnvelope<TPayload = Record<string, unknown>>
 ```
 
 Miembros públicos:
-
 - `entity: string`
 - `recordId: string`
 - `payload: TPayload`
@@ -691,7 +657,6 @@ interface SyncPushRequest
 ```
 
 Miembros públicos:
-
 - `appId: string`
 - `userId: string`
 - `deviceId: string`
@@ -708,7 +673,6 @@ interface SyncPullResponse
 ```
 
 Miembros públicos:
-
 - `serverCursor: string`
 - `acceptedCount: number`
 - `changes: SyncRecordEnvelope[]`
@@ -723,7 +687,6 @@ interface IRemoteSyncTransport
 ```
 
 Miembros públicos:
-
 - `checkEntitlement(appId: string, userId: string): Promise<EntitlementStatus>`
 - `setEntitlement(appId: string, userId: string, plan: UserPlan): Promise<EntitlementStatus>`
 - `sync(request: SyncPushRequest): Promise<SyncPullResponse>`
@@ -738,7 +701,6 @@ interface ServerActionContext
 ```
 
 Miembros públicos:
-
 - `appId: string`
 - `userId: string`
 - `driver: ISqlDriver`
@@ -764,7 +726,6 @@ interface RegisteredAppModule
 ```
 
 Miembros públicos:
-
 - `appId: string`
 - `migrations?: SqlMigration[]`
 - `actions?: Record<string, ServerActionHandler>`
@@ -788,7 +749,6 @@ class AsyncMutex
 ```
 
 Miembros públicos:
-
 - `run(task: () => Promise<T>): Promise<T>`
 
 ### `normalizeSqlParams`
@@ -810,7 +770,6 @@ class LastWriteWinsConflictStrategy implements IConflictResolutionStrategy
 ```
 
 Miembros públicos:
-
 - `name: unknown`
 - `shouldAcceptIncoming(incoming: SyncVersionComparable, existing: SyncVersionComparable | null | undefined, options?: { acceptEqualVersion?: boolean }): boolean`
 
@@ -824,7 +783,6 @@ class IncomingWinsConflictStrategy implements IConflictResolutionStrategy
 ```
 
 Miembros públicos:
-
 - `name: unknown`
 - `shouldAcceptIncoming(_incoming: SyncVersionComparable, _existing: SyncVersionComparable | null | undefined, _options?: { acceptEqualVersion?: boolean }): boolean`
 
@@ -838,7 +796,6 @@ class ExistingWinsConflictStrategy implements IConflictResolutionStrategy
 ```
 
 Miembros públicos:
-
 - `name: unknown`
 - `shouldAcceptIncoming(_incoming: SyncVersionComparable, existing: SyncVersionComparable | null | undefined): boolean`
 
@@ -863,7 +820,6 @@ class MigrationRunner
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly driver: ISqlDriver)`
 - `run(migrations: SqlMigration[]): Promise<number[]>`
 
@@ -886,7 +842,6 @@ class SqlKeyValueStore implements IKeyValueStore
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly driver: ISqlDriver)`
 - `get(key: string): Promise<string | null>`
 - `set(key: string, value: string): Promise<void>`
@@ -902,7 +857,6 @@ class MemoryKeyValueStore implements IKeyValueStore
 ```
 
 Miembros públicos:
-
 - `get(key: string): Promise<string | null>`
 - `set(key: string, value: string): Promise<void>`
 - `remove(key: string): Promise<void>`
@@ -917,7 +871,6 @@ class WebStorageKeyValueStore implements IKeyValueStore
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly namespace = 'fw_kv')`
 - `get(key: string): Promise<string | null>`
 - `set(key: string, value: string): Promise<void>`
@@ -933,7 +886,6 @@ interface StoredEntityRecord<T extends EntityBase>
 ```
 
 Miembros públicos:
-
 - `entity: T`
 - `syncStatus: SyncStatus`
 
@@ -947,7 +899,6 @@ interface IEntityStoreDriver
 ```
 
 Miembros públicos:
-
 - `ensureInitialized(): Promise<void>`
 - `list(entityName: string): Promise<StoredEntityRecord<T>[]>`
 - `getById(entityName: string, id: string): Promise<StoredEntityRecord<T> | null>`
@@ -965,7 +916,6 @@ class SqlEntityStoreDriver implements IEntityStoreDriver
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly driver: ISqlDriver)`
 - `ensureInitialized(): Promise<void>`
 - `list(entityName: string): Promise<StoredEntityRecord<T>[]>`
@@ -984,7 +934,6 @@ class InMemoryEntityStoreDriver implements IEntityStoreDriver
 ```
 
 Miembros públicos:
-
 - `ensureInitialized(): Promise<void>`
 - `list(entityName: string): Promise<StoredEntityRecord<T>[]>`
 - `getById(entityName: string, id: string): Promise<StoredEntityRecord<T> | null>`
@@ -1002,7 +951,6 @@ class WebLocalStorageEntityStore implements IEntityStoreDriver
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly namespace = 'fw_entities')`
 - `ensureInitialized(): Promise<void>`
 - `list(entityName: string): Promise<StoredEntityRecord<T>[]>`
@@ -1020,7 +968,6 @@ interface HttpSyncTransportOptions
 ```
 
 Miembros públicos:
-
 - `baseUrl: string`
 - `fetchImpl?: typeof fetch`
 - `timeoutMs?: number`
@@ -1035,7 +982,6 @@ class HttpSyncTransport implements IRemoteSyncTransport
 ```
 
 Miembros públicos:
-
 - `constructor(options: HttpSyncTransportOptions)`
 - `checkEntitlement(appId: string, userId: string): Promise<EntitlementStatus>`
 - `setEntitlement(appId: string, userId: string, plan: UserPlan): Promise<EntitlementStatus>`
@@ -1050,7 +996,6 @@ interface SyncMetadataStoreOptions
 ```
 
 Miembros públicos:
-
 - `kv: IKeyValueStore`
 - `namespacePrefix: string`
 - `defaultMode: StorageMode`
@@ -1066,7 +1011,6 @@ class SyncMetadataStore
 ```
 
 Miembros públicos:
-
 - `constructor(options: SyncMetadataStoreOptions)`
 - `getMode(): Promise<StorageMode>`
 - `setMode(mode: StorageMode): Promise<void>`
@@ -1086,7 +1030,6 @@ interface HybridSyncRepositoryOptions
 ```
 
 Miembros públicos:
-
 - `appId: string`
 - `userId: string`
 - `deviceId: string`
@@ -1109,7 +1052,6 @@ class HybridSyncRepository<T extends EntityBase> implements ISyncableRepository<
 ```
 
 Miembros públicos:
-
 - `entityName: string`
 - `constructor(options: HybridSyncRepositoryOptions)`
 - `subscribeStatus(listener: (status: StorageStatus) => void): () => void`
@@ -1144,7 +1086,6 @@ class LibSqlDriver implements ISqlDriver
 ```
 
 Miembros públicos:
-
 - `driverName: string`
 - `constructor(private readonly config: LibSqlDriverConfig)`
 - `initialize(): Promise<void>`
@@ -1199,7 +1140,6 @@ interface PresetEntity extends EntityBase
 ```
 
 Miembros públicos:
-
 - `name: string`
 - `notes: string`
 - `ambientLevel: number`
@@ -1217,7 +1157,6 @@ interface CreatePresetInput
 ```
 
 Miembros públicos:
-
 - `name: string`
 - `notes?: string`
 - `ambientLevel?: number`
@@ -1241,7 +1180,6 @@ interface UpdatePresetInput
 ```
 
 Miembros públicos:
-
 - `name?: string`
 - `notes?: string`
 - `ambientLevel?: number`
@@ -1260,7 +1198,6 @@ interface PresetStudioViewState
 ```
 
 Miembros públicos:
-
 - `presets: PresetEntity[]`
 - `selectedPresetId: string | null`
 - `filterFavoritesOnly: boolean`
@@ -1279,7 +1216,6 @@ interface IPresetModel extends IModel
 ```
 
 Miembros públicos:
-
 - `loadPresets(): Promise<PresetEntity[]>`
 - `getPresetsSnapshot(): PresetEntity[]`
 - `createPreset(input: CreatePresetInput): Promise<PresetEntity>`
@@ -1300,7 +1236,6 @@ interface IPresetController extends IController<PresetStudioViewState, ViewEvent
 ```
 
 Miembros públicos:
-
 - `refresh(): Promise<void>`
 - `selectPreset(id: string | null): void`
 - `setFilterFavoritesOnly(onlyFavorites: boolean): void`
@@ -1344,7 +1279,6 @@ class PresetModel extends ObservableModel implements IPresetModel
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly repository: ISyncableRepository<PresetEntity>)`
 - `getPresetsSnapshot(): PresetEntity[]`
 - `loadPresets(): Promise<PresetEntity[]>`
@@ -1366,7 +1300,6 @@ class PresetController extends StatefulMvcController<PresetStudioViewState, View
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly model: IPresetModel)`
 - `init(): Promise<void>`
 - `refresh(): Promise<void>`
@@ -1392,7 +1325,6 @@ interface PresetStudioFactoryOptions
 ```
 
 Miembros públicos:
-
 - `store: IEntityStoreDriver`
 - `kv: IKeyValueStore`
 - `deviceId: string`
@@ -1424,7 +1356,6 @@ class ExpoSqliteDriver implements ISqlDriver
 ```
 
 Miembros públicos:
-
 - `driverName: unknown`
 - `constructor(private readonly databaseName = 'framework_app.db')`
 - `initialize(): Promise<void>`
@@ -1471,7 +1402,6 @@ interface CardPricePoint
 ```
 
 Miembros públicos:
-
 - `date: string`
 - `price: number`
 
@@ -1485,7 +1415,6 @@ interface CardEntity extends EntityBase
 ```
 
 Miembros públicos:
-
 - `title: string`
 - `nameEn?: string`
 - `edition: string`
@@ -1494,6 +1423,10 @@ Miembros públicos:
 - `quantity: number`
 - `currentPrice: number`
 - `previousPrice: number`
+- `buyPrice?: number`
+- `isFoil?: boolean`
+- `isAltered?: boolean`
+- `isSigned?: boolean`
 - `condition?: string`
 - `isFavorite: boolean`
 - `imageUrl?: string`
@@ -1510,7 +1443,6 @@ interface CreateCardInput
 ```
 
 Miembros públicos:
-
 - `title: string`
 - `nameEn?: string`
 - `edition?: string`
@@ -1519,6 +1451,10 @@ Miembros públicos:
 - `quantity?: number`
 - `currentPrice?: number`
 - `previousPrice?: number`
+- `buyPrice?: number`
+- `isFoil?: boolean`
+- `isAltered?: boolean`
+- `isSigned?: boolean`
 - `condition?: string`
 - `imageUrl?: string`
 - `scryfallId?: string`
@@ -1534,7 +1470,6 @@ interface ImportCardsOptions
 ```
 
 Miembros públicos:
-
 - `replace?: boolean`
 
 ### `ImportCardsResult`
@@ -1546,7 +1481,6 @@ interface ImportCardsResult
 ```
 
 Miembros públicos:
-
 - `importedCount: number`
 - `replaced: boolean`
 
@@ -1556,7 +1490,7 @@ Miembros públicos:
 - Descripción: Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad.
 
 ```ts
-function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): { diff: number; percent: number; trend: CardTrend; }
+function calculateCardReturn(card: { currentPrice: number; previousPrice: number; buyPrice?: number; }): { diff: number; percent: number; trend: CardTrend; }
 ```
 
 ### `CardmarketSyncResult`
@@ -1569,7 +1503,6 @@ interface CardmarketSyncResult
 ```
 
 Miembros públicos:
-
 - `alreadyUpToDate: boolean`
 - `updatedCount: number`
 - `totalCards: number`
@@ -1585,7 +1518,6 @@ interface MtginvestViewState
 ```
 
 Miembros públicos:
-
 - `items: CardEntity[]`
 - `loading: boolean`
 - `busy: boolean`
@@ -1604,11 +1536,10 @@ interface IMtginvestModel extends IModel
 ```
 
 Miembros públicos:
-
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -1633,10 +1564,9 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 ```
 
 Miembros públicos:
-
 - `scryfallClient: IScryfallApiClient`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
@@ -1663,14 +1593,13 @@ const SERVER_MODULE: RegisteredAppModule
 ### `ScryfallImageUris`
 
 - Origen: `packages/mtginvest-domain/src/scryfall.ts`
-- Descripción: Tipos e interfaces oficiales para la integración con la API de Scryfall (<https://scryfall.com/docs/api>). Diseñado según los principios SOLID (ISP - Interface Segregation Principle y DIP - Dependency Inversion) para permitir desacoplamiento y extensibilidad futura (precios de mercado, autocompletado, legalidades y arte).
+- Descripción: Tipos e interfaces oficiales para la integración con la API de Scryfall (https://scryfall.com/docs/api). Diseñado según los principios SOLID (ISP - Interface Segregation Principle y DIP - Dependency Inversion) para permitir desacoplamiento y extensibilidad futura (precios de mercado, autocompletado, legalidades y arte).
 
 ```ts
 interface ScryfallImageUris
 ```
 
 Miembros públicos:
-
 - `small?: string`
 - `normal?: string`
 - `large?: string`
@@ -1687,7 +1616,6 @@ interface ScryfallCardFace
 ```
 
 Miembros públicos:
-
 - `name: string`
 - `manaCost?: string`
 - `typeLine?: string`
@@ -1703,7 +1631,6 @@ interface ScryfallPrices
 ```
 
 Miembros públicos:
-
 - `eur?: string | null`
 - `eurFoil?: string | null`
 - `usd?: string | null`
@@ -1719,7 +1646,6 @@ interface ScryfallCardData
 ```
 
 Miembros públicos:
-
 - `id: string`
 - `name: string`
 - `printedName?: string`
@@ -1747,7 +1673,6 @@ interface ScryfallSearchResult
 ```
 
 Miembros públicos:
-
 - `totalCards: number`
 - `hasMore: boolean`
 - `nextPage?: string`
@@ -1762,7 +1687,6 @@ interface ScryfallNamedQuery
 ```
 
 Miembros públicos:
-
 - `exact?: string`
 - `fuzzy?: string`
 - `set?: string`
@@ -1776,7 +1700,6 @@ interface ScryfallSearchOptions
 ```
 
 Miembros públicos:
-
 - `page?: number`
 - `unique?: 'cards' | 'art' | 'prints'`
 - `order?: 'name' | 'set' | 'released' | 'rarity' | 'color' | 'usd' | 'eur'`
@@ -1792,7 +1715,6 @@ interface ScryfallCardIdentifier
 ```
 
 Miembros públicos:
-
 - `id?: string`
 - `name?: string`
 - `set?: string`
@@ -1807,7 +1729,6 @@ interface ScryfallCollectionResult
 ```
 
 Miembros públicos:
-
 - `data: ScryfallCardData[]`
 - `notFound: ScryfallCardIdentifier[]`
 
@@ -1821,7 +1742,6 @@ interface IScryfallApiClient
 ```
 
 Miembros públicos:
-
 - `getCardsCollection(identifiers: ScryfallCardIdentifier[]): Promise<ScryfallCollectionResult>`
 - `getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null>`
 - `getCardBySetAndNumber(setCode: string, collectorNumber: string, lang?: string): Promise<ScryfallCardData | null>`
@@ -1846,7 +1766,6 @@ interface ScryfallClientConfig
 ```
 
 Miembros públicos:
-
 - `baseUrl?: string`
 - `userAgent?: string`
 - `rateLimitMs?: number`
@@ -1862,7 +1781,6 @@ class ScryfallApiClient implements IScryfallApiClient
 ```
 
 Miembros públicos:
-
 - `constructor(config: ScryfallClientConfig = {})`
 - `getCardsCollection(identifiers: ScryfallCardIdentifier[]): Promise<ScryfallCollectionResult>`
 - `getCardNamed(params: ScryfallNamedQuery): Promise<ScryfallCardData | null>`
@@ -1889,7 +1807,6 @@ interface CardChartSeriesData
 ```
 
 Miembros públicos:
-
 - `labels: string[]`
 - `values: number[]`
 - `unit: string`
@@ -1982,7 +1899,6 @@ interface PortfolioChartSeriesData
 ```
 
 Miembros públicos:
-
 - `labels: string[]`
 - `investmentValues: number[]`
 - `portfolioValues: number[]`
@@ -2008,7 +1924,6 @@ interface RoiDistributionBucket
 ```
 
 Miembros públicos:
-
 - `id: string`
 - `label: string`
 - `rangeLabel: string`
@@ -2037,7 +1952,6 @@ interface CardProfitLeader
 ```
 
 Miembros públicos:
-
 - `id: string`
 - `title: string`
 - `nameEn?: string`
@@ -2070,7 +1984,6 @@ class MtginvestModel implements IMtginvestModel
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly repository: ISyncableRepository<CardEntity>)`
 - `dispose(): void`
 - `subscribe(listener: () => void): () => void`
@@ -2082,7 +1995,7 @@ Miembros públicos:
 - `exportToJson(): string`
 - `exportToCsv(): string`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -2101,12 +2014,11 @@ class MtginvestController extends BaseController<MtginvestViewState, ViewEvent> 
 ```
 
 Miembros públicos:
-
 - `scryfallClient: IScryfallApiClient`
 - `constructor(private readonly model: IMtginvestModel, scryfallClient?: IScryfallApiClient)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
@@ -2131,7 +2043,6 @@ interface CreateMtginvestControllerOptions
 ```
 
 Miembros públicos:
-
 - `store: IEntityStoreDriver`
 - `kv: IKeyValueStore`
 - `deviceId: string`
@@ -2158,7 +2069,6 @@ interface MtgSet
 ```
 
 Miembros públicos:
-
 - `code: string`
 - `name: string`
 - `year?: string`
@@ -2252,7 +2162,6 @@ interface UseMvcControllerOptions<TEvent = ViewEvent>
 ```
 
 Miembros públicos:
-
 - `autoInit?: boolean`
 - `onEvent?: (event: TEvent) => void`
 
@@ -2275,7 +2184,6 @@ interface FrameworkEnvironment
 ```
 
 Miembros públicos:
-
 - `appId: string`
 - `appName: string`
 - `platformName: string`
@@ -2289,7 +2197,6 @@ interface FrameworkProviderProps
 ```
 
 Miembros públicos:
-
 - `environment: FrameworkEnvironment`
 - `children: ReactNode`
 
@@ -2332,7 +2239,6 @@ interface IServerEntitlementProvider
 ```
 
 Miembros públicos:
-
 - `getEntitlement(appId: string, userId: string): Promise<EntitlementStatus>`
 - `setEntitlement(appId: string, userId: string, plan: UserPlan): Promise<EntitlementStatus>`
 
@@ -2346,7 +2252,6 @@ class SqlEntitlementProvider implements IServerEntitlementProvider
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly driver: ISqlDriver)`
 - `getEntitlement(appId: string, userId: string): Promise<EntitlementStatus>`
 - `setEntitlement(appId: string, userId: string, plan: UserPlan): Promise<EntitlementStatus>`
@@ -2361,7 +2266,6 @@ class CloudSyncService
 ```
 
 Miembros públicos:
-
 - `constructor(private readonly driver: ISqlDriver, private readonly entitlements: IServerEntitlementProvider, private readonly conflictStrategy: IConflictResolutionStrategy = new LastWriteWinsConflictStrategy())`
 - `sync(appId: string, request: Partial<SyncPushRequest>): Promise<SyncPullResponse>`
 - `listEntities(appId: string, userId: string, entityName: string): Promise<Record<string, unknown>[]>`
@@ -2383,7 +2287,6 @@ interface ServerRouterDependencies
 ```
 
 Miembros públicos:
-
 - `driver: ISqlDriver`
 - `entitlements: IServerEntitlementProvider`
 - `syncService: CloudSyncService`
@@ -2410,7 +2313,6 @@ interface FrameworkServerOptions
 ```
 
 Miembros públicos:
-
 - `port?: number`
 - `host?: string`
 - `driver?: ISqlDriver`
@@ -2432,7 +2334,6 @@ interface FrameworkServerInstance
 ```
 
 Miembros públicos:
-
 - `port: number`
 - `host: string`
 - `url: string`
@@ -2480,7 +2381,6 @@ interface ThemeFontFamilies
 ```
 
 Miembros públicos:
-
 - `regular?: string`
 - `medium?: string`
 - `semibold?: string`
@@ -2506,7 +2406,6 @@ interface FrameworkTheme
 ```
 
 Miembros públicos:
-
 - `scheme: 'light' | 'dark'`
 - `colors: { background: string; surface: string; surfaceElevated: string; surfaceMuted: string; border: string; textPrimary: string; textSecondary: string; textInverse: string; accent: string; accentSoft: string; accentText: string; success: string; successSoft: string; warning: string; warningSoft: string; danger: string; dangerSoft: string; trackInactive: string; }`
 - `spacing: { xs: number; sm: number; md: number; lg: number; xl: number; xxl: number; }`
@@ -2566,7 +2465,6 @@ interface IconRenderParams
 ```
 
 Miembros públicos:
-
 - `name: string`
 - `size: number`
 - `color: string`
@@ -2589,7 +2487,6 @@ interface FrameworkThemeProviderProps
 ```
 
 Miembros públicos:
-
 - `preference?: ThemeScheme`
 - `onPreferenceChange?: (preference: ThemeScheme) => void`
 - `initialPreference?: ThemeScheme`
@@ -2656,7 +2553,7 @@ type GoogleIconTone = | 'primary' | 'secondary' | 'accent' | 'success' | 'warnin
 ### `GoogleIconName`
 
 - Origen: `packages/ui/src/components/Icon.tsx`
-- Descripción: Sugerencias de nombres estándar de Google Material Icons usados con más frecuencia (acepta además cualquier nombre válido de <https://fonts.google.com/icons>).
+- Descripción: Sugerencias de nombres estándar de Google Material Icons usados con más frecuencia (acepta además cualquier nombre válido de https://fonts.google.com/icons).
 
 ```ts
 type GoogleIconName = | 'dashboard' | 'tune' | 'cloud-queue' | 'cloud-upload' | 'cloud-off' | 'filter-list' | 'add-circle-outline' | 'delete-outline' | 'star' | 'star-outline' | 'palette' | 'link' | 'sync' | 'check-circle' | 'info-outline' | 'warning-amber' | 'settings' | (string & {})
@@ -2671,7 +2568,6 @@ interface GoogleIconProps
 ```
 
 Miembros públicos:
-
 - `name: GoogleIconName`
 - `size?: GoogleIconSize | number`
 - `tone?: GoogleIconTone`
@@ -2729,7 +2625,6 @@ interface ButtonProps
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `onPress: () => void`
 - `variant?: ButtonVariant`
@@ -2759,7 +2654,6 @@ interface SliderProps
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `value: number`
 - `min?: number`
@@ -2788,7 +2682,6 @@ interface SwitchToggleProps
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `description?: string`
 - `value: boolean`
@@ -2813,7 +2706,6 @@ interface CardProps
 ```
 
 Miembros públicos:
-
 - `title?: string`
 - `subtitle?: string`
 - `icon?: GoogleIconName`
@@ -2840,7 +2732,6 @@ interface TextFieldProps
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `value: string`
 - `onChangeText: (text: string) => void`
@@ -2876,7 +2767,6 @@ interface BadgeProps
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `tone?: BadgeTone`
 
@@ -2898,7 +2788,6 @@ interface SegmentedOption<T extends string>
 ```
 
 Miembros públicos:
-
 - `value: T`
 - `label: string`
 
@@ -2911,7 +2800,6 @@ interface SegmentedControlProps<T extends string>
 ```
 
 Miembros públicos:
-
 - `options: Array<SegmentedOption<T>>`
 - `value: T`
 - `onChange: (next: T) => void`
@@ -2934,7 +2822,6 @@ interface StorageStatusBarProps
 ```
 
 Miembros públicos:
-
 - `status: StorageStatus`
 - `onSyncPress?: () => void`
 - `onManagePress?: () => void`
@@ -2957,7 +2844,6 @@ interface ModalDialogAction
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'`
 - `icon?: GoogleIconName`
@@ -2972,7 +2858,6 @@ interface ModalDialogProps
 ```
 
 Miembros públicos:
-
 - `visible: boolean`
 - `title: string`
 - `description?: string`
@@ -3003,7 +2888,6 @@ interface AppShellTab<T extends string>
 ```
 
 Miembros públicos:
-
 - `id: T`
 - `label: string`
 - `icon?: GoogleIconName`
@@ -3017,7 +2901,6 @@ interface AppShellProps<T extends string>
 ```
 
 Miembros públicos:
-
 - `appName: string`
 - `subtitle?: string`
 - `headerRight?: ReactNode`
@@ -3046,7 +2929,6 @@ interface ChartSeries
 ```
 
 Miembros públicos:
-
 - `id: string`
 - `name: string`
 - `color?: string`
@@ -3061,7 +2943,6 @@ interface SimpleLineChartProps
 ```
 
 Miembros públicos:
-
 - `series: ChartSeries[]`
 - `labels: string[]`
 - `height?: number`
@@ -3094,7 +2975,6 @@ interface MarkedDateConfig
 ```
 
 Miembros públicos:
-
 - `marked?: boolean`
 - `dotColor?: string`
 - `badge?: string`
@@ -3109,7 +2989,6 @@ interface CalendarProps
 ```
 
 Miembros públicos:
-
 - `selectedDate?: string | null`
 - `onSelectDate?: (dateString: string) => void`
 - `minDate?: string`
@@ -3155,7 +3034,6 @@ interface SelectOption<T = string>
 ```
 
 Miembros públicos:
-
 - `label: string`
 - `value: T`
 - `description?: string`
@@ -3170,7 +3048,6 @@ interface SelectProps<T = string>
 ```
 
 Miembros públicos:
-
 - `label?: string`
 - `placeholder?: string`
 - `value?: T | null`
@@ -3201,7 +3078,6 @@ interface SearchInputProps
 ```
 
 Miembros públicos:
-
 - `value: string`
 - `onChangeText: (text: string) => void`
 - `placeholder?: string`

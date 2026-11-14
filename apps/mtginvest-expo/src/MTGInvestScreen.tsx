@@ -464,6 +464,9 @@ export function MTGInvestScreen({
   const [newBuyPrice, setNewBuyPrice] = useState('');
   const [newCurrentPrice, setNewCurrentPrice] = useState('');
   const [newCondition, setNewCondition] = useState('NM');
+  const [newIsFoil, setNewIsFoil] = useState(false);
+  const [newIsAltered, setNewIsAltered] = useState(false);
+  const [newIsSigned, setNewIsSigned] = useState(false);
 
   // Estado para la búsqueda inteligente y autocompletado en Scryfall al añadir carta
   const [scryfallSearchText, setScryfallSearchText] = useState('');
@@ -505,6 +508,9 @@ export function MTGInvestScreen({
   const [editBuyPrice, setEditBuyPrice] = useState('');
   const [editCurrentPrice, setEditCurrentPrice] = useState('');
   const [editCondition, setEditCondition] = useState('NM');
+  const [editIsFoil, setEditIsFoil] = useState(false);
+  const [editIsAltered, setEditIsAltered] = useState(false);
+  const [editIsSigned, setEditIsSigned] = useState(false);
   const [cardArtUrl, setCardArtUrl] = useState<string | null>(null);
   const [displayArtUri, setDisplayArtUri] = useState<string | null>(null);
   const [loadingArt, setLoadingArt] = useState(false);
@@ -620,7 +626,7 @@ export function MTGInvestScreen({
   const filteredAndSortedCards = useMemo(() => {
     const q = normalizeText(searchQuery);
 
-    // 1. Filtrado en tiempo real por nombre (ES/EN) o edición (nombre/código)
+    // 1. Filtrado en tiempo real por nombre (ES/EN) o edición (nombre/código) o atributos (foil, alterada, firmada)
     const filtered = state.items.filter((card) => {
       if (!q) return true;
       const titleMatch = normalizeText(card.title).includes(q);
@@ -628,24 +634,40 @@ export function MTGInvestScreen({
       const editionMatch = normalizeText(card.edition).includes(q);
       const codeMatch = card.editionCode ? normalizeText(card.editionCode).includes(q) : false;
       const langMatch = card.language ? normalizeText(card.language).includes(q) : false;
-      return titleMatch || nameEnMatch || editionMatch || codeMatch || langMatch;
+      const foilMatch = Boolean(card.isFoil) && (q.includes('foil') || q.includes('brill') || 'foil'.includes(q));
+      const alteredMatch =
+        Boolean(card.isAltered) && (q.includes('alter') || 'alterada'.includes(q) || 'altered'.includes(q));
+      const signedMatch =
+        Boolean(card.isSigned) && (q.includes('firm') || 'firmada'.includes(q) || 'signed'.includes(q));
+      return (
+        titleMatch ||
+        nameEnMatch ||
+        editionMatch ||
+        codeMatch ||
+        langMatch ||
+        foilMatch ||
+        alteredMatch ||
+        signedMatch
+      );
     });
 
     // 2. Ordenación según el criterio seleccionado
     return filtered.sort((a, b) => {
+      const baseA = a.buyPrice !== undefined && a.buyPrice > 0 ? a.buyPrice : a.previousPrice;
+      const baseB = b.buyPrice !== undefined && b.buyPrice > 0 ? b.buyPrice : b.previousPrice;
       switch (sortBy) {
         case 'price_desc':
           return b.currentPrice - a.currentPrice;
         case 'price_asc':
           return a.currentPrice - b.currentPrice;
         case 'gain_desc': {
-          const gainA = (a.currentPrice - a.previousPrice) * (a.quantity ?? 1);
-          const gainB = (b.currentPrice - b.previousPrice) * (b.quantity ?? 1);
+          const gainA = (a.currentPrice - baseA) * (a.quantity ?? 1);
+          const gainB = (b.currentPrice - baseB) * (b.quantity ?? 1);
           return gainB - gainA;
         }
         case 'loss_asc': {
-          const gainA = (a.currentPrice - a.previousPrice) * (a.quantity ?? 1);
-          const gainB = (b.currentPrice - b.previousPrice) * (b.quantity ?? 1);
+          const gainA = (a.currentPrice - baseA) * (a.quantity ?? 1);
+          const gainB = (b.currentPrice - baseB) * (b.quantity ?? 1);
           return gainA - gainB;
         }
         case 'quantity_desc':
@@ -672,7 +694,8 @@ export function MTGInvestScreen({
     for (const card of state.items) {
       const qty = card.quantity ?? 1;
       totalQuantity += qty;
-      totalInvested += card.previousPrice * qty;
+      const baseCost = card.buyPrice !== undefined && card.buyPrice > 0 ? card.buyPrice : card.previousPrice;
+      totalInvested += baseCost * qty;
       totalCurrent += card.currentPrice * qty;
     }
 
@@ -715,15 +738,19 @@ export function MTGInvestScreen({
       return { labels: [], values: [], unit: '€' };
     }
     const currentP = parseFloat(editCurrentPrice.replace(',', '.')) || editingCard.currentPrice;
-    const prevP = parseFloat(editBuyPrice.replace(',', '.')) || editingCard.previousPrice;
+    const prevP = parseFloat(editBuyPrice.replace(',', '.')) || (editingCard.buyPrice ?? editingCard.previousPrice);
     const cardSnapshot: CardEntity = {
       ...editingCard,
       currentPrice: currentP,
-      previousPrice: prevP
+      previousPrice: prevP,
+      buyPrice: prevP,
+      isFoil: editIsFoil,
+      isAltered: editIsAltered,
+      isSigned: editIsSigned
     };
 
     return buildCardChart(cardSnapshot, chartTimeframe);
-  }, [editingCard, editCurrentPrice, editBuyPrice, chartTimeframe]);
+  }, [editingCard, editCurrentPrice, editBuyPrice, editIsFoil, editIsAltered, editIsSigned, chartTimeframe]);
 
   // Autocompletado reactivo con Scryfall al escribir en el buscador del modal de añadir carta
   useEffect(() => {
@@ -851,8 +878,16 @@ export function MTGInvestScreen({
     }
 
     // 3. Cotización actual de Cardmarket en EUR (o USD como referencia)
-    const eurPrice = card.prices?.eur ?? card.prices?.eurFoil;
-    const usdPrice = card.prices?.usd ?? card.prices?.usdFoil;
+    const preferFoil = newIsFoil || (!card.prices?.eur && Boolean(card.prices?.eurFoil));
+    if (preferFoil && !newIsFoil && Boolean(card.prices?.eurFoil)) {
+      setNewIsFoil(true);
+    }
+    const eurPrice = preferFoil
+      ? (card.prices?.eurFoil ?? card.prices?.eur)
+      : (card.prices?.eur ?? card.prices?.eurFoil);
+    const usdPrice = preferFoil
+      ? (card.prices?.usdFoil ?? card.prices?.usd)
+      : (card.prices?.usd ?? card.prices?.usdFoil);
     if (eurPrice) {
       setNewCurrentPrice(eurPrice);
       if (!newBuyPrice || newBuyPrice === '0' || newBuyPrice === '') {
@@ -893,6 +928,9 @@ export function MTGInvestScreen({
     setNewBuyPrice('');
     setNewCurrentPrice('');
     setNewCondition('NM');
+    setNewIsFoil(false);
+    setNewIsAltered(false);
+    setNewIsSigned(false);
     setSelectedScryfallCard(null);
     setScryfallSearchText('');
     setScryfallSuggestions([]);
@@ -918,6 +956,10 @@ export function MTGInvestScreen({
       quantity: qty,
       currentPrice: current,
       previousPrice: previous,
+      buyPrice: previous,
+      isFoil: newIsFoil,
+      isAltered: newIsAltered,
+      isSigned: newIsSigned,
       condition: newCondition.trim() || undefined,
       imageUrl: newImageUrl || undefined,
       scryfallId: newScryfallId || undefined,
@@ -937,9 +979,12 @@ export function MTGInvestScreen({
     setEditEditionCode(card.editionCode ?? '');
     setEditLanguage(card.language ?? 'EN');
     setEditQuantity(String(card.quantity ?? 1));
-    setEditBuyPrice(String(card.previousPrice));
+    setEditBuyPrice(String(card.buyPrice ?? card.previousPrice));
     setEditCurrentPrice(String(card.currentPrice));
     setEditCondition(card.condition ?? 'NM');
+    setEditIsFoil(Boolean(card.isFoil));
+    setEditIsAltered(Boolean(card.isAltered));
+    setEditIsSigned(Boolean(card.isSigned));
 
     // Arte de la carta desde Scryfall
     setImageLoadError(false);
@@ -1014,6 +1059,10 @@ export function MTGInvestScreen({
       quantity: qty,
       currentPrice: current,
       previousPrice: previous,
+      buyPrice: previous,
+      isFoil: editIsFoil,
+      isAltered: editIsAltered,
+      isSigned: editIsSigned,
       condition: editCondition.trim() || undefined,
       imageUrl: cardArtUrl ?? editingCard.imageUrl
     });
@@ -1522,6 +1571,24 @@ export function MTGInvestScreen({
                           </View>
                         ) : null}
 
+                        {/* Atributos de coleccionismo en esquina inferior izquierda */}
+                        {card.isFoil || card.isAltered || card.isSigned ? (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              bottom: 6,
+                              left: 6,
+                              zIndex: 2,
+                              flexDirection: 'row',
+                              gap: 3
+                            }}
+                          >
+                            {card.isFoil ? <Badge label="FOIL ✨" tone="accent" /> : null}
+                            {card.isAltered ? <Badge label="ALTER 🎨" tone="neutral" /> : null}
+                            {card.isSigned ? <Badge label="FIRMA ✍️" tone="neutral" /> : null}
+                          </View>
+                        ) : null}
+
                         {/* Pastilla flotante con cotización actual en esquina inferior derecha */}
                         <View
                           style={{
@@ -1607,7 +1674,9 @@ export function MTGInvestScreen({
                               ...textTypographyStyle(theme, 'regular')
                             }}
                           >
-                            Ant: {card.previousPrice.toFixed(2)} €
+                            {card.buyPrice !== undefined && card.buyPrice > 0
+                              ? `Coste: ${card.buyPrice.toFixed(2)} €`
+                              : `Ant: ${card.previousPrice.toFixed(2)} €`}
                           </Text>
                           <View
                             style={{
@@ -1748,6 +1817,9 @@ export function MTGInvestScreen({
                           {card.condition ? (
                             <Badge label={card.condition} tone="neutral" />
                           ) : null}
+                          {card.isFoil ? <Badge label="FOIL ✨" tone="accent" /> : null}
+                          {card.isAltered ? <Badge label="ALTER 🎨" tone="neutral" /> : null}
+                          {card.isSigned ? <Badge label="FIRMA ✍️" tone="neutral" /> : null}
                         </View>
                       </View>
 
@@ -1771,7 +1843,9 @@ export function MTGInvestScreen({
                             ...textTypographyStyle(theme, 'regular')
                           }}
                         >
-                          Ant: {card.previousPrice.toFixed(2)} €
+                          {card.buyPrice !== undefined && card.buyPrice > 0
+                            ? `Coste: ${card.buyPrice.toFixed(2)} €`
+                            : `Ant: ${card.previousPrice.toFixed(2)} €`}
                         </Text>
                         {(card.quantity ?? 1) > 1 ? (
                           <Text
@@ -2204,6 +2278,119 @@ export function MTGInvestScreen({
                   />
                 </View>
               </View>
+
+              {/* Atributos especiales de coleccionismo físico */}
+              <View style={{ gap: 4, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: 11,
+                    ...textTypographyStyle(theme, 'medium')
+                  }}
+                >
+                  Atributos de coleccionismo físico
+                </Text>
+                <View style={{ flexDirection: 'row', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+                  <Pressable
+                    onPress={() => setNewIsFoil(!newIsFoil)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: newIsFoil }}
+                    accessibilityLabel="Marcar como versión Foil"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: theme.radius.full,
+                      backgroundColor: newIsFoil ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: newIsFoil ? theme.colors.accent : theme.colors.border
+                    }}
+                  >
+                    <GoogleIcon
+                      name="auto-awesome"
+                      size={14}
+                      color={newIsFoil ? theme.colors.accent : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: newIsFoil ? theme.colors.accent : theme.colors.textSecondary,
+                        ...textTypographyStyle(theme, newIsFoil ? 'bold' : 'regular')
+                      }}
+                    >
+                      Foil ✨
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setNewIsAltered(!newIsAltered)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: newIsAltered }}
+                    accessibilityLabel="Marcar como carta Alterada"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: theme.radius.full,
+                      backgroundColor: newIsAltered ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: newIsAltered ? theme.colors.accent : theme.colors.border
+                    }}
+                  >
+                    <GoogleIcon
+                      name="palette"
+                      size={14}
+                      color={newIsAltered ? theme.colors.accent : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: newIsAltered ? theme.colors.accent : theme.colors.textSecondary,
+                        ...textTypographyStyle(theme, newIsAltered ? 'bold' : 'regular')
+                      }}
+                    >
+                      Alterada 🎨
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setNewIsSigned(!newIsSigned)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: newIsSigned }}
+                    accessibilityLabel="Marcar como carta Firmada"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: theme.radius.full,
+                      backgroundColor: newIsSigned ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: newIsSigned ? theme.colors.accent : theme.colors.border
+                    }}
+                  >
+                    <GoogleIcon
+                      name="edit"
+                      size={14}
+                      color={newIsSigned ? theme.colors.accent : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: newIsSigned ? theme.colors.accent : theme.colors.textSecondary,
+                        ...textTypographyStyle(theme, newIsSigned ? 'bold' : 'regular')
+                      }}
+                    >
+                      Firmada ✍️
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
           </ModalDialog>
 
@@ -2457,6 +2644,119 @@ export function MTGInvestScreen({
                     keyboardType="numeric"
                     onChangeText={setEditCurrentPrice}
                   />
+                </View>
+              </View>
+
+              {/* Atributos especiales de coleccionismo físico */}
+              <View style={{ gap: 4, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: 11,
+                    ...textTypographyStyle(theme, 'medium')
+                  }}
+                >
+                  Atributos de coleccionismo físico
+                </Text>
+                <View style={{ flexDirection: 'row', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+                  <Pressable
+                    onPress={() => setEditIsFoil(!editIsFoil)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: editIsFoil }}
+                    accessibilityLabel="Marcar como versión Foil"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: theme.radius.full,
+                      backgroundColor: editIsFoil ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: editIsFoil ? theme.colors.accent : theme.colors.border
+                    }}
+                  >
+                    <GoogleIcon
+                      name="auto-awesome"
+                      size={14}
+                      color={editIsFoil ? theme.colors.accent : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: editIsFoil ? theme.colors.accent : theme.colors.textSecondary,
+                        ...textTypographyStyle(theme, editIsFoil ? 'bold' : 'regular')
+                      }}
+                    >
+                      Foil ✨
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setEditIsAltered(!editIsAltered)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: editIsAltered }}
+                    accessibilityLabel="Marcar como carta Alterada"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: theme.radius.full,
+                      backgroundColor: editIsAltered ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: editIsAltered ? theme.colors.accent : theme.colors.border
+                    }}
+                  >
+                    <GoogleIcon
+                      name="palette"
+                      size={14}
+                      color={editIsAltered ? theme.colors.accent : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: editIsAltered ? theme.colors.accent : theme.colors.textSecondary,
+                        ...textTypographyStyle(theme, editIsAltered ? 'bold' : 'regular')
+                      }}
+                    >
+                      Alterada 🎨
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setEditIsSigned(!editIsSigned)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: editIsSigned }}
+                    accessibilityLabel="Marcar como carta Firmada"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: theme.radius.full,
+                      backgroundColor: editIsSigned ? theme.colors.accentSoft : theme.colors.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: editIsSigned ? theme.colors.accent : theme.colors.border
+                    }}
+                  >
+                    <GoogleIcon
+                      name="edit"
+                      size={14}
+                      color={editIsSigned ? theme.colors.accent : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: editIsSigned ? theme.colors.accent : theme.colors.textSecondary,
+                        ...textTypographyStyle(theme, editIsSigned ? 'bold' : 'regular')
+                      }}
+                    >
+                      Firmada ✍️
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
 

@@ -31,6 +31,10 @@ export function exportCardsToJson(cards: CardEntity[]): string {
       quantity: c.quantity ?? 1,
       currentPrice: c.currentPrice,
       previousPrice: c.previousPrice,
+      buyPrice: c.buyPrice ?? c.previousPrice,
+      isFoil: Boolean(c.isFoil),
+      isAltered: Boolean(c.isAltered),
+      isSigned: Boolean(c.isSigned),
       condition: c.condition ?? 'NM',
       imageUrl: c.imageUrl ?? null,
       scryfallId: c.scryfallId ?? null,
@@ -54,6 +58,10 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     'quantity',
     'currentPrice',
     'previousPrice',
+    'buyPrice',
+    'isFoil',
+    'isAltered',
+    'isSigned',
     'condition',
     'imageUrl',
     'scryfallId',
@@ -69,6 +77,10 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     escapeCsvCell(c.quantity ?? 1),
     escapeCsvCell(c.currentPrice),
     escapeCsvCell(c.previousPrice),
+    escapeCsvCell(c.buyPrice ?? c.previousPrice),
+    escapeCsvCell(c.isFoil ? 'true' : 'false'),
+    escapeCsvCell(c.isAltered ? 'true' : 'false'),
+    escapeCsvCell(c.isSigned ? 'true' : 'false'),
     escapeCsvCell(c.condition ?? 'NM'),
     escapeCsvCell(c.imageUrl ?? ''),
     escapeCsvCell(c.scryfallId ?? ''),
@@ -126,6 +138,13 @@ export function parseCardsFromJson(jsonStr: string): CreateCardInput[] {
     const previousPrice = parseNum(
       item.previousPrice ?? item.previous_price ?? item.buyPrice ?? item.precioCompra ?? currentPrice
     );
+    const buyPrice =
+      item.buyPrice !== undefined || item.precioCompra !== undefined
+        ? parseNum(item.buyPrice ?? item.precioCompra)
+        : previousPrice;
+    const isFoil = Boolean(item.isFoil ?? item.foil ?? item.brillante);
+    const isAltered = Boolean(item.isAltered ?? item.altered ?? item.alterada);
+    const isSigned = Boolean(item.isSigned ?? item.signed ?? item.firmada);
 
     result.push({
       title,
@@ -136,6 +155,10 @@ export function parseCardsFromJson(jsonStr: string): CreateCardInput[] {
       quantity,
       currentPrice,
       previousPrice,
+      buyPrice,
+      isFoil,
+      isAltered,
+      isSigned,
       condition: item.condition ?? item.estado ?? 'NM',
       imageUrl: item.imageUrl ?? item.image_url ?? undefined,
       scryfallId: item.scryfallId ?? item.scryfall_id ?? undefined,
@@ -263,7 +286,11 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
   const langIdx = findIdx('language', 'lang', 'idioma');
   const qtyIdx = findIdx('quantity', 'qty', 'cantidad', 'copias');
   const currentPriceIdx = findIdx('currentprice', 'current_price', 'price', 'precio', 'valor', 'precioactual');
-  const prevPriceIdx = findIdx('previousprice', 'previous_price', 'buyprice', 'preciocompra', 'coste');
+  const prevPriceIdx = findIdx('previousprice', 'previous_price', 'coste');
+  const buyPriceIdx = findIdx('buyprice', 'buy_price', 'preciocompra', 'compra', 'coste');
+  const foilIdx = findIdx('isfoil', 'foil', 'brillante');
+  const alteredIdx = findIdx('isaltered', 'altered', 'alterada');
+  const signedIdx = findIdx('issigned', 'signed', 'firmada');
   const conditionIdx = findIdx('condition', 'estado', 'cond');
   const imageUrlIdx = findIdx('imageurl', 'image_url', 'imagen', 'portada');
   const scryfallIdIdx = findIdx('scryfallid', 'scryfall_id', 'id_scryfall');
@@ -273,6 +300,12 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
     if (!v) return 0;
     const clean = v.replace(/[€$]/g, '').trim().replace(',', '.');
     return parseFloat(clean) || 0;
+  };
+
+  const parseBool = (v: string | undefined): boolean => {
+    if (!v) return false;
+    const clean = v.trim().toLowerCase();
+    return clean === 'true' || clean === '1' || clean === 'yes' || clean === 'si' || clean === 'sí';
   };
 
   const result: CreateCardInput[] = [];
@@ -289,6 +322,10 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
     const quantity = qtyIdx !== -1 ? Math.max(1, parseInt(row[qtyIdx] ?? '1', 10) || 1) : 1;
     const currentPrice = currentPriceIdx !== -1 ? parseNum(row[currentPriceIdx]) : 0;
     const previousPrice = prevPriceIdx !== -1 ? parseNum(row[prevPriceIdx]) : currentPrice;
+    const buyPrice = buyPriceIdx !== -1 ? parseNum(row[buyPriceIdx]) : previousPrice;
+    const isFoil = foilIdx !== -1 ? parseBool(row[foilIdx]) : false;
+    const isAltered = alteredIdx !== -1 ? parseBool(row[alteredIdx]) : false;
+    const isSigned = signedIdx !== -1 ? parseBool(row[signedIdx]) : false;
     const condition = conditionIdx !== -1 && row[conditionIdx]?.trim() ? row[conditionIdx]!.trim() : 'NM';
     const imageUrl = imageUrlIdx !== -1 && row[imageUrlIdx]?.trim() ? row[imageUrlIdx]!.trim() : undefined;
     const scryfallId = scryfallIdIdx !== -1 && row[scryfallIdIdx]?.trim() ? row[scryfallIdIdx]!.trim() : undefined;
@@ -303,6 +340,10 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
       quantity,
       currentPrice,
       previousPrice,
+      buyPrice,
+      isFoil,
+      isAltered,
+      isSigned,
       condition,
       imageUrl,
       scryfallId,

@@ -20,6 +20,10 @@ describe('MTGInvest Import / Export module', () => {
       quantity: 2,
       currentPrice: 285.5,
       previousPrice: 250.0,
+      buyPrice: 220.0,
+      isFoil: true,
+      isAltered: false,
+      isSigned: true,
       condition: 'EX',
       isFavorite: true,
       imageUrl: 'https://cards.scryfall.io/normal/front/1/2/3ed-taiga.jpg',
@@ -60,6 +64,10 @@ describe('MTGInvest Import / Export module', () => {
     expect(parsed[0]?.title).toBe('Taiga');
     expect(parsed[0]?.editionCode).toBe('3ED');
     expect(parsed[0]?.currentPrice).toBe(285.5);
+    expect(parsed[0]?.buyPrice).toBe(220.0);
+    expect(parsed[0]?.isFoil).toBe(true);
+    expect(parsed[0]?.isAltered).toBe(false);
+    expect(parsed[0]?.isSigned).toBe(true);
     expect(parsed[0]?.quantity).toBe(2);
     expect(parsed[1]?.title).toBe('Ángel de Serra');
     expect(parsed[1]?.nameEn).toBe('Serra Angel');
@@ -75,6 +83,10 @@ describe('MTGInvest Import / Export module', () => {
     expect(parsed[0]?.title).toBe('Taiga');
     expect(parsed[0]?.editionCode).toBe('3ED');
     expect(parsed[0]?.currentPrice).toBe(285.5);
+    expect(parsed[0]?.buyPrice).toBe(220.0);
+    expect(parsed[0]?.isFoil).toBe(true);
+    expect(parsed[0]?.isAltered).toBe(false);
+    expect(parsed[0]?.isSigned).toBe(true);
     expect(parsed[0]?.quantity).toBe(2);
     expect(parsed[1]?.title).toBe('Ángel de Serra');
     expect(parsed[1]?.nameEn).toBe('Serra Angel');

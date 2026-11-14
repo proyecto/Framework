@@ -31,7 +31,11 @@ export interface CardEntity extends EntityBase {
   language?: string;          // Idioma de la carta (ej. "EN", "ES", "IT", "FR")
   quantity: number;           // Cantidad de cartas que se poseen (ej. 1, 4)
   currentPrice: number;       // Último valor de mercado registrado (€)
-  previousPrice: number;      // Valor anterior de referencia o compra (€)
+  previousPrice: number;      // Valor anterior de referencia o última cotización (€)
+  buyPrice?: number;          // Precio de compra unitario original / Coste de adquisición (€)
+  isFoil?: boolean;           // Versión foil / brillante (Scryfall consulta eur_foil)
+  isAltered?: boolean;        // Carta alterada artísticamente (full art, bordes extendidos, pintura)
+  isSigned?: boolean;         // Carta firmada (por artista o jugador)
   condition?: string;         // Estado (NM, LP, EX, PL, PO)
   isFavorite: boolean;
   imageUrl?: string;          // URL del arte/carta resuelta desde Scryfall
@@ -49,6 +53,10 @@ export interface CreateCardInput {
   quantity?: number;
   currentPrice?: number;
   previousPrice?: number;
+  buyPrice?: number;
+  isFoil?: boolean;
+  isAltered?: boolean;
+  isSigned?: boolean;
   condition?: string;
   imageUrl?: string;
   scryfallId?: string;
@@ -66,15 +74,21 @@ export interface ImportCardsResult {
 }
 
 /** Calcula la variación absoluta, porcentual y la tendencia estilo bursátil por unidad. */
-export function calculateCardReturn(card: { currentPrice: number; previousPrice: number }): {
+export function calculateCardReturn(card: {
+  currentPrice: number;
+  previousPrice: number;
+  buyPrice?: number;
+}): {
   diff: number;
   percent: number;
   trend: CardTrend;
 } {
-  const diff = Number((card.currentPrice - card.previousPrice).toFixed(2));
+  const basePrice =
+    card.buyPrice !== undefined && card.buyPrice > 0 ? card.buyPrice : card.previousPrice;
+  const diff = Number((card.currentPrice - basePrice).toFixed(2));
   const percent =
-    card.previousPrice > 0
-      ? Number(((diff / card.previousPrice) * 100).toFixed(1))
+    basePrice > 0
+      ? Number(((diff / basePrice) * 100).toFixed(1))
       : 0;
   const trend: CardTrend = diff > 0.005 ? 'up' : diff < -0.005 ? 'down' : 'flat';
   return { diff, percent, trend };
@@ -117,6 +131,10 @@ export interface IMtginvestModel extends IModel {
         | 'quantity'
         | 'currentPrice'
         | 'previousPrice'
+        | 'buyPrice'
+        | 'isFoil'
+        | 'isAltered'
+        | 'isSigned'
         | 'condition'
         | 'imageUrl'
         | 'scryfallId'
@@ -160,6 +178,10 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
         | 'quantity'
         | 'currentPrice'
         | 'previousPrice'
+        | 'buyPrice'
+        | 'isFoil'
+        | 'isAltered'
+        | 'isSigned'
         | 'condition'
         | 'imageUrl'
         | 'scryfallId'
