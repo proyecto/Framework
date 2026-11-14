@@ -54,7 +54,7 @@ function getInitialViewMode(): CardListViewMode {
       const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
       if (saved === 'list' || saved === 'grid') return saved;
     }
-  } catch { }
+  } catch {}
   return 'grid';
 }
 
@@ -453,7 +453,7 @@ export function MTGInvestScreen({
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
         }
-      } catch { }
+      } catch {}
       return next;
     });
   };
@@ -477,7 +477,7 @@ export function MTGInvestScreen({
   // Al abrir la aplicación, sincroniza en segundo plano las cotizaciones y portadas de Scryfall/Cardmarket
   useEffect(() => {
     const hasMissingImages = state.items.length > 0 && state.items.some((c) => !c.imageUrl);
-    void controller.syncCardmarketPrices({ force: hasMissingImages }).catch(() => { });
+    void controller.syncCardmarketPrices({ force: hasMissingImages }).catch(() => {});
   }, [controller, state.items.length]);
 
   // Resuelve la imagen a Data URI local en móvil para eludir bloqueos 403 de Cloudflare a OkHttp
@@ -660,7 +660,7 @@ export function MTGInvestScreen({
             if (exactRes && exactRes.data.length > 0) {
               results = exactRes;
             }
-          } catch { }
+          } catch {}
         }
 
         // 2. Si no es un nombre exacto o no hubo coincidencia, buscamos impresiones físicas generales
@@ -673,7 +673,7 @@ export function MTGInvestScreen({
             if (generalRes && generalRes.data.length > 0) {
               results = generalRes;
             }
-          } catch { }
+          } catch {}
         }
 
         // 3. Fallback con comodín si solo se escribió una palabra parcial (ej. "tai*", "mox*")
@@ -686,7 +686,7 @@ export function MTGInvestScreen({
             if (wildRes && wildRes.data.length > 0) {
               results = wildRes;
             }
-          } catch { }
+          } catch {}
         }
 
         // 4. Fallback internacional si está en español u otro idioma (ej. "Ángel de Serra")
@@ -699,7 +699,7 @@ export function MTGInvestScreen({
             if (langRes && langRes.data.length > 0) {
               results = langRes;
             }
-          } catch { }
+          } catch {}
         }
 
         // 5. Fallback general sin filtro game:paper por si se busca un set o edición especial
@@ -713,7 +713,7 @@ export function MTGInvestScreen({
             if (anyRes && anyRes.data.length > 0) {
               results = anyRes;
             }
-          } catch { }
+          } catch {}
         }
 
         if (!active) return;
@@ -1029,8 +1029,8 @@ export function MTGInvestScreen({
                     portfolioSummary.trend === 'up'
                       ? theme.colors.successSoft
                       : portfolioSummary.trend === 'down'
-                        ? theme.colors.dangerSoft
-                        : theme.colors.surface,
+                      ? theme.colors.dangerSoft
+                      : theme.colors.surface,
                   paddingHorizontal: theme.spacing.sm,
                   paddingVertical: theme.spacing.xs,
                   borderRadius: theme.radius.md
@@ -1042,16 +1042,16 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'trending-up'
                         : portfolioSummary.trend === 'down'
-                          ? 'trending-down'
-                          : 'trending-flat'
+                        ? 'trending-down'
+                        : 'trending-flat'
                     }
                     size={18}
                     color={
                       portfolioSummary.trend === 'up'
                         ? theme.colors.success
                         : portfolioSummary.trend === 'down'
-                          ? theme.colors.danger
-                          : theme.colors.textSecondary
+                        ? theme.colors.danger
+                        : theme.colors.textSecondary
                     }
                   />
                   <Text
@@ -1060,8 +1060,8 @@ export function MTGInvestScreen({
                         portfolioSummary.trend === 'up'
                           ? theme.colors.success
                           : portfolioSummary.trend === 'down'
-                            ? theme.colors.danger
-                            : theme.colors.textSecondary,
+                          ? theme.colors.danger
+                          : theme.colors.textSecondary,
                       fontSize: theme.typography.bodySize,
                       fontVariant: ['tabular-nums'],
                       ...textTypographyStyle(theme, 'bold')
@@ -1077,8 +1077,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? theme.colors.success
                         : portfolioSummary.trend === 'down'
-                          ? theme.colors.danger
-                          : theme.colors.textSecondary,
+                        ? theme.colors.danger
+                        : theme.colors.textSecondary,
                     fontSize: theme.typography.captionSize,
                     fontVariant: ['tabular-nums'],
                     ...textTypographyStyle(theme, 'semibold')
@@ -1272,13 +1272,13 @@ export function MTGInvestScreen({
                   const trendColor = isUp
                     ? theme.colors.success
                     : isDown
-                      ? theme.colors.danger
-                      : theme.colors.textSecondary;
+                    ? theme.colors.danger
+                    : theme.colors.textSecondary;
                   const trendBg = isUp
                     ? theme.colors.successSoft
                     : isDown
-                      ? theme.colors.dangerSoft
-                      : theme.colors.surfaceMuted;
+                    ? theme.colors.dangerSoft
+                    : theme.colors.surfaceMuted;
 
                   return (
                     <Pressable
@@ -1461,13 +1461,13 @@ export function MTGInvestScreen({
                 const trendColor = isUp
                   ? theme.colors.success
                   : isDown
-                    ? theme.colors.danger
-                    : theme.colors.textSecondary;
+                  ? theme.colors.danger
+                  : theme.colors.textSecondary;
                 const trendBg = isUp
                   ? theme.colors.successSoft
                   : isDown
-                    ? theme.colors.dangerSoft
-                    : theme.colors.surfaceMuted;
+                  ? theme.colors.dangerSoft
+                  : theme.colors.surfaceMuted;
 
                 const totalCardValue = card.currentPrice * (card.quantity ?? 1);
 
@@ -2377,8 +2377,8 @@ export function MTGInvestScreen({
                       backgroundColor: isSelected
                         ? theme.colors.accentSoft
                         : pressed
-                          ? theme.colors.surfaceMuted
-                          : theme.colors.surface,
+                        ? theme.colors.surfaceMuted
+                        : theme.colors.surface,
                       borderColor: isSelected ? theme.colors.accent : theme.colors.border,
                       borderWidth: 1,
                       borderRadius: theme.radius.md,
@@ -2557,8 +2557,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.08)'
                         : portfolioSummary.trend === 'down'
-                          ? 'rgba(239, 68, 68, 0.08)'
-                          : theme.colors.surfaceMuted,
+                        ? 'rgba(239, 68, 68, 0.08)'
+                        : theme.colors.surfaceMuted,
                     padding: theme.spacing.md,
                     borderRadius: theme.radius.md,
                     borderWidth: 1,
@@ -2566,8 +2566,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.25)'
                         : portfolioSummary.trend === 'down'
-                          ? 'rgba(239, 68, 68, 0.25)'
-                          : theme.colors.border,
+                        ? 'rgba(239, 68, 68, 0.25)'
+                        : theme.colors.border,
                     gap: 3
                   }}
                 >
@@ -2586,8 +2586,8 @@ export function MTGInvestScreen({
                         portfolioSummary.trend === 'up'
                           ? '#10B981'
                           : portfolioSummary.trend === 'down'
-                            ? '#EF4444'
-                            : theme.colors.textPrimary,
+                          ? '#EF4444'
+                          : theme.colors.textPrimary,
                       fontSize: theme.typography.titleSize - 2,
                       ...textTypographyStyle(theme, 'bold')
                     }}
@@ -2619,8 +2619,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.08)'
                         : portfolioSummary.trend === 'down'
-                          ? 'rgba(239, 68, 68, 0.08)'
-                          : theme.colors.surfaceMuted,
+                        ? 'rgba(239, 68, 68, 0.08)'
+                        : theme.colors.surfaceMuted,
                     padding: theme.spacing.md,
                     borderRadius: theme.radius.md,
                     borderWidth: 1,
@@ -2628,8 +2628,8 @@ export function MTGInvestScreen({
                       portfolioSummary.trend === 'up'
                         ? 'rgba(16, 185, 129, 0.25)'
                         : portfolioSummary.trend === 'down'
-                          ? 'rgba(239, 68, 68, 0.25)'
-                          : theme.colors.border,
+                        ? 'rgba(239, 68, 68, 0.25)'
+                        : theme.colors.border,
                     gap: 3
                   }}
                 >
@@ -2648,8 +2648,8 @@ export function MTGInvestScreen({
                         portfolioSummary.trend === 'up'
                           ? '#10B981'
                           : portfolioSummary.trend === 'down'
-                            ? '#EF4444'
-                            : theme.colors.textPrimary,
+                          ? '#EF4444'
+                          : theme.colors.textPrimary,
                       fontSize: theme.typography.titleSize - 2,
                       ...textTypographyStyle(theme, 'bold')
                     }}
