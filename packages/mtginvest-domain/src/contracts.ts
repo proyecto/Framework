@@ -133,7 +133,6 @@ export interface IMtginvestModel extends IModel {
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<CardEntity[]>;
   clearInventory(): Promise<CardEntity[]>;
-  importMissingSeeds(): Promise<CardEntity[]>;
   importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>;
   exportToJson(): string;
   exportToCsv(): string;
@@ -141,6 +140,7 @@ export interface IMtginvestModel extends IModel {
   setPlan(plan: UserPlan): Promise<StorageStatus>;
   setStorageMode(mode: StorageMode): Promise<StorageStatus>;
   syncNow(): Promise<SyncReport>;
+  dispose?(): void;
 }
 
 /** Contrato del Controlador (C). */
@@ -174,7 +174,6 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
   deleteItem(id: string): Promise<void>;
   resetToSeed(): Promise<void>;
   clearInventory(): Promise<void>;
-  importMissingSeeds(): Promise<void>;
   importCards(cards: CreateCardInput[], options?: ImportCardsOptions): Promise<ImportCardsResult>;
   exportToJson(): string;
   exportToCsv(): string;

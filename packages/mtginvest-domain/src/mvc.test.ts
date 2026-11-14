@@ -152,11 +152,6 @@ describe('MTGInvest MVC domain', () => {
     expect(view.latest.items.length).toBe(1);
     expect(view.latest.items[0]?.title).toBe('Carta Antigua Demo');
 
-    // Si ejecutamos importMissingSeeds manualmente, incorpora las 57 semillas
-    await controller.importMissingSeeds();
-    expect(view.latest.items.length).toBe(58);
-    expect(view.latest.items.some((c) => c.title === 'Relámpago')).toBe(true);
-
     // Si ejecutamos resetToSeed, debe dejar exactamente las 57 semillas limpias
     await controller.resetToSeed();
     expect(view.latest.items.length).toBe(57);
@@ -165,6 +160,11 @@ describe('MTGInvest MVC domain', () => {
     // Si ejecutamos clearInventory, debe vaciar la cartera a 0 cartas
     await controller.clearInventory();
     expect(view.latest.items.length).toBe(0);
+
+    // Si la cartera está vacía, syncCardmarketPrices retorna de inmediato
+    const syncRes = await controller.syncCardmarketPrices();
+    expect(syncRes.totalCards).toBe(0);
+    expect(syncRes.updatedCount).toBe(0);
 
     controller.dispose();
   });

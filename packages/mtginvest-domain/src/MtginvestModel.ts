@@ -40,6 +40,11 @@ export class MtginvestModel implements IMtginvestModel {
     });
   }
 
+  dispose(): void {
+    this.unsubRepo();
+    this.listeners.clear();
+  }
+
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => {
@@ -87,34 +92,8 @@ export class MtginvestModel implements IMtginvestModel {
             version: 1
           });
         }
-      } else {
-        // Aseguramos que las cartas existentes tengan cantidad, idioma e historial definidos
-        for (const item of history) {
-          const matchingIndex = SEED_CARDS.findIndex(
-            (s) => s.title.trim().toLowerCase() === item.title.trim().toLowerCase()
-          );
-          const matchingSeed = matchingIndex >= 0 ? SEED_CARDS[matchingIndex] : undefined;
-          const seedId = matchingIndex >= 0 ? `CARD-${String(matchingIndex + 1).padStart(5, '0')}` : undefined;
-          const historyData = seedId ? SEED_PRICE_HISTORIES[seedId] : undefined;
-          const needsQty = item.quantity === undefined || isNaN(item.quantity) || item.quantity < 1;
-          const needsLang = !item.language;
-          const needsHistory =
-            (!item.priceHistory || item.priceHistory.length === 0) &&
-            Array.isArray(historyData) &&
-            historyData.length > 0;
-
-          if (needsQty || needsLang || needsHistory) {
-            await this.repository.save({
-              ...item,
-              quantity: needsQty ? (matchingSeed?.quantity ?? 1) : item.quantity,
-              language: needsLang ? (matchingSeed?.language ?? 'EN') : item.language,
-              priceHistory: needsHistory ? historyData : item.priceHistory,
-              updatedAt: new Date().toISOString()
-            });
-          }
-        }
+        items = await this.repository.list();
       }
-      items = await this.repository.list();
     }
 
     this.items = items;
@@ -167,45 +146,6 @@ export class MtginvestModel implements IMtginvestModel {
     return [];
   }
 
-  async importMissingSeeds(): Promise<CardEntity[]> {
-    const history = await this.repository.list({ includeDeleted: true });
-    for (let idx = 0; idx < SEED_CARDS.length; idx++) {
-      const seed = SEED_CARDS[idx]!;
-      const seedId = `CARD-${String(idx + 1).padStart(5, '0')}`;
-      const alreadyExists = history.some(
-        (c) =>
-          c.title.trim().toLowerCase() === seed.title.trim().toLowerCase() &&
-          (c.editionCode?.trim().toLowerCase() === seed.editionCode?.trim().toLowerCase() ||
-            c.edition.trim().toLowerCase() === (seed.edition ?? '').trim().toLowerCase())
-      );
-      if (!alreadyExists) {
-        const now = new Date().toISOString();
-        await this.repository.save({
-          id: generateId(),
-          title: seed.title,
-          nameEn: seed.nameEn,
-          edition: seed.edition ?? 'Desconocida',
-          editionCode: seed.editionCode,
-          language: seed.language ?? 'EN',
-          quantity: Math.max(1, Number(seed.quantity ?? 1)),
-          currentPrice: seed.currentPrice ?? 0,
-          previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
-          condition: seed.condition ?? 'NM',
-          isFavorite: false,
-          priceHistory: SEED_PRICE_HISTORIES[seedId] ?? [],
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-          version: 1
-        });
-      }
-    }
-    const items = await this.repository.list();
-    this.items = items;
-    this.notify();
-    return this.getSnapshot();
-  }
-
   async importCards(
     cards: CreateCardInput[],
     options: ImportCardsOptions = {}
@@ -225,8 +165,35 @@ export class MtginvestModel implements IMtginvestModel {
 
     let count = 0;
     for (const cardInput of cards) {
-      if (!cardInput.title || !cardInput.title.trim()) continue;
-      await this.createItem(cardInput);
+      const title = cardInput.title?.trim();
+      if (!title) continue;
+      const currentPrice = Number(cardInput.currentPrice ?? 0);
+      const previousPrice = Number(cardInput.previousPrice ?? currentPrice);
+      const quantity = Math.max(1, Number(cardInput.quantity ?? 1));
+      const language = cardInput.language?.trim().toUpperCase() || 'EN';
+      const now = new Date().toISOString();
+
+      await this.repository.save({
+        id: generateId(),
+        title,
+        nameEn: cardInput.nameEn?.trim(),
+        edition: cardInput.edition?.trim() || 'General',
+        editionCode: cardInput.editionCode?.trim(),
+        language,
+        quantity,
+        currentPrice,
+        previousPrice,
+        condition: cardInput.condition ?? 'NM',
+        imageUrl: cardInput.imageUrl?.trim() || undefined,
+        scryfallId: cardInput.scryfallId?.trim() || undefined,
+        lastPriceSyncDate: cardInput.lastPriceSyncDate?.trim() || undefined,
+        priceHistory: cardInput.priceHistory ?? [],
+        isFavorite: false,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        version: 1
+      });
       count++;
     }
 
@@ -362,6 +329,15 @@ export class MtginvestModel implements IMtginvestModel {
     options?: { force?: boolean }
   ): Promise<CardmarketSyncResult> {
     const todayStr = new Date().toISOString().slice(0, 10);
+
+    if (this.items.length === 0) {
+      return {
+        alreadyUpToDate: true,
+        updatedCount: 0,
+        totalCards: 0,
+        syncDate: todayStr
+      };
+    }
 
     // Si no se fuerza, y ya se han sincronizado hoy todas las cartas existentes Y todas tienen imagen, evitamos llamadas innecesarias
     const allHaveImages = this.items.length > 0 && this.items.every((c) => Boolean(c.imageUrl));

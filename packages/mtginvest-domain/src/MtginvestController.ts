@@ -199,12 +199,6 @@ export class MtginvestController
     });
   }
 
-  async importMissingSeeds(): Promise<void> {
-    await this.executeCommand(true, async () => {
-      await this.model.importMissingSeeds();
-    });
-  }
-
   async importCards(
     cards: CreateCardInput[],
     options?: ImportCardsOptions
@@ -254,6 +248,7 @@ export class MtginvestController
 
   override dispose(): void {
     this.unsubModel();
+    this.model.dispose?.();
     super.dispose();
   }
 }
