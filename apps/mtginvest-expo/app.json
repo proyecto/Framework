@@ -1,15 +1,29 @@
 {
   "expo": {
-    "name": "MTGInvest",
-    "slug": "mtginvest-expo",
+    "name": "MintMox",
+    "slug": "mintmox",
     "version": "2026.11.27",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
     "android": {
-      "package": "com.framework.mtginvest",
-      "versionCode": 26111411
+      "package": "com.rafaelruiz.mintmox",
+      "versionCode": 26111411,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
+      "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [

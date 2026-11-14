@@ -117,7 +117,7 @@ export class ScryfallApiClient implements IScryfallApiClient {
 
   constructor(config: ScryfallClientConfig = {}) {
     this.baseUrl = config.baseUrl ?? 'https://api.scryfall.com';
-    this.userAgent = config.userAgent ?? 'MTGInvest/2026.11 (Framework-App)';
+    this.userAgent = config.userAgent ?? 'MintMox/2026.11 (Framework-App)';
     this.rateLimitMs = config.rateLimitMs ?? 75;
     this.fetchFn = config.fetchFn ?? getGlobalFetch();
   }

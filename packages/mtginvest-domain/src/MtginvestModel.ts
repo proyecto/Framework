@@ -6,13 +6,14 @@ import {
   type SyncReport,
   type UserPlan
 } from '@framework/core';
-import type {
-  CardmarketSyncResult,
-  CreateCardInput,
-  CardEntity,
-  IMtginvestModel,
-  ImportCardsOptions,
-  ImportCardsResult
+import {
+  getCardCollections,
+  type CardmarketSyncResult,
+  type CreateCardInput,
+  type CardEntity,
+  type IMtginvestModel,
+  type ImportCardsOptions,
+  type ImportCardsResult
 } from './contracts.js';
 import type { IScryfallApiClient } from './scryfall.js';
 import { SEED_CARDS } from './seeds.js';
@@ -195,7 +196,8 @@ export class MtginvestModel implements IMtginvestModel {
         condition: cardInput.condition ?? 'NM',
         imageUrl: cardInput.imageUrl?.trim() || undefined,
         scryfallId: cardInput.scryfallId?.trim() || undefined,
-        collection: cardInput.collection?.trim() || undefined,
+        collection: getCardCollections(cardInput).join(', '),
+        collections: getCardCollections(cardInput),
         lastPriceSyncDate: cardInput.lastPriceSyncDate?.trim() || undefined,
         priceHistory: cardInput.priceHistory ?? [],
         isFavorite: false,
@@ -254,7 +256,8 @@ export class MtginvestModel implements IMtginvestModel {
       condition: input.condition ?? 'NM',
       imageUrl: input.imageUrl?.trim() || undefined,
       scryfallId: input.scryfallId?.trim() || undefined,
-      collection: input.collection?.trim() || undefined,
+      collection: getCardCollections(input).join(', '),
+      collections: getCardCollections(input),
       lastPriceSyncDate: input.lastPriceSyncDate?.trim() || undefined,
       priceHistory: input.priceHistory ?? [],
       isFavorite: false,
@@ -288,6 +291,7 @@ export class MtginvestModel implements IMtginvestModel {
         | 'imageUrl'
         | 'scryfallId'
         | 'collection'
+        | 'collections'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >
@@ -301,6 +305,15 @@ export class MtginvestModel implements IMtginvestModel {
     const title = patch.title !== undefined ? patch.title.trim() : current.title;
     if (!title) {
       throw new ValidationError('El nombre de la carta no puede estar vacío.');
+    }
+
+    let nextCollections: string[] = current.collections && current.collections.length > 0
+      ? current.collections
+      : getCardCollections(current);
+    if (patch.collections !== undefined) {
+      nextCollections = getCardCollections({ collections: patch.collections });
+    } else if (patch.collection !== undefined) {
+      nextCollections = getCardCollections({ collection: patch.collection });
     }
 
     const updated: CardEntity = {
@@ -320,7 +333,8 @@ export class MtginvestModel implements IMtginvestModel {
       condition: patch.condition !== undefined ? patch.condition : current.condition,
       imageUrl: patch.imageUrl !== undefined ? (patch.imageUrl?.trim() || undefined) : current.imageUrl,
       scryfallId: patch.scryfallId !== undefined ? (patch.scryfallId.trim() || undefined) : current.scryfallId,
-      collection: patch.collection !== undefined ? (patch.collection?.trim() || undefined) : current.collection,
+      collection: nextCollections.join(', '),
+      collections: nextCollections,
       priceHistory: patch.priceHistory !== undefined ? patch.priceHistory : current.priceHistory,
       lastPriceSyncDate: patch.lastPriceSyncDate !== undefined ? patch.lastPriceSyncDate : current.lastPriceSyncDate,
       updatedAt: new Date().toISOString()

@@ -1,5 +1,5 @@
 import { escapeCsvCell, parseCsvRows, ValidationError } from '@framework/core';
-import type { CardEntity, CreateCardInput } from './contracts.js';
+import { type CardEntity, type CreateCardInput, getCardCollections } from './contracts.js';
 
 /**
  * Exporta una lista de cartas a formato JSON estructurado y legible.
@@ -26,7 +26,8 @@ export function exportCardsToJson(cards: CardEntity[]): string {
       condition: c.condition ?? 'NM',
       imageUrl: c.imageUrl ?? null,
       scryfallId: c.scryfallId ?? null,
-      collection: c.collection ?? null,
+      collection: getCardCollections(c).join(', '),
+      collections: getCardCollections(c),
       priceHistory: c.priceHistory ?? [],
       lastPriceSyncDate: c.lastPriceSyncDate ?? null
     }))
@@ -74,7 +75,7 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     escapeCsvCell(c.condition ?? 'NM'),
     escapeCsvCell(c.imageUrl ?? ''),
     escapeCsvCell(c.scryfallId ?? ''),
-    escapeCsvCell(c.collection ?? ''),
+    escapeCsvCell(getCardCollections(c).join('; ')),
     escapeCsvCell(c.lastPriceSyncDate ?? '')
   ]);
 
@@ -153,7 +154,8 @@ export function parseCardsFromJson(jsonStr: string): CreateCardInput[] {
       condition: item.condition ?? item.estado ?? 'NM',
       imageUrl: item.imageUrl ?? item.image_url ?? undefined,
       scryfallId: item.scryfallId ?? item.scryfall_id ?? undefined,
-      collection: item.collection?.trim() || undefined,
+      collection: getCardCollections(item).join(', '),
+      collections: getCardCollections(item),
       priceHistory: Array.isArray(item.priceHistory) ? item.priceHistory : [],
       lastPriceSyncDate: item.lastPriceSyncDate ?? undefined
     });
@@ -247,7 +249,8 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
     const condition = conditionIdx !== -1 && row[conditionIdx]?.trim() ? row[conditionIdx]!.trim() : 'NM';
     const imageUrl = imageUrlIdx !== -1 && row[imageUrlIdx]?.trim() ? row[imageUrlIdx]!.trim() : undefined;
     const scryfallId = scryfallIdIdx !== -1 && row[scryfallIdIdx]?.trim() ? row[scryfallIdIdx]!.trim() : undefined;
-    const collection = collectionIdx !== -1 && row[collectionIdx]?.trim() ? row[collectionIdx]!.trim() : undefined;
+    const rawCol = collectionIdx !== -1 && row[collectionIdx]?.trim() ? row[collectionIdx]!.trim() : undefined;
+    const collections = getCardCollections({ collection: rawCol });
     const lastPriceSyncDate = lastSyncIdx !== -1 && row[lastSyncIdx]?.trim() ? row[lastSyncIdx]!.trim() : undefined;
 
     result.push({
@@ -266,7 +269,8 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
       condition,
       imageUrl,
       scryfallId,
-      collection,
+      collection: collections.join(', '),
+      collections,
       priceHistory: [],
       lastPriceSyncDate
     });

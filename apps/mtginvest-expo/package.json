@@ -2,7 +2,7 @@
   "name": "@framework/mtginvest-expo",
   "version": "2026.11.27",
   "private": true,
-  "description": "Aplicación móvil MTGInvest construida sobre la arquitectura canónica (@framework/base-expo).",
+  "description": "Aplicación móvil MintMox construida sobre la arquitectura canónica (@framework/base-expo).",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

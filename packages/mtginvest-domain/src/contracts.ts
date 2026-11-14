@@ -41,7 +41,8 @@ export interface CardEntity extends EntityBase {
   isFavorite: boolean;
   imageUrl?: string;          // URL del arte/carta resuelta desde Scryfall
   scryfallId?: string;        // UUID canónico en Scryfall para optimizar consultas directas
-  collection?: string;        // Carpeta o colección a la que pertenece (ej. "Principal", "Trade Binder", "Reservelist")
+  collection?: string;        // Colección principal o concatenada (ej. "Principal", "Trade Binder")
+  collections?: string[];     // Lista de todas las colecciones a las que pertenece la carta
   priceHistory?: CardPricePoint[]; // Historial de cotizaciones temporales
   lastPriceSyncDate?: string; // Fecha 'YYYY-MM-DD' de la última actualización exitosa desde Cardmarket
 }
@@ -63,8 +64,39 @@ export interface CreateCardInput {
   imageUrl?: string;
   scryfallId?: string;
   collection?: string;
+  collections?: string[];
   priceHistory?: CardPricePoint[];
   lastPriceSyncDate?: string;
+}
+
+/**
+ * Obtiene la lista canónica y sin duplicados de colecciones a las que pertenece una carta.
+ * Soporta arrays `collections` o cadenas delimitadas en `collection`.
+ * Si no tiene ninguna asignada, devuelve `[DEFAULT_COLLECTION]`.
+ */
+export function getCardCollections(card: {
+  collections?: string[] | null;
+  collection?: string | null;
+}): string[] {
+  const set = new Set<string>();
+  if (Array.isArray(card.collections)) {
+    for (const c of card.collections) {
+      if (typeof c === 'string') {
+        const trimmed = c.trim();
+        if (trimmed) set.add(trimmed);
+      }
+    }
+  }
+  if (typeof card.collection === 'string') {
+    for (const part of card.collection.split(/[,;|]/)) {
+      const trimmed = part.trim();
+      if (trimmed) set.add(trimmed);
+    }
+  }
+  if (set.size === 0) {
+    set.add(DEFAULT_COLLECTION);
+  }
+  return Array.from(set);
 }
 
 export interface ImportCardsOptions {
@@ -142,6 +174,7 @@ export interface IMtginvestModel extends IModel {
         | 'imageUrl'
         | 'scryfallId'
         | 'collection'
+        | 'collections'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >
@@ -190,6 +223,7 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
         | 'imageUrl'
         | 'scryfallId'
         | 'collection'
+        | 'collections'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >

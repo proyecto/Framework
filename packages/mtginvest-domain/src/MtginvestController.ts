@@ -128,6 +128,7 @@ export class MtginvestController
         | 'imageUrl'
         | 'scryfallId'
         | 'collection'
+        | 'collections'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >

@@ -11,6 +11,7 @@ import {
   createMtginvestController,
   findMtgSetByCode,
   findMtgSetByName,
+  getCardCollections,
   getPortfolioProfitLeaders,
   MTG_SETS,
   ScryfallApiClient,
@@ -672,6 +673,40 @@ describe('MTGInvest MVC domain', () => {
 
     const updated = view.latest.items.find((c) => c.id === created!.id);
     expect(updated?.collection).toBe('Mazo Modern Jund');
+
+    controller.dispose();
+  });
+
+  it('supports assigning a card to multiple collections simultaneously', async () => {
+    const controller = createMtginvestController({
+      store: new InMemoryEntityStoreDriver(),
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-multi-collections'
+    });
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    await controller.createItem({
+      title: 'Mox Diamond',
+      edition: 'Stronghold',
+      editionCode: 'STH',
+      currentPrice: 650.0,
+      collections: ['Principal', 'Commander Decks', 'Reservelist']
+    });
+
+    const created = view.latest.items.find((c) => c.title === 'Mox Diamond');
+    expect(created?.collections).toEqual(['Principal', 'Commander Decks', 'Reservelist']);
+    expect(created?.collection).toBe('Principal, Commander Decks, Reservelist');
+    expect(getCardCollections(created!)).toEqual(['Principal', 'Commander Decks', 'Reservelist']);
+
+    await controller.updateCard(created!.id, {
+      collections: ['Commander Decks', 'Colección Foil']
+    });
+
+    const updated = view.latest.items.find((c) => c.id === created!.id);
+    expect(updated?.collections).toEqual(['Commander Decks', 'Colección Foil']);
+    expect(getCardCollections(updated!)).toEqual(['Commander Decks', 'Colección Foil']);
 
     controller.dispose();
   });

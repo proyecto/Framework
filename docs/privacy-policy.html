@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidad | MintMox</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --border: #334155;
+      --success: #34d399;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --accent: #0284c7;
+        --accent-soft: rgba(2, 132, 199, 0.08);
+        --border: #e2e8f0;
+        --success: #059669;
+      }
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background-color: var(--accent-soft);
+      color: var(--accent);
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      margin-bottom: 0.75rem;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+    .meta {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-top: 1.75rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    p, ul {
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+    ul {
+      padding-left: 1.5rem;
+    }
+    li {
+      margin-bottom: 0.5rem;
+    }
+    .highlight-box {
+      background-color: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.25rem 0;
+    }
+    .lang-switch {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .lang-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.35rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .lang-btn.active {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <span class="badge">Privacidad / Privacy Policy</span>
+      <h1>MintMox</h1>
+      <p class="meta">Última actualización / Last updated: Noviembre 2026 · Desarrollador: Rafael Ruiz</p>
+    </header>
+
+    <div class="lang-switch">
+      <button class="lang-btn active" onclick="showLang('es')">Español</button>
+      <button class="lang-btn" onclick="showLang('en')">English</button>
+    </div>
+
+    <!-- SECCIÓN ESPAÑOL -->
+    <div id="content-es">
+      <div class="highlight-box">
+        <strong>Resumen de Privacidad:</strong> MintMox es una aplicación <strong>100% gratuita, local y sin publicidad</strong>. No recopilamos, no almacenamos en servidores externos y no compartimos ningún dato personal de los usuarios. Tu colección se guarda exclusivamente en la memoria de tu dispositivo.
+      </div>
+
+      <h2>1. Información que NO recopilamos</h2>
+      <p>MintMox ha sido diseñada bajo el principio de <em>Privacidad por Diseño</em> (Privacy by Design). La aplicación <strong>no requiere cuenta de usuario ni registro</strong> y en ningún caso recopila:</p>
+      <ul>
+        <li>Nombres, correos electrónicos, números de teléfono o direcciones.</li>
+        <li>Datos de ubicación geográfica (GPS o red).</li>
+        <li>Identificadores publicitarios (Advertising ID / GAID), huellas digitales o datos biométricos.</li>
+        <li>Contactos, fotos del carrete o archivos personales del dispositivo.</li>
+      </ul>
+
+      <h2>2. Almacenamiento Local (Local-First)</h2>
+      <p>Toda la información que introduces en la aplicación (inventario de cartas, precios de compra, cantidades, carpetas y archivadores de colecciones, notas o preferencias de tema):</p>
+      <ul>
+        <li>Se almacena única y exclusivamente de forma local en tu dispositivo mediante una base de datos <strong>SQLite embebida</strong> dentro del espacio de almacenamiento seguro de la app.</li>
+        <li>No se envía a ningún servidor propio, servicio en la nube ni terceros.</li>
+        <li>Tienes el control total de tus datos: puedes exportar tu cartera completa a formatos estándar (JSON y CSV) o borrarla en cualquier momento desde la pestaña de Ajustes de la aplicación.</li>
+      </ul>
+
+      <h2>3. Conexiones de Red y Servicios de Terceros</h2>
+      <p>La aplicación únicamente realiza solicitudes de red hacia la API pública de <strong>Scryfall</strong> (<code>https://api.scryfall.com</code>) para:</p>
+      <ul>
+        <li>Descargar la información pública de cartas de Magic: The Gathering (nombres, ediciones, rareza, portadas oficiales).</li>
+        <li>Actualizar las cotizaciones y precios de mercado en Euros provistos por Cardmarket a través del servicio de Scryfall.</li>
+      </ul>
+      <p>Estas peticiones son anónimas, de sólo lectura y no transmiten información personal, identificadores del dispositivo ni el contenido total de tu colección.</p>
+
+      <h2>4. Publicidad, Analíticas y Rastreo</h2>
+      <ul>
+        <li><strong>Cero Anuncios:</strong> La app no incluye SDKs de redes publicitarias (sin AdMob, Unity Ads, etc.).</li>
+        <li><strong>Cero Rastreadores (Trackers):</strong> No utilizamos herramientas de analítica de comportamiento (sin Google Analytics, Firebase Analytics, Facebook SDK ni servicios similares).</li>
+        <li><strong>Cero Cookies:</strong> No se implementan cookies ni mecanismos de rastreo entre aplicaciones o sitios web.</li>
+      </ul>
+
+      <h2>5. Privacidad de Menores (COPPA)</h2>
+      <p>MintMox no está dirigida específicamente a menores de 13 años pero es apta para todos los públicos. Al no recopilar ningún tipo de información personal, cumple estrictamente con las directrices de protección de la privacidad infantil (COPPA y RGPD).</p>
+
+      <h2>6. Derechos del Usuario y Eliminación de Datos</h2>
+      <p>Conforme al RGPD y la CCPA, el usuario tiene el derecho absoluto sobre su información. Puedes ejercer la eliminación total de tus datos directamente desde la app en cualquier momento pulsando en <em>Ajustes > Reiniciar / Vaciar Cartera</em>, o simplemente desinstalando la aplicación de tu dispositivo.</p>
+
+      <h2>7. Propiedad Intelectual y Aviso de Contenido de Fans</h2>
+      <p>MintMox es contenido de fans no oficial permitido bajo la Política de Contenido de Fans de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. &copy;Wizards of the Coast LLC. Magic: The Gathering, Scryfall y Cardmarket son marcas registradas de sus respectivos propietarios.</p>
+
+      <h2>8. Contacto</h2>
+      <p>Si tienes cualquier duda o consulta sobre esta política de privacidad o sobre el funcionamiento de la aplicación, puedes ponerte en contacto con el desarrollador a través del repositorio oficial del proyecto o por correo electrónico.</p>
+    </div>
+
+    <!-- SECCIÓN ENGLISH -->
+    <div id="content-en" style="display: none;">
+      <div class="highlight-box">
+        <strong>Privacy Summary:</strong> MintMox is a <strong>100% free, local-first, and ad-free</strong> application. We do not collect, store on external servers, or share any personal user data. Your collection is saved exclusively in your device's local memory.
+      </div>
+
+      <h2>1. Information We Do NOT Collect</h2>
+      <p>MintMox is built upon the principle of <em>Privacy by Design</em>. The application <strong>requires no account creation or login</strong> and never collects:</p>
+      <ul>
+        <li>Names, email addresses, phone numbers, or physical addresses.</li>
+        <li>Geographic location data (GPS or network).</li>
+        <li>Advertising IDs (GAID), device fingerprints, or biometric data.</li>
+        <li>Contacts, camera photos, or personal files stored on the device.</li>
+      </ul>
+
+      <h2>2. Local Storage (Local-First Architecture)</h2>
+      <p>All information entered into the application (card inventory, purchase costs, quantities, binders, custom collections, notes, or theme preferences):</p>
+      <ul>
+        <li>Is stored strictly and exclusively on your local device using an embedded <strong>SQLite database</strong> inside the app's sandboxed storage.</li>
+        <li>Is never transmitted to external servers, cloud databases, or third parties.</li>
+        <li>You retain complete ownership: you can export your entire portfolio at any time to standard open formats (JSON and CSV) or delete it from the app's Settings tab.</li>
+      </ul>
+
+      <h2>3. Network Requests & Third-Party APIs</h2>
+      <p>The app only performs network requests to the public <strong>Scryfall API</strong> (<code>https://api.scryfall.com</code>) to:</p>
+      <ul>
+        <li>Download public Magic: The Gathering card metadata (card titles, set codes, rarity, and artwork images).</li>
+        <li>Fetch EUR market prices from Cardmarket provided via Scryfall.</li>
+      </ul>
+      <p>These requests are anonymous, read-only, and do not convey any personal information, device identifiers, or user collection contents.</p>
+
+      <h2>4. Advertising, Analytics & Tracking</h2>
+      <ul>
+        <li><strong>Zero Ads:</strong> The app contains no advertising SDKs (no AdMob, Unity Ads, etc.).</li>
+        <li><strong>Zero Trackers:</strong> We use no telemetry or behavioral analytics SDKs (no Google Analytics, Firebase, Facebook SDK, etc.).</li>
+        <li><strong>Zero Cookies:</strong> No cookies or cross-app tracking mechanisms are used.</li>
+      </ul>
+
+      <h2>5. Children's Privacy (COPPA & GDPR-K)</h2>
+      <p>MintMox is suitable for general audiences. Because no personal data is collected, it strictly adheres to child online privacy protection standards.</p>
+
+      <h2>6. User Rights & Data Deletion</h2>
+      <p>Under GDPR, CCPA, and Google Play Store policies, you hold full control over your data. You may delete all stored data at any time via <em>Settings > Reset Inventory</em> or by uninstalling the app from your device.</p>
+
+      <h2>7. Intellectual Property & Fan Content Notice</h2>
+      <p>MintMox is unofficial Fan Content permitted under the Wizards of the Coast Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC. Magic: The Gathering, Scryfall, and Cardmarket are trademarks of their respective owners.</p>
+
+      <h2>8. Contact</h2>
+      <p>If you have any questions or feedback regarding this Privacy Policy, please reach out via the official project repository or developer contact.</p>
+    </div>
+
+    <footer>
+      &copy; 2026 MintMox · Desarrollado por Rafael Ruiz · Aplicación de código abierto y local-first.
+    </footer>
+  </div>
+
+  <script>
+    function showLang(lang) {
+      document.getElementById('content-es').style.display = lang === 'es' ? 'block' : 'none';
+      document.getElementById('content-en').style.display = lang === 'en' ? 'block' : 'none';
+      const btns = document.querySelectorAll('.lang-btn');
+      btns[0].classList.toggle('active', lang === 'es');
+      btns[1].classList.toggle('active', lang === 'en');
+    }
+  </script>
+</body>
+</html>
+

@@ -8,7 +8,7 @@ const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
  * y NSURLSession en iOS) incluyan el User-Agent identificado y eviten el bloqueo 403 Forbidden de Cloudflare.
  */
 export const SCRYFALL_IMAGE_HEADERS: Record<string, string> = {
-  'User-Agent': 'MTGInvest/2026.11 (Mobile-App; Framework-Client)',
+  'User-Agent': 'MintMox/2026.11 (Mobile-App; Framework-Client)',
   Accept: 'image/webp,image/png,image/jpeg,image/*;q=0.8'
 };
 

@@ -134,7 +134,7 @@ export default function App() {
         >
           <ActivityIndicator size="small" color={LIGHT_THEME.colors.accent} />
           <Text style={{ color: LIGHT_THEME.colors.textSecondary }}>
-            Iniciando MTGInvest...
+            Iniciando MintMox...
           </Text>
         </View>
       </SafeAreaProvider>
@@ -146,7 +146,7 @@ export default function App() {
       <FrameworkProvider
         environment={{
           appId: APP_ID,
-          appName: 'MTGInvest',
+          appName: 'MintMox',
           platformName: Platform.OS === 'web' ? 'Expo Web' : 'Expo Android'
         }}
       >

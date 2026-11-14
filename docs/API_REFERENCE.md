@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (59 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (60 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (66 símbolos exportados)
@@ -1458,6 +1458,7 @@ Miembros públicos:
 - `imageUrl?: string`
 - `scryfallId?: string`
 - `collection?: string`
+- `collections?: string[]`
 - `priceHistory?: CardPricePoint[]`
 - `lastPriceSyncDate?: string`
 
@@ -1486,8 +1487,18 @@ Miembros públicos:
 - `imageUrl?: string`
 - `scryfallId?: string`
 - `collection?: string`
+- `collections?: string[]`
 - `priceHistory?: CardPricePoint[]`
 - `lastPriceSyncDate?: string`
+
+### `getCardCollections`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+- Descripción: Obtiene la lista canónica y sin duplicados de colecciones a las que pertenece una carta. Soporta arrays `collections` o cadenas delimitadas en `collection`. Si no tiene ninguna asignada, devuelve `[DEFAULT_COLLECTION]`.
+
+```ts
+function getCardCollections(card: { collections?: string[] | null; collection?: string | null; }): string[]
+```
 
 ### `ImportCardsOptions`
 
@@ -1567,7 +1578,7 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -1594,7 +1605,7 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 Miembros públicos:
 - `scryfallClient: IScryfallApiClient`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
@@ -2023,7 +2034,7 @@ Miembros públicos:
 - `exportToJson(): string`
 - `exportToCsv(): string`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -2046,7 +2057,7 @@ Miembros públicos:
 - `constructor(private readonly model: IMtginvestModel, scryfallClient?: IScryfallApiClient)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
