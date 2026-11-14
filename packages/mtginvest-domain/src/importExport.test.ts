@@ -118,5 +118,28 @@ describe('MTGInvest Import / Export module', () => {
     expect(parsed[0]?.title).toBe('Underground Sea, 3ED');
     expect(parsed[0]?.edition).toBe('Revised Edition, 1994');
   });
+
+  it('mitigates CSV formula injection (CWE-1236) on text fields', () => {
+    const dangerousCards: CardEntity[] = [
+      {
+        id: '1',
+        title: '=cmd|/C calc!A0',
+        edition: '@SUM(1,2)',
+        quantity: 1,
+        currentPrice: 10,
+        previousPrice: 10,
+        isFavorite: false,
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+        deletedAt: null,
+        version: 1
+      }
+    ];
+
+    const csv = exportCardsToCsv(dangerousCards);
+    // Debe prefijar con comilla simple para neutralizar ejecución de fórmulas en Excel
+    expect(csv).toContain("'=cmd|/C calc!A0");
+    expect(csv).toContain("'@SUM(1,2)");
+  });
 });
 

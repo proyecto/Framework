@@ -13,6 +13,7 @@ import type { IScryfallApiClient } from './scryfall.js';
 
 export const APP_ID = 'mtginvest';
 export const ENTITY_NAME = 'cards';
+export const DEFAULT_COLLECTION = 'Principal';
 
 export type CardTrend = 'up' | 'down' | 'flat';
 
@@ -40,6 +41,7 @@ export interface CardEntity extends EntityBase {
   isFavorite: boolean;
   imageUrl?: string;          // URL del arte/carta resuelta desde Scryfall
   scryfallId?: string;        // UUID canónico en Scryfall para optimizar consultas directas
+  collection?: string;        // Carpeta o colección a la que pertenece (ej. "Principal", "Trade Binder", "Reservelist")
   priceHistory?: CardPricePoint[]; // Historial de cotizaciones temporales
   lastPriceSyncDate?: string; // Fecha 'YYYY-MM-DD' de la última actualización exitosa desde Cardmarket
 }
@@ -60,6 +62,7 @@ export interface CreateCardInput {
   condition?: string;
   imageUrl?: string;
   scryfallId?: string;
+  collection?: string;
   priceHistory?: CardPricePoint[];
   lastPriceSyncDate?: string;
 }
@@ -138,6 +141,7 @@ export interface IMtginvestModel extends IModel {
         | 'condition'
         | 'imageUrl'
         | 'scryfallId'
+        | 'collection'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >
@@ -185,6 +189,7 @@ export interface IMtginvestController extends IController<MtginvestViewState, Vi
         | 'condition'
         | 'imageUrl'
         | 'scryfallId'
+        | 'collection'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >

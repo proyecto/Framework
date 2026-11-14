@@ -239,3 +239,33 @@ describe('ObservableModel & StatefulMvcController pattern helpers', () => {
     expect(model.cleaned).toBe(true);
   });
 });
+
+describe('CSV standard RFC 4180 utilities and formula injection mitigation', () => {
+  it('escapes cells according to RFC 4180 and protects against spreadsheet formula injection', async () => {
+    const { escapeCsvCell, parseCsvRows } = await import('./csv.js');
+
+    // Escapado básico
+    expect(escapeCsvCell(null)).toBe('');
+    expect(escapeCsvCell(undefined)).toBe('');
+    expect(escapeCsvCell('Hello')).toBe('Hello');
+    expect(escapeCsvCell('Hello, World')).toBe('"Hello, World"');
+    expect(escapeCsvCell('He said "Hi"')).toBe('"He said ""Hi"""');
+    expect(escapeCsvCell('Line1\nLine2')).toBe('"Line1\nLine2"');
+
+    // Mitigación de inyección de fórmulas (CWE-1236)
+    expect(escapeCsvCell('=1+1')).toBe("'=1+1");
+    expect(escapeCsvCell('@SUM(A1:A5)')).toBe("'@SUM(A1:A5)");
+    expect(escapeCsvCell('+cmd|')).toBe("'+cmd|");
+    expect(escapeCsvCell('-calc')).toBe("'-calc");
+    // Los números negativos reales no deben ser alterados
+    expect(escapeCsvCell(-42.5)).toBe('-42.5');
+
+    // Parseo RFC 4180
+    const csv = `name,formula,comment\nAlice,"'=1+1","Line 1\nLine 2"\nBob,Normal,"With ""quotes"""`;
+    const rows = parseCsvRows(csv);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual(['name', 'formula', 'comment']);
+    expect(rows[1]).toEqual(['Alice', "'=1+1", 'Line 1\nLine 2']);
+    expect(rows[2]).toEqual(['Bob', 'Normal', 'With "quotes"']);
+  });
+});

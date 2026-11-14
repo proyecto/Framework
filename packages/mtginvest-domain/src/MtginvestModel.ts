@@ -195,6 +195,7 @@ export class MtginvestModel implements IMtginvestModel {
         condition: cardInput.condition ?? 'NM',
         imageUrl: cardInput.imageUrl?.trim() || undefined,
         scryfallId: cardInput.scryfallId?.trim() || undefined,
+        collection: cardInput.collection?.trim() || undefined,
         lastPriceSyncDate: cardInput.lastPriceSyncDate?.trim() || undefined,
         priceHistory: cardInput.priceHistory ?? [],
         isFavorite: false,
@@ -253,6 +254,7 @@ export class MtginvestModel implements IMtginvestModel {
       condition: input.condition ?? 'NM',
       imageUrl: input.imageUrl?.trim() || undefined,
       scryfallId: input.scryfallId?.trim() || undefined,
+      collection: input.collection?.trim() || undefined,
       lastPriceSyncDate: input.lastPriceSyncDate?.trim() || undefined,
       priceHistory: input.priceHistory ?? [],
       isFavorite: false,
@@ -285,6 +287,7 @@ export class MtginvestModel implements IMtginvestModel {
         | 'condition'
         | 'imageUrl'
         | 'scryfallId'
+        | 'collection'
         | 'priceHistory'
         | 'lastPriceSyncDate'
       >
@@ -317,6 +320,7 @@ export class MtginvestModel implements IMtginvestModel {
       condition: patch.condition !== undefined ? patch.condition : current.condition,
       imageUrl: patch.imageUrl !== undefined ? (patch.imageUrl?.trim() || undefined) : current.imageUrl,
       scryfallId: patch.scryfallId !== undefined ? (patch.scryfallId.trim() || undefined) : current.scryfallId,
+      collection: patch.collection !== undefined ? (patch.collection?.trim() || undefined) : current.collection,
       priceHistory: patch.priceHistory !== undefined ? patch.priceHistory : current.priceHistory,
       lastPriceSyncDate: patch.lastPriceSyncDate !== undefined ? patch.lastPriceSyncDate : current.lastPriceSyncDate,
       updatedAt: new Date().toISOString()
@@ -446,9 +450,10 @@ export class MtginvestModel implements IMtginvestModel {
 
       const imageUrl =
         item.imageUrl ??
-        cardData.imageUris?.normal ??
         cardData.imageUris?.small ??
+        cardData.imageUris?.normal ??
         cardData.imageUris?.large ??
+        cardData.cardFaces?.[0]?.imageUris?.small ??
         cardData.cardFaces?.[0]?.imageUris?.normal;
 
       const scryfallId = item.scryfallId ?? cardData.id;

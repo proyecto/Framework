@@ -1,17 +1,5 @@
-import { ValidationError } from '@framework/core';
+import { escapeCsvCell, parseCsvRows, ValidationError } from '@framework/core';
 import type { CardEntity, CreateCardInput } from './contracts.js';
-
-/**
- * Escapa un valor para formato CSV estándar (RFC 4180).
- */
-function escapeCsvCell(val: any): string {
-  if (val === null || val === undefined) return '';
-  const str = String(val);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 /**
  * Exporta una lista de cartas a formato JSON estructurado y legible.
@@ -38,6 +26,7 @@ export function exportCardsToJson(cards: CardEntity[]): string {
       condition: c.condition ?? 'NM',
       imageUrl: c.imageUrl ?? null,
       scryfallId: c.scryfallId ?? null,
+      collection: c.collection ?? null,
       priceHistory: c.priceHistory ?? [],
       lastPriceSyncDate: c.lastPriceSyncDate ?? null
     }))
@@ -65,6 +54,7 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     'condition',
     'imageUrl',
     'scryfallId',
+    'collection',
     'lastPriceSyncDate'
   ];
 
@@ -84,6 +74,7 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     escapeCsvCell(c.condition ?? 'NM'),
     escapeCsvCell(c.imageUrl ?? ''),
     escapeCsvCell(c.scryfallId ?? ''),
+    escapeCsvCell(c.collection ?? ''),
     escapeCsvCell(c.lastPriceSyncDate ?? '')
   ]);
 
@@ -162,6 +153,7 @@ export function parseCardsFromJson(jsonStr: string): CreateCardInput[] {
       condition: item.condition ?? item.estado ?? 'NM',
       imageUrl: item.imageUrl ?? item.image_url ?? undefined,
       scryfallId: item.scryfallId ?? item.scryfall_id ?? undefined,
+      collection: item.collection?.trim() || undefined,
       priceHistory: Array.isArray(item.priceHistory) ? item.priceHistory : [],
       lastPriceSyncDate: item.lastPriceSyncDate ?? undefined
     });
@@ -172,81 +164,6 @@ export function parseCardsFromJson(jsonStr: string): CreateCardInput[] {
   }
 
   return result;
-}
-
-/**
- * Parsea un archivo o cadena CSV según RFC 4180 soportando celdas con comillas y saltos de línea.
- */
-function parseCsvRows(text: string): string[][] {
-  const rows: string[][] = [];
-  let currentRow: string[] = [];
-  let currentCell = '';
-  let inQuotes = false;
-  let i = 0;
-
-  const len = text.length;
-
-  while (i < len) {
-    const char = text[i];
-
-    if (inQuotes) {
-      if (char === '"') {
-        if (i + 1 < len && text[i + 1] === '"') {
-          currentCell += '"';
-          i += 2;
-          continue;
-        } else {
-          inQuotes = false;
-          i++;
-          continue;
-        }
-      } else {
-        currentCell += char;
-        i++;
-        continue;
-      }
-    } else {
-      if (char === '"') {
-        inQuotes = true;
-        i++;
-        continue;
-      } else if (char === ',') {
-        currentRow.push(currentCell.trim());
-        currentCell = '';
-        i++;
-        continue;
-      } else if (char === '\r') {
-        if (i + 1 < len && text[i + 1] === '\n') {
-          i += 2;
-        } else {
-          i++;
-        }
-        currentRow.push(currentCell.trim());
-        rows.push(currentRow);
-        currentRow = [];
-        currentCell = '';
-        continue;
-      } else if (char === '\n') {
-        currentRow.push(currentCell.trim());
-        rows.push(currentRow);
-        currentRow = [];
-        currentCell = '';
-        i++;
-        continue;
-      } else {
-        currentCell += char;
-        i++;
-        continue;
-      }
-    }
-  }
-
-  if (currentCell.length > 0 || currentRow.length > 0) {
-    currentRow.push(currentCell.trim());
-    rows.push(currentRow);
-  }
-
-  return rows.filter((r) => r.some((cell) => cell.length > 0));
 }
 
 /**
@@ -294,6 +211,7 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
   const conditionIdx = findIdx('condition', 'estado', 'cond');
   const imageUrlIdx = findIdx('imageurl', 'image_url', 'imagen', 'portada');
   const scryfallIdIdx = findIdx('scryfallid', 'scryfall_id', 'id_scryfall');
+  const collectionIdx = findIdx('collection', 'coleccion', 'carpeta', 'binder', 'folder');
   const lastSyncIdx = findIdx('lastpricesyncdate', 'last_sync', 'fechasincro');
 
   const parseNum = (v: string | undefined): number => {
@@ -329,6 +247,7 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
     const condition = conditionIdx !== -1 && row[conditionIdx]?.trim() ? row[conditionIdx]!.trim() : 'NM';
     const imageUrl = imageUrlIdx !== -1 && row[imageUrlIdx]?.trim() ? row[imageUrlIdx]!.trim() : undefined;
     const scryfallId = scryfallIdIdx !== -1 && row[scryfallIdIdx]?.trim() ? row[scryfallIdIdx]!.trim() : undefined;
+    const collection = collectionIdx !== -1 && row[collectionIdx]?.trim() ? row[collectionIdx]!.trim() : undefined;
     const lastPriceSyncDate = lastSyncIdx !== -1 && row[lastSyncIdx]?.trim() ? row[lastSyncIdx]!.trim() : undefined;
 
     result.push({
@@ -347,6 +266,7 @@ export function parseCardsFromCsv(csvStr: string): CreateCardInput[] {
       condition,
       imageUrl,
       scryfallId,
+      collection,
       priceHistory: [],
       lastPriceSyncDate
     });

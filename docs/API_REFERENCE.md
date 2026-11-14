@@ -8,15 +8,15 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 ## Índice de paquetes
 
 - [`@framework/base-domain`](#frameworkbase-domain) (12 símbolos exportados)
-- [`@framework/core`](#frameworkcore) (45 símbolos exportados)
+- [`@framework/core`](#frameworkcore) (47 símbolos exportados)
 - [`@framework/data`](#frameworkdata) (17 símbolos exportados)
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (58 símbolos exportados)
+- [`@framework/mtginvest-domain`](#frameworkmtginvest-domain) (59 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
-- [`@framework/ui`](#frameworkui) (63 símbolos exportados)
+- [`@framework/ui`](#frameworkui) (66 símbolos exportados)
 
 ## `@framework/base-domain`
 
@@ -799,6 +799,24 @@ Miembros públicos:
 - `name: unknown`
 - `shouldAcceptIncoming(_incoming: SyncVersionComparable, existing: SyncVersionComparable | null | undefined): boolean`
 
+### `escapeCsvCell`
+
+- Origen: `packages/core/src/csv.ts`
+- Descripción: Escapa y formatea un valor para una celda de CSV según RFC 4180, protegiendo contra inyección de fórmulas (CWE-1236).
+
+```ts
+function escapeCsvCell(val: unknown): string
+```
+
+### `parseCsvRows`
+
+- Origen: `packages/core/src/csv.ts`
+- Descripción: Parsea un contenido de texto CSV según la especificación RFC 4180 soportando celdas multilínea y con comillas.
+
+```ts
+function parseCsvRows(text: string): string[][]
+```
+
 ## `@framework/data`
 
 ### `FRAMEWORK_LOCAL_MIGRATIONS`
@@ -1384,6 +1402,14 @@ const APP_ID
 const ENTITY_NAME
 ```
 
+### `DEFAULT_COLLECTION`
+
+- Origen: `packages/mtginvest-domain/src/contracts.ts`
+
+```ts
+const DEFAULT_COLLECTION
+```
+
 ### `CardTrend`
 
 - Origen: `packages/mtginvest-domain/src/contracts.ts`
@@ -1431,6 +1457,7 @@ Miembros públicos:
 - `isFavorite: boolean`
 - `imageUrl?: string`
 - `scryfallId?: string`
+- `collection?: string`
 - `priceHistory?: CardPricePoint[]`
 - `lastPriceSyncDate?: string`
 
@@ -1458,6 +1485,7 @@ Miembros públicos:
 - `condition?: string`
 - `imageUrl?: string`
 - `scryfallId?: string`
+- `collection?: string`
 - `priceHistory?: CardPricePoint[]`
 - `lastPriceSyncDate?: string`
 
@@ -1539,7 +1567,7 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -1566,7 +1594,7 @@ interface IMtginvestController extends IController<MtginvestViewState, ViewEvent
 Miembros públicos:
 - `scryfallClient: IScryfallApiClient`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
@@ -1995,7 +2023,7 @@ Miembros públicos:
 - `exportToJson(): string`
 - `exportToCsv(): string`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -2018,7 +2046,7 @@ Miembros públicos:
 - `constructor(private readonly model: IMtginvestModel, scryfallClient?: IScryfallApiClient)`
 - `init(): Promise<void>`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
@@ -3093,4 +3121,40 @@ Miembros públicos:
 
 ```ts
 function SearchInput({ value, onChangeText, placeholder = 'Buscar...', onClear, autoFocus = false, style, testID }: SearchInputProps)
+```
+
+### `ToggleChipTone`
+
+- Origen: `packages/ui/src/components/ToggleChip.tsx`
+
+```ts
+type ToggleChipTone = 'accent' | 'neutral' | 'success' | 'warning' | 'danger'
+```
+
+### `ToggleChipProps`
+
+- Origen: `packages/ui/src/components/ToggleChip.tsx`
+
+```ts
+interface ToggleChipProps
+```
+
+Miembros públicos:
+- `label: string`
+- `selected: boolean`
+- `onPress: () => void`
+- `icon?: GoogleIconName`
+- `tone?: ToggleChipTone`
+- `disabled?: boolean`
+- `accessibilityLabel?: string`
+- `testID?: string`
+- `style?: StyleProp<ViewStyle>`
+
+### `ToggleChip`
+
+- Origen: `packages/ui/src/components/ToggleChip.tsx`
+- Descripción: Chip interactivo conmutador para filtros, atributos y selecciones múltiples.
+
+```ts
+function ToggleChip({ label, selected, onPress, icon, tone = 'accent', disabled = false, accessibilityLabel, testID, style }: ToggleChipProps)
 ```

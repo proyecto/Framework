@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, View } from 'react-native';
 import { GoogleIcon, useFrameworkTheme } from '@framework/ui';
-import { getSmallImageUrl, loadCardImageAsDataUri } from './cardImageLoader';
+import { getSmallImageUrl, loadCardImageAsDataUri, SCRYFALL_IMAGE_HEADERS } from './cardImageLoader';
 
 export interface CardThumbnailProps {
   imageUrl?: string;
@@ -15,11 +15,12 @@ export interface CardThumbnailProps {
 }
 
 /**
- * Componente de miniatura visual de carta MTG con soporte nativo multiplataforma.
- * En Web carga la versión optimizada 'small' directamente.
- * En móviles descarga mediante JS con User-Agent autorizado y convierte a Data URI local en caché.
+ * Componente de miniatura visual de carta MTG con soporte nativo multiplataforma de alto rendimiento.
+ * - En Web y Móvil carga directamente usando el pipeline nativo con cabeceras Scryfall.
+ * - Utiliza `cache: 'force-cache'` para leer de la memoria flash local del teléfono tras la primera descarga (0ms latencia).
+ * - Envuelto en `React.memo` para evitar re-renderizados innecesarios durante el scroll o filtrado.
  */
-export function CardThumbnail({
+export const CardThumbnail = React.memo(function CardThumbnail({
   imageUrl,
   title,
   width = 44,
@@ -30,12 +31,17 @@ export function CardThumbnail({
   onResolveMissing
 }: CardThumbnailProps) {
   const theme = useFrameworkTheme();
-  const [displayUri, setDisplayUri] = useState<string | null>(null);
+  // Estado inicial instantáneo si imageUrl ya viene definido (evita el parpadeo de placeholder)
+  const [displayUri, setDisplayUri] = useState<string | null>(() =>
+    imageUrl ? (getSmallImageUrl(imageUrl) ?? imageUrl) : null
+  );
   const [hasError, setHasError] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
 
   useEffect(() => {
     let active = true;
     setHasError(false);
+    setIsFallback(false);
 
     if (!imageUrl) {
       if (onResolveMissing) {
@@ -43,13 +49,7 @@ export function CardThumbnail({
         void onResolveMissing().then((resolved) => {
           if (!isCancelled && resolved) {
             const target = getSmallImageUrl(resolved) ?? resolved;
-            if (Platform.OS === 'web') {
-              setDisplayUri(target);
-            } else {
-              void loadCardImageAsDataUri(target).then((dataUri) => {
-                if (!isCancelled) setDisplayUri(dataUri);
-              });
-            }
+            setDisplayUri(target);
           }
         });
         return () => {
@@ -61,28 +61,40 @@ export function CardThumbnail({
     }
 
     const targetUrl = getSmallImageUrl(imageUrl) ?? imageUrl;
-
-    if (Platform.OS === 'web') {
-      setDisplayUri(targetUrl);
-      return;
-    }
-
-    loadCardImageAsDataUri(targetUrl)
-      .then((dataUri) => {
-        if (!active) return;
-        setDisplayUri(dataUri);
-      })
-      .catch(() => {
-        if (!active) return;
-        setDisplayUri(targetUrl);
-      });
+    setDisplayUri(targetUrl);
 
     return () => {
       active = false;
     };
-  }, [imageUrl]);
+  }, [imageUrl, onResolveMissing]);
 
-  if (displayUri && !hasError) {
+  const handleImageError = () => {
+    // Si la carga nativa falló en móvil y aún no hemos probado el fallback data URI
+    if (Platform.OS !== 'web' && displayUri && !isFallback && !displayUri.startsWith('data:')) {
+      setIsFallback(true);
+      void loadCardImageAsDataUri(displayUri)
+        .then((dataUri) => {
+          setDisplayUri(dataUri);
+        })
+        .catch(() => {
+          setHasError(true);
+        });
+      return;
+    }
+    setHasError(true);
+  };
+
+  // Referencia de objeto de imagen memoizada con caché nativa persistente
+  const imageSource = useMemo(() => {
+    if (!displayUri) return null;
+    return {
+      uri: displayUri,
+      headers: SCRYFALL_IMAGE_HEADERS,
+      cache: 'force-cache' as const
+    };
+  }, [displayUri]);
+
+  if (displayUri && imageSource && !hasError) {
     return (
       <View
         style={{
@@ -96,10 +108,10 @@ export function CardThumbnail({
         }}
       >
         <Image
-          source={{ uri: displayUri }}
+          source={imageSource}
           style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
           resizeMode={resizeMode}
-          onError={() => setHasError(true)}
+          onError={handleImageError}
         />
       </View>
     );
@@ -127,4 +139,4 @@ export function CardThumbnail({
       />
     </View>
   );
-}
+});

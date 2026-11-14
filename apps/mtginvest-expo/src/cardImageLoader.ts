@@ -3,6 +3,16 @@ import { Platform } from 'react-native';
 const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 /**
+ * Cabeceras HTTP autorizadas para el CDN y API de Scryfall.
+ * Esenciales en dispositivos móviles para que las peticiones nativas (OkHttp / Fresco en Android,
+ * y NSURLSession en iOS) incluyan el User-Agent identificado y eviten el bloqueo 403 Forbidden de Cloudflare.
+ */
+export const SCRYFALL_IMAGE_HEADERS: Record<string, string> = {
+  'User-Agent': 'MTGInvest/2026.11 (Mobile-App; Framework-Client)',
+  Accept: 'image/webp,image/png,image/jpeg,image/*;q=0.8'
+};
+
+/**
  * Convierte un Uint8Array en string Base64 en JavaScript puro sin dependencias nativas.
  */
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -23,8 +33,8 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 const cardImageDataCache = new Map<string, string>();
 
 /**
- * Devuelve la URL de menor resolución ('small') a partir de una URL de Scryfall ('normal').
- * Esto optimiza el consumo de datos y la velocidad de carga de miniaturas en la lista y cuadrícula.
+ * Devuelve la URL de menor resolución ('small') a partir de cualquier URL de Scryfall ('normal', 'large', 'png').
+ * Esto reduce el peso de cada imagen de ~150-300KB a solo ~15-25KB, acelerando drásticamente la carga en redes móviles.
  */
 export function getSmallImageUrl(url?: string): string | undefined {
   if (!url) return undefined;
@@ -32,15 +42,44 @@ export function getSmallImageUrl(url?: string): string | undefined {
   if (trimmed.includes('/normal/')) {
     return trimmed.replace('/normal/', '/small/');
   }
+  if (trimmed.includes('/large/')) {
+    return trimmed.replace('/large/', '/small/');
+  }
+  if (trimmed.includes('/png/')) {
+    return trimmed.replace('/png/', '/small/').replace(/\.png(\?.*)?$/i, '.jpg$1');
+  }
   return trimmed;
 }
 
+// Control de concurrencia para peticiones JS de rescate (evita saturación y bloqueo por rate-limiting)
+let activeDownloads = 0;
+const MAX_CONCURRENT_DOWNLOADS = 3;
+const downloadQueue: Array<() => void> = [];
+
+function acquireDownloadSlot(): Promise<void> {
+  if (activeDownloads < MAX_CONCURRENT_DOWNLOADS) {
+    activeDownloads++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    downloadQueue.push(() => {
+      activeDownloads++;
+      resolve();
+    });
+  });
+}
+
+function releaseDownloadSlot(): void {
+  activeDownloads--;
+  if (downloadQueue.length > 0) {
+    const next = downloadQueue.shift();
+    if (next) next();
+  }
+}
+
 /**
- * Resuelve una URL remota de Scryfall a una URI segura y mostrable.
- * En navegadores web, devuelve la URL remota directamente (el navegador envía su User-Agent estándar).
- * En dispositivos móviles (React Native Android e iOS), descarga la imagen usando JavaScript `fetch`
- * con cabecera `User-Agent` de MTGInvest y la convierte a un Data URI base64 local, evitando que el
- * motor nativo (Fresco/OkHttp) sufra un bloqueo 403 Forbidden por parte de Cloudflare / Scryfall.
+ * Resuelve una URL remota de Scryfall a un Data URI base64 en memoria como mecanismo de rescate (fallback).
+ * Utiliza fetch con signal de timeout y decodificación directa por ArrayBuffer (sin el problemático FileReader de React Native).
  */
 export async function loadCardImageAsDataUri(remoteUrl: string): Promise<string> {
   const trimmed = remoteUrl.trim();
@@ -53,114 +92,56 @@ export async function loadCardImageAsDataUri(remoteUrl: string): Promise<string>
     return cardImageDataCache.get(trimmed)!;
   }
 
-  // En navegador web tradicional, no hay problemas de cabeceras en tags de imagen
+  // En navegador web tradicional, la URL directa es gestionada limpiamente por el navegador
   if (Platform.OS === 'web') {
     return trimmed;
   }
 
-  // Intentamos primero la URL solicitada, y si falla y es /normal/, intentamos /small/
-  const candidates = [trimmed];
-  if (trimmed.includes('/normal/')) {
-    candidates.push(trimmed.replace('/normal/', '/small/'));
-  }
+  // Intentamos primero la versión optimizada /small/ para ahorrar ancho de banda
+  const smallUrl = getSmallImageUrl(trimmed) ?? trimmed;
+  const candidates = smallUrl !== trimmed ? [smallUrl, trimmed] : [trimmed];
 
-  const userAgent = 'MTGInvest/2026.11 (Mobile-App; Framework-Client)';
-  const accept = 'image/webp,image/png,image/jpeg,image/*;q=0.8';
+  await acquireDownloadSlot();
+  try {
+    let lastError: unknown = null;
 
-  let lastError: unknown = null;
-
-  for (const url of candidates) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': userAgent,
-          Accept: accept
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Scryfall CDN HTTP ${response.status}`);
-      }
-
-      // Método 1: FileReader con Blob (estándar en React Native BlobModule)
-      if (typeof (globalThis as any).FileReader !== 'undefined') {
+    for (const url of candidates) {
+      const abortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = setTimeout(() => {
         try {
-          const blob = await response.blob();
-          const dataUri = await new Promise<string>((resolve, reject) => {
-            const reader = new (globalThis as any).FileReader();
-            reader.onloadend = () => {
-              if (typeof reader.result === 'string') {
-                resolve(reader.result);
-              } else {
-                reject(new Error('FileReader devolvió resultado vacío'));
-              }
-            };
-            reader.onerror = () => reject(reader.error ?? new Error('Error en FileReader'));
-            reader.readAsDataURL(blob);
-          });
+          abortController?.abort();
+        } catch {}
+      }, 7000);
 
+      try {
+        const response = await fetch(url, {
+          signal: abortController?.signal,
+          headers: SCRYFALL_IMAGE_HEADERS
+        });
+
+        if (!response.ok) {
+          throw new Error(`Scryfall CDN HTTP ${response.status}`);
+        }
+
+        if (typeof response.arrayBuffer === 'function') {
+          const buffer = await response.arrayBuffer();
+          const base64 = uint8ArrayToBase64(new Uint8Array(buffer));
+          const mime = response.headers.get('content-type') || 'image/jpeg';
+          const dataUri = `data:${mime};base64,${base64}`;
           cardImageDataCache.set(trimmed, dataUri);
           return dataUri;
-        } catch {
-          // Continuar al método 2 si FileReader falla
         }
+      } catch (err) {
+        lastError = err;
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      // Método 2: ArrayBuffer -> Base64 con encoder JS puro
-      if (typeof response.arrayBuffer === 'function') {
-        const buffer = await response.arrayBuffer();
-        const base64 = uint8ArrayToBase64(new Uint8Array(buffer));
-        const mime = response.headers.get('content-type') || 'image/jpeg';
-        const dataUri = `data:${mime};base64,${base64}`;
-        cardImageDataCache.set(trimmed, dataUri);
-        return dataUri;
-      }
-    } catch (err) {
-      lastError = err;
     }
+
+    throw lastError ?? new Error('No se pudo descargar la imagen de Scryfall');
+  } finally {
+    releaseDownloadSlot();
   }
-
-  // Método 3: Fallback usando XMLHttpRequest nativo
-  if (typeof (globalThis as any).XMLHttpRequest !== 'undefined') {
-    try {
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const xhr = new (globalThis as any).XMLHttpRequest();
-        xhr.open('GET', candidates[0], true);
-        xhr.responseType = 'blob';
-        try {
-          xhr.setRequestHeader('User-Agent', userAgent);
-          xhr.setRequestHeader('Accept', accept);
-        } catch {
-          // Ignorar si el runtime restringe cabeceras en XHR
-        }
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
-            const reader = new (globalThis as any).FileReader();
-            reader.onloadend = () => {
-              if (typeof reader.result === 'string') {
-                resolve(reader.result);
-              } else {
-                reject(new Error('XHR FileReader devolvió resultado vacío'));
-              }
-            };
-            reader.onerror = () => reject(xhr.statusText || new Error('XHR reader error'));
-            reader.readAsDataURL(xhr.response);
-          } else {
-            reject(new Error(`XHR HTTP ${xhr.status}`));
-          }
-        };
-        xhr.onerror = () => reject(new Error('XHR falló en la petición'));
-        xhr.send();
-      });
-
-      cardImageDataCache.set(trimmed, dataUri);
-      return dataUri;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw lastError ?? new Error('No se pudo convertir la imagen de Scryfall a Data URI');
 }
 
 /**

@@ -507,6 +507,82 @@ describe('MTGInvest MVC domain', () => {
     controller.dispose();
   });
 
+  it('prioritizes eur_foil pricing from Cardmarket when card is marked isFoil: true', async () => {
+    const mockBatchFetch: HttpFetchFn = async (_input, init) => {
+      const body = JSON.parse(init?.body || '{}');
+      const identifiers = body.identifiers || [];
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          object: 'list',
+          not_found: [],
+          data: identifiers.map((idObj: any, index: number) => ({
+            object: 'card',
+            id: `scryfall-foil-${index}`,
+            name: idObj.name || 'Unknown',
+            set: idObj.set || '2ed',
+            prices: {
+              eur: '50.00',
+              eur_foil: '250.00',
+              usd: '60.00'
+            },
+            image_uris: {
+              normal: 'https://cards.scryfall.io/normal/foil.jpg'
+            }
+          }))
+        })
+      };
+    };
+
+    const client = new ScryfallApiClient({
+      rateLimitMs: 0,
+      fetchFn: mockBatchFetch
+    });
+
+    const store = new InMemoryEntityStoreDriver();
+    const controller = createMtginvestController({
+      store,
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-foil-sync',
+      scryfallClient: client
+    });
+
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    // Vaciamos e insertamos una carta normal y una foil
+    await controller.clearInventory();
+    await controller.createItem({
+      title: 'Counterspell Normal',
+      nameEn: 'Counterspell',
+      edition: 'Unlimited Edition',
+      editionCode: '2ed',
+      currentPrice: 30,
+      previousPrice: 30,
+      isFoil: false
+    });
+    await controller.createItem({
+      title: 'Counterspell Foil',
+      nameEn: 'Counterspell',
+      edition: 'Unlimited Edition',
+      editionCode: '2ed',
+      currentPrice: 30,
+      previousPrice: 30,
+      isFoil: true
+    });
+
+    await controller.syncCardmarketPrices({ force: true });
+
+    const normal = view.latest.items.find((c) => c.title === 'Counterspell Normal');
+    const foil = view.latest.items.find((c) => c.title === 'Counterspell Foil');
+
+    expect(normal?.currentPrice).toBe(50.00); // eur normal
+    expect(foil?.currentPrice).toBe(250.00);  // eur_foil
+    controller.dispose();
+  });
+
   it('supports importing and exporting portfolio cards to JSON and CSV', async () => {
     const controller = createMtginvestController({
       store: new InMemoryEntityStoreDriver(),
@@ -565,6 +641,37 @@ describe('MTGInvest MVC domain', () => {
     expect(appendResult.importedCount).toBe(1);
     expect(appendResult.replaced).toBe(false);
     expect(view.latest.items).toHaveLength(3);
+
+    controller.dispose();
+  });
+
+  it('supports assigning and updating custom collections / binders', async () => {
+    const controller = createMtginvestController({
+      store: new InMemoryEntityStoreDriver(),
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-collections'
+    });
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    await controller.createItem({
+      title: 'Tarmogoyf',
+      edition: 'Future Sight',
+      editionCode: 'FUT',
+      currentPrice: 25.0,
+      collection: 'Trade Binder'
+    });
+
+    const created = view.latest.items.find((c) => c.title === 'Tarmogoyf');
+    expect(created?.collection).toBe('Trade Binder');
+
+    await controller.updateCard(created!.id, {
+      collection: 'Mazo Modern Jund'
+    });
+
+    const updated = view.latest.items.find((c) => c.id === created!.id);
+    expect(updated?.collection).toBe('Mazo Modern Jund');
 
     controller.dispose();
   });

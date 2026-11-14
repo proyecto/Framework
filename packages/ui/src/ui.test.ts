@@ -40,6 +40,7 @@ import { Slider } from './components/Slider.js';
 import { StorageStatusBar } from './components/StorageStatusBar.js';
 import { SwitchToggle } from './components/SwitchToggle.js';
 import { TextField } from './components/TextField.js';
+import { ToggleChip } from './components/ToggleChip.js';
 import {
   CRIMSON_THEME,
   DARK_THEME,
@@ -349,5 +350,35 @@ describe('@framework/ui design tokens & typography resolver', () => {
 
     expect(html).toContain('Buscar cartas...');
     expect(html).toContain('Serra Angel');
+  });
+
+  it('renders ToggleChip with label, icon, and handles selected state', () => {
+    const htmlSelected = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'light',
+        children: createElement(ToggleChip, {
+          label: 'Foil ✨',
+          icon: 'auto-awesome',
+          selected: true,
+          onPress: () => {}
+        })
+      })
+    );
+
+    expect(htmlSelected).toContain('Foil ✨');
+    expect(htmlSelected).toContain('data-role="checkbox"');
+
+    const htmlUnselected = renderToStaticMarkup(
+      createElement(FrameworkThemeProvider, {
+        preference: 'light',
+        children: createElement(ToggleChip, {
+          label: 'Alterada 🎨',
+          selected: false,
+          onPress: () => {}
+        })
+      })
+    );
+
+    expect(htmlUnselected).toContain('Alterada 🎨');
   });
 });

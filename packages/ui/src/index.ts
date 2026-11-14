@@ -17,3 +17,4 @@ export * from './components/SimpleLineChart.js';
 export * from './components/Calendar.js';
 export * from './components/Select.js';
 export * from './components/SearchInput.js';
+export * from './components/ToggleChip.js';

@@ -25,12 +25,17 @@ import {
   SimpleLineChart,
   TextField,
   textTypographyStyle,
+  ToggleChip,
   useFrameworkTheme,
   useFrameworkThemeContext,
   type ThemeScheme
 } from '@framework/ui';
 import { APP_LAYOUT_BOUNDS } from './bounds';
-import { clearCardImageCache, loadCardImageAsDataUri } from './cardImageLoader';
+import {
+  clearCardImageCache,
+  loadCardImageAsDataUri,
+  SCRYFALL_IMAGE_HEADERS
+} from './cardImageLoader';
 import { CardThumbnail } from './CardThumbnail';
 import {
   buildCardChart,
@@ -54,7 +59,7 @@ import {
 } from './mvc';
 import { APP_VERSION, BASE_VERSION } from './version';
 
-export type MTGTab = 'main' | 'analytics' | 'settings';
+export type MTGTab = 'main' | 'collections' | 'analytics' | 'settings';
 
 export type AppLanguage = 'es' | 'en';
 
@@ -108,8 +113,23 @@ export const APP_LANGUAGE_OPTIONS: LanguageOptionDef[] = [
 export const I18N_STRINGS = {
   es: {
     tabMain: 'Principal',
+    tabCollections: 'Colecciones',
     tabAnalytics: 'Gráficas',
     tabSettings: 'Ajustes',
+    collectionsCardTitle: 'Mis Colecciones y Carpetas',
+    collectionsCardSubtitle: 'Organización de cartas por carpetas, mazos o inversión',
+    newCollectionButton: 'Nueva colección',
+    allCollectionsLabel: 'Todas',
+    createCollectionTitle: 'Crear nueva colección',
+    createCollectionDesc: 'Crea una carpeta o archivador virtual para organizar tus cartas (ej. Trade Binder, Reservelist, Mazo Commander).',
+    collectionNameLabel: 'Nombre de la colección',
+    collectionNamePlaceholder: 'Ej. Carpeta de Intercambio, Reservelist, Mazo Commander...',
+    createCollectionSubmit: 'Crear colección',
+    collectionCreatedToast: (name: string) => `Colección «${name}» creada.`,
+    collectionLabel: 'Colección / Carpeta',
+    collectionFilterLabel: 'Filtrar por colección',
+    exploreCollectionButton: 'Ver cartas de esta colección',
+    emptyCollectionNotice: 'Esta colección aún no tiene cartas asignadas.',
     themeCardTitle: 'Aspecto y Tema',
     themeCardSubtitle: 'Modo claro, modo oscuro y estilos de color',
     themeDescription: 'Personaliza la interfaz eligiendo entre el modo claro, modo oscuro o temas con paletas adaptadas a tu flujo de trabajo.',
@@ -141,6 +161,9 @@ export const I18N_STRINGS = {
     aboutCardTitle: 'Acerca de MTGInvest',
     aboutCardSubtitle: 'Gestor de Inversiones MTG',
     aboutDescription: 'Aplicación de gestión y valoración bursátil de inversiones en Magic: The Gathering construida sobre la arquitectura modular del Framework.',
+    legalDisclaimerTitle: 'Aviso Legal y Propiedad Intelectual',
+    wotcDisclaimer: 'MTGInvest es contenido de fans no oficial permitido bajo la Política de Contenido de Fans de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.',
+    thirdPartyDisclaimer: 'Las imágenes y cotizaciones son obtenidas mediante la API de Scryfall con fines informativos. Magic: The Gathering, Scryfall y Cardmarket son marcas registradas de sus respectivos propietarios. MTGInvest es una aplicación independiente, gratuita y de código abierto sin afiliación con dichas entidades.',
     searchPlaceholder: 'Buscar por nombre, edición (ej. 2ED) o idioma...',
     sortButton: 'Ordenar',
     sortModalTitle: 'Ordenar cartas',
@@ -153,8 +176,23 @@ export const I18N_STRINGS = {
   },
   en: {
     tabMain: 'Portfolio',
+    tabCollections: 'Collections',
     tabAnalytics: 'Analytics',
     tabSettings: 'Settings',
+    collectionsCardTitle: 'My Collections & Binders',
+    collectionsCardSubtitle: 'Organize cards by binders, decks, or investments',
+    newCollectionButton: 'New collection',
+    allCollectionsLabel: 'All',
+    createCollectionTitle: 'Create new collection',
+    createCollectionDesc: 'Create a virtual binder or folder to organize your cards (e.g. Trade Binder, Reservelist, Commander Deck).',
+    collectionNameLabel: 'Collection name',
+    collectionNamePlaceholder: 'e.g. Trade Binder, Reservelist, Commander Deck...',
+    createCollectionSubmit: 'Create collection',
+    collectionCreatedToast: (name: string) => `Collection "${name}" created.`,
+    collectionLabel: 'Collection / Binder',
+    collectionFilterLabel: 'Filter by collection',
+    exploreCollectionButton: 'View cards in this collection',
+    emptyCollectionNotice: 'No cards in this collection yet.',
     themeCardTitle: 'Appearance & Theme',
     themeCardSubtitle: 'Light, dark, and specialized color modes',
     themeDescription: 'Customize the interface choosing between light mode, dark mode, or themes with palettes tailored to your workflow.',
@@ -539,6 +577,14 @@ export function MTGInvestScreen({
     });
   };
 
+  // Estados para colecciones y carpetas
+  const [userCustomCollections, setUserCustomCollections] = useState<string[]>([]);
+  const [selectedCollectionFilter, setSelectedCollectionFilter] = useState<string | null>(null);
+  const [showNewCollectionModal, setShowNewCollectionModal] = useState(false);
+  const [newCollectionNameInput, setNewCollectionNameInput] = useState('');
+  const [newCardCollection, setNewCardCollection] = useState('Principal');
+  const [editCollection, setEditCollection] = useState('Principal');
+
   // Estado para la pestaña de Gráficas de la Cartera completa
   const [portfolioTimeframe, setPortfolioTimeframe] = useState<ChartTimeframe>('1A');
   const [activeMetricChart, setActiveMetricChart] = useState<'value' | 'profit' | 'roi'>('value');
@@ -568,6 +614,60 @@ export function MTGInvestScreen({
     }
   });
 
+  // Colecciones disponibles consolidadas
+  const availableCollections = useMemo(() => {
+    const set = new Set<string>();
+    set.add('Principal');
+    for (const card of state.items) {
+      if (card.collection && card.collection.trim()) {
+        set.add(card.collection.trim());
+      }
+    }
+    for (const c of userCustomCollections) {
+      if (c.trim()) set.add(c.trim());
+    }
+    return Array.from(set);
+  }, [state.items, userCustomCollections]);
+
+  // Resumen financiero y métricas de cada colección
+  const collectionSummaries = useMemo(() => {
+    return availableCollections.map((colName) => {
+      const cards = state.items.filter((c) => {
+        const cCol = c.collection?.trim() || 'Principal';
+        return cCol.toLowerCase() === colName.toLowerCase();
+      });
+      const totalUnits = cards.reduce((sum, c) => sum + (c.quantity || 1), 0);
+      const totalValue = cards.reduce((sum, c) => sum + c.currentPrice * (c.quantity || 1), 0);
+      const totalInvested = cards.reduce(
+        (sum, c) => sum + (c.buyPrice ?? c.previousPrice) * (c.quantity || 1),
+        0
+      );
+      const netProfit = totalValue - totalInvested;
+      const roi = totalInvested > 0 ? (netProfit / totalInvested) * 100 : 0;
+      const topCards = [...cards].sort((a, b) => b.currentPrice - a.currentPrice).slice(0, 4);
+
+      return {
+        name: colName,
+        cards,
+        uniqueCards: cards.length,
+        totalUnits,
+        totalValue: Number(totalValue.toFixed(2)),
+        totalInvested: Number(totalInvested.toFixed(2)),
+        netProfit: Number(netProfit.toFixed(2)),
+        roi: Number(roi.toFixed(1)),
+        topCards
+      };
+    });
+  }, [availableCollections, state.items]);
+
+  const collectionSelectOptions: SelectOption<string>[] = useMemo(() => {
+    return availableCollections.map((col) => ({
+      value: col,
+      label: col,
+      badge: col === 'Principal' ? 'Base' : undefined
+    }));
+  }, [availableCollections]);
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), APP_LAYOUT_BOUNDS.toastDurationMs);
@@ -580,40 +680,18 @@ export function MTGInvestScreen({
     void controller.syncCardmarketPrices({ force: hasMissingImages }).catch(() => {});
   }, [controller, state.items.length]);
 
-  // Resuelve la imagen a Data URI local en móvil para eludir bloqueos 403 de Cloudflare a OkHttp
+  // Sincroniza la URL del arte para la carta en edición/detalle
   useEffect(() => {
-    let active = true;
-
     if (!cardArtUrl) {
       setDisplayArtUri(null);
       setImageDownloading(false);
+      setImageLoadError(false);
       return;
     }
 
-    if (Platform.OS === 'web') {
-      setDisplayArtUri(cardArtUrl);
-      setImageDownloading(false);
-      return;
-    }
-
+    setDisplayArtUri(cardArtUrl);
     setImageDownloading(true);
     setImageLoadError(false);
-
-    loadCardImageAsDataUri(cardArtUrl)
-      .then((dataUri) => {
-        if (!active) return;
-        setDisplayArtUri(dataUri);
-        setImageDownloading(false);
-      })
-      .catch(() => {
-        if (!active) return;
-        setDisplayArtUri(cardArtUrl);
-        setImageDownloading(false);
-      });
-
-    return () => {
-      active = false;
-    };
   }, [cardArtUrl, imageRetryKey]);
 
   // Opción de ordenación activa
@@ -628,17 +706,27 @@ export function MTGInvestScreen({
 
     // 1. Filtrado en tiempo real por nombre (ES/EN) o edición (nombre/código) o atributos (foil, alterada, firmada)
     const filtered = state.items.filter((card) => {
+      // Filtrado por colección si hay un archivador o carpeta seleccionado
+      if (selectedCollectionFilter) {
+        const cardCol = card.collection?.trim() || 'Principal';
+        if (cardCol.toLowerCase() !== selectedCollectionFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
       if (!q) return true;
       const titleMatch = normalizeText(card.title).includes(q);
       const nameEnMatch = card.nameEn ? normalizeText(card.nameEn).includes(q) : false;
       const editionMatch = normalizeText(card.edition).includes(q);
       const codeMatch = card.editionCode ? normalizeText(card.editionCode).includes(q) : false;
       const langMatch = card.language ? normalizeText(card.language).includes(q) : false;
-      const foilMatch = Boolean(card.isFoil) && (q.includes('foil') || q.includes('brill') || 'foil'.includes(q));
+      const foilMatch = Boolean(card.isFoil) && (q === 'foil' || q === 'brillante' || (q.length >= 4 && 'foil'.startsWith(q)));
       const alteredMatch =
-        Boolean(card.isAltered) && (q.includes('alter') || 'alterada'.includes(q) || 'altered'.includes(q));
+        Boolean(card.isAltered) &&
+        (q === 'alter' || q === 'alterada' || q === 'altered' || (q.length >= 5 && 'alterada'.startsWith(q)));
       const signedMatch =
-        Boolean(card.isSigned) && (q.includes('firm') || 'firmada'.includes(q) || 'signed'.includes(q));
+        Boolean(card.isSigned) &&
+        (q === 'firm' || q === 'firma' || q === 'firmada' || q === 'signed' || (q.length >= 5 && 'firmada'.startsWith(q)));
       return (
         titleMatch ||
         nameEnMatch ||
@@ -683,7 +771,7 @@ export function MTGInvestScreen({
           return 0;
       }
     });
-  }, [state.items, searchQuery, sortBy]);
+  }, [state.items, searchQuery, sortBy, selectedCollectionFilter]);
 
   // Cálculos globales de la cartera de inversión ponderando cantidad de cada carta
   const portfolioSummary = useMemo(() => {
@@ -931,6 +1019,7 @@ export function MTGInvestScreen({
     setNewIsFoil(false);
     setNewIsAltered(false);
     setNewIsSigned(false);
+    setNewCardCollection('Principal');
     setSelectedScryfallCard(null);
     setScryfallSearchText('');
     setScryfallSuggestions([]);
@@ -963,6 +1052,7 @@ export function MTGInvestScreen({
       condition: newCondition.trim() || undefined,
       imageUrl: newImageUrl || undefined,
       scryfallId: newScryfallId || undefined,
+      collection: newCardCollection.trim() || 'Principal',
       lastPriceSyncDate: current > 0 ? new Date().toISOString().split('T')[0] : undefined
     });
 
@@ -985,6 +1075,7 @@ export function MTGInvestScreen({
     setEditIsFoil(Boolean(card.isFoil));
     setEditIsAltered(Boolean(card.isAltered));
     setEditIsSigned(Boolean(card.isSigned));
+    setEditCollection(card.collection?.trim() || 'Principal');
 
     // Arte de la carta desde Scryfall
     setImageLoadError(false);
@@ -1064,7 +1155,8 @@ export function MTGInvestScreen({
       isAltered: editIsAltered,
       isSigned: editIsSigned,
       condition: editCondition.trim() || undefined,
-      imageUrl: cardArtUrl ?? editingCard.imageUrl
+      imageUrl: cardArtUrl ?? editingCard.imageUrl,
+      collection: editCollection.trim() || 'Principal'
     });
 
     setEditingCard(null);
@@ -1227,6 +1319,7 @@ export function MTGInvestScreen({
       toastMessage={toast}
       tabs={[
         { id: 'main', label: t.tabMain, icon: 'home' },
+        { id: 'collections', label: t.tabCollections, icon: 'folder' },
         { id: 'analytics', label: t.tabAnalytics, icon: 'show-chart' },
         {
           id: APP_LAYOUT_BOUNDS.settingsTab.id,
@@ -1450,6 +1543,35 @@ export function MTGInvestScreen({
             </Pressable>
           </View>
 
+          {/* Selector rápido de filtro por colección / carpeta */}
+          {availableCollections.length > 1 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 6, paddingVertical: 2 }}
+            >
+              <ToggleChip
+                label={`${t.allCollectionsLabel} (${portfolioSummary.totalQuantity})`}
+                icon="layers"
+                selected={selectedCollectionFilter === null}
+                onPress={() => setSelectedCollectionFilter(null)}
+              />
+              {collectionSummaries.map((col) => (
+                <ToggleChip
+                  key={col.name}
+                  label={`${col.name} (${col.totalUnits})`}
+                  icon={col.name === 'Principal' ? 'home' : 'folder'}
+                  selected={selectedCollectionFilter === col.name}
+                  onPress={() =>
+                    setSelectedCollectionFilter(
+                      selectedCollectionFilter === col.name ? null : col.name
+                    )
+                  }
+                />
+              ))}
+            </ScrollView>
+          ) : null}
+
           {/* 2. Listado de Cartas: Galería visual o Lista compacta */}
           <View style={{ gap: theme.spacing.sm }}>
             {filteredAndSortedCards.length === 0 ? (
@@ -1553,7 +1675,7 @@ export function MTGInvestScreen({
                           borderRadius={0}
                           resizeMode="cover"
                           showBorder={false}
-                          onResolveMissing={() => controller.getCardImageUrl(card)}
+                          onResolveMissing={!card.imageUrl ? () => controller.getCardImageUrl(card) : undefined}
                         />
 
                         {/* Insignia de edición en esquina superior izquierda */}
@@ -1760,7 +1882,7 @@ export function MTGInvestScreen({
                         height={62}
                         borderRadius={6}
                         resizeMode="cover"
-                        onResolveMissing={() => controller.getCardImageUrl(card)}
+                        onResolveMissing={!card.imageUrl ? () => controller.getCardImageUrl(card) : undefined}
                       />
 
                       {/* Datos de la carta: Nombre, Nombre original y Edición */}
@@ -2291,105 +2413,62 @@ export function MTGInvestScreen({
                   Atributos de coleccionismo físico
                 </Text>
                 <View style={{ flexDirection: 'row', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
-                  <Pressable
+                  <ToggleChip
+                    label="Foil ✨"
+                    icon="auto-awesome"
+                    selected={newIsFoil}
                     onPress={() => setNewIsFoil(!newIsFoil)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: newIsFoil }}
                     accessibilityLabel="Marcar como versión Foil"
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: newIsFoil ? theme.colors.accentSoft : theme.colors.surfaceMuted,
-                      borderWidth: 1,
-                      borderColor: newIsFoil ? theme.colors.accent : theme.colors.border
-                    }}
-                  >
-                    <GoogleIcon
-                      name="auto-awesome"
-                      size={14}
-                      color={newIsFoil ? theme.colors.accent : theme.colors.textSecondary}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: newIsFoil ? theme.colors.accent : theme.colors.textSecondary,
-                        ...textTypographyStyle(theme, newIsFoil ? 'bold' : 'regular')
-                      }}
-                    >
-                      Foil ✨
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
+                  />
+                  <ToggleChip
+                    label="Alterada 🎨"
+                    icon="palette"
+                    selected={newIsAltered}
                     onPress={() => setNewIsAltered(!newIsAltered)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: newIsAltered }}
                     accessibilityLabel="Marcar como carta Alterada"
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: newIsAltered ? theme.colors.accentSoft : theme.colors.surfaceMuted,
-                      borderWidth: 1,
-                      borderColor: newIsAltered ? theme.colors.accent : theme.colors.border
-                    }}
-                  >
-                    <GoogleIcon
-                      name="palette"
-                      size={14}
-                      color={newIsAltered ? theme.colors.accent : theme.colors.textSecondary}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: newIsAltered ? theme.colors.accent : theme.colors.textSecondary,
-                        ...textTypographyStyle(theme, newIsAltered ? 'bold' : 'regular')
-                      }}
-                    >
-                      Alterada 🎨
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
+                  />
+                  <ToggleChip
+                    label="Firmada ✍️"
+                    icon="edit"
+                    selected={newIsSigned}
                     onPress={() => setNewIsSigned(!newIsSigned)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: newIsSigned }}
                     accessibilityLabel="Marcar como carta Firmada"
+                  />
+                </View>
+              </View>
+
+              {/* Asignación de Colección / Carpeta */}
+              <View style={{ gap: 4, marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: newIsSigned ? theme.colors.accentSoft : theme.colors.surfaceMuted,
-                      borderWidth: 1,
-                      borderColor: newIsSigned ? theme.colors.accent : theme.colors.border
+                      color: theme.colors.textSecondary,
+                      fontSize: 11,
+                      ...textTypographyStyle(theme, 'medium')
                     }}
                   >
-                    <GoogleIcon
-                      name="edit"
-                      size={14}
-                      color={newIsSigned ? theme.colors.accent : theme.colors.textSecondary}
-                    />
+                    {t.collectionLabel}
+                  </Text>
+                  <Pressable
+                    hitSlop={6}
+                    onPress={() => setShowNewCollectionModal(true)}
+                  >
                     <Text
                       style={{
-                        fontSize: 12,
-                        color: newIsSigned ? theme.colors.accent : theme.colors.textSecondary,
-                        ...textTypographyStyle(theme, newIsSigned ? 'bold' : 'regular')
+                        color: theme.colors.accent,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'semibold')
                       }}
                     >
-                      Firmada ✍️
+                      + Nueva carpeta
                     </Text>
                   </Pressable>
                 </View>
+                <Select
+                  options={collectionSelectOptions}
+                  value={newCardCollection}
+                  onChange={setNewCardCollection}
+                />
               </View>
             </View>
           </ModalDialog>
@@ -2478,7 +2557,11 @@ export function MTGInvestScreen({
                       {displayArtUri ? (
                         <Image
                           key={`${displayArtUri.slice(0, 40)}-${imageRetryKey}`}
-                          source={{ uri: displayArtUri }}
+                          source={{
+                            uri: displayArtUri,
+                            headers: SCRYFALL_IMAGE_HEADERS,
+                            cache: 'force-cache'
+                          }}
                           style={{
                             width: 154,
                             height: 215,
@@ -2493,7 +2576,15 @@ export function MTGInvestScreen({
                           onLoadEnd={() => {
                             setImageDownloading(false);
                           }}
-                          onError={() => {
+                          onError={async () => {
+                            // Si la carga nativa falló en móvil y no es ya un Data URI, reintentamos con fallback JS
+                            if (Platform.OS !== 'web' && cardArtUrl && !displayArtUri.startsWith('data:')) {
+                              try {
+                                const dataUri = await loadCardImageAsDataUri(cardArtUrl);
+                                setDisplayArtUri(dataUri);
+                                return;
+                              } catch {}
+                            }
                             setImageDownloading(false);
                             setImageLoadError(true);
                           }}
@@ -2659,105 +2750,62 @@ export function MTGInvestScreen({
                   Atributos de coleccionismo físico
                 </Text>
                 <View style={{ flexDirection: 'row', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
-                  <Pressable
+                  <ToggleChip
+                    label="Foil ✨"
+                    icon="auto-awesome"
+                    selected={editIsFoil}
                     onPress={() => setEditIsFoil(!editIsFoil)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: editIsFoil }}
                     accessibilityLabel="Marcar como versión Foil"
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: editIsFoil ? theme.colors.accentSoft : theme.colors.surfaceMuted,
-                      borderWidth: 1,
-                      borderColor: editIsFoil ? theme.colors.accent : theme.colors.border
-                    }}
-                  >
-                    <GoogleIcon
-                      name="auto-awesome"
-                      size={14}
-                      color={editIsFoil ? theme.colors.accent : theme.colors.textSecondary}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: editIsFoil ? theme.colors.accent : theme.colors.textSecondary,
-                        ...textTypographyStyle(theme, editIsFoil ? 'bold' : 'regular')
-                      }}
-                    >
-                      Foil ✨
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
+                  />
+                  <ToggleChip
+                    label="Alterada 🎨"
+                    icon="palette"
+                    selected={editIsAltered}
                     onPress={() => setEditIsAltered(!editIsAltered)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: editIsAltered }}
                     accessibilityLabel="Marcar como carta Alterada"
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: editIsAltered ? theme.colors.accentSoft : theme.colors.surfaceMuted,
-                      borderWidth: 1,
-                      borderColor: editIsAltered ? theme.colors.accent : theme.colors.border
-                    }}
-                  >
-                    <GoogleIcon
-                      name="palette"
-                      size={14}
-                      color={editIsAltered ? theme.colors.accent : theme.colors.textSecondary}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: editIsAltered ? theme.colors.accent : theme.colors.textSecondary,
-                        ...textTypographyStyle(theme, editIsAltered ? 'bold' : 'regular')
-                      }}
-                    >
-                      Alterada 🎨
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
+                  />
+                  <ToggleChip
+                    label="Firmada ✍️"
+                    icon="edit"
+                    selected={editIsSigned}
                     onPress={() => setEditIsSigned(!editIsSigned)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: editIsSigned }}
                     accessibilityLabel="Marcar como carta Firmada"
+                  />
+                </View>
+              </View>
+
+              {/* Asignación de Colección / Carpeta */}
+              <View style={{ gap: 4, marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
-                      borderRadius: theme.radius.full,
-                      backgroundColor: editIsSigned ? theme.colors.accentSoft : theme.colors.surfaceMuted,
-                      borderWidth: 1,
-                      borderColor: editIsSigned ? theme.colors.accent : theme.colors.border
+                      color: theme.colors.textSecondary,
+                      fontSize: 11,
+                      ...textTypographyStyle(theme, 'medium')
                     }}
                   >
-                    <GoogleIcon
-                      name="edit"
-                      size={14}
-                      color={editIsSigned ? theme.colors.accent : theme.colors.textSecondary}
-                    />
+                    {t.collectionLabel}
+                  </Text>
+                  <Pressable
+                    hitSlop={6}
+                    onPress={() => setShowNewCollectionModal(true)}
+                  >
                     <Text
                       style={{
-                        fontSize: 12,
-                        color: editIsSigned ? theme.colors.accent : theme.colors.textSecondary,
-                        ...textTypographyStyle(theme, editIsSigned ? 'bold' : 'regular')
+                        color: theme.colors.accent,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'semibold')
                       }}
                     >
-                      Firmada ✍️
+                      + Nueva carpeta
                     </Text>
                   </Pressable>
                 </View>
+                <Select
+                  options={collectionSelectOptions}
+                  value={editCollection}
+                  onChange={setEditCollection}
+                />
               </View>
 
               {/* Gráfica con la evolución del precio de la carta (1S, 1M, 3M, 6M, 1A) */}
@@ -2924,6 +2972,302 @@ export function MTGInvestScreen({
           </ModalDialog>
         </>
       ) : null}
+
+      {/* Pestaña Colecciones / Carpetas: Gestión y desglose por archivadores, mazos o inversión */}
+      {activeTab === 'collections' ? (
+        <View style={{ gap: theme.spacing.md }}>
+          {/* 1. Tarjeta Resumen de Colecciones */}
+          <Card
+            title={t.collectionsCardTitle}
+            subtitle={t.collectionsCardSubtitle}
+            icon="folder"
+            rightSlot={
+              <Button
+                size="sm"
+                variant="primary"
+                icon="add"
+                label={t.newCollectionButton}
+                onPress={() => setShowNewCollectionModal(true)}
+              />
+            }
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: theme.colors.surfaceMuted,
+                padding: theme.spacing.md,
+                borderRadius: theme.radius.md,
+                flexWrap: 'wrap',
+                gap: theme.spacing.sm
+              }}
+            >
+              <View>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'medium')
+                  }}
+                >
+                  Total Carpetas
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.titleSize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  {collectionSummaries.length}
+                </Text>
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'medium')
+                  }}
+                >
+                  Valor Total
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.accentText,
+                    fontSize: theme.typography.titleSize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  {portfolioSummary.totalCurrent.toFixed(2)} €
+                </Text>
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'medium')
+                  }}
+                >
+                  Total Cartas
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.titleSize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  {portfolioSummary.totalQuantity}
+                </Text>
+              </View>
+            </View>
+          </Card>
+
+          {/* 2. Listado de Carpetas / Colecciones */}
+          <View style={{ gap: theme.spacing.md }}>
+            {collectionSummaries.map((col) => {
+              const isProfitPositive = col.netProfit > 0;
+              const isProfitNegative = col.netProfit < 0;
+              const trendTone = isProfitPositive ? 'success' : isProfitNegative ? 'danger' : 'neutral';
+              const trendSign = isProfitPositive ? '+' : '';
+
+              return (
+                <Card
+                  key={col.name}
+                  title={col.name}
+                  subtitle={`${col.uniqueCards} cartas únicas · ${col.totalUnits} copias`}
+                  icon={col.name === 'Principal' ? 'home' : 'folder-special'}
+                  rightSlot={
+                    <Badge
+                      label={`${trendSign}${col.roi}%`}
+                      tone={trendTone}
+                    />
+                  }
+                >
+                  <View style={{ gap: theme.spacing.sm }}>
+                    {/* Fila de Métricas Financieras de la Carpeta */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: theme.colors.surfaceMuted,
+                        padding: theme.spacing.sm,
+                        borderRadius: theme.radius.sm
+                      }}
+                    >
+                      <View>
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.captionSize - 1,
+                            ...textTypographyStyle(theme, 'regular')
+                          }}
+                        >
+                          Valoración
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.colors.textPrimary,
+                            fontSize: theme.typography.bodySize,
+                            ...textTypographyStyle(theme, 'bold')
+                          }}
+                        >
+                          {col.totalValue.toFixed(2)} €
+                        </Text>
+                      </View>
+
+                      <View>
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.captionSize - 1,
+                            ...textTypographyStyle(theme, 'regular')
+                          }}
+                        >
+                          Inversión
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.bodySize,
+                            ...textTypographyStyle(theme, 'medium')
+                          }}
+                        >
+                          {col.totalInvested.toFixed(2)} €
+                        </Text>
+                      </View>
+
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.captionSize - 1,
+                            ...textTypographyStyle(theme, 'regular')
+                          }}
+                        >
+                          Plusvalía
+                        </Text>
+                        <Text
+                          style={{
+                            color:
+                              isProfitPositive
+                                ? theme.colors.success
+                                : isProfitNegative
+                                ? theme.colors.danger
+                                : theme.colors.textSecondary,
+                            fontSize: theme.typography.bodySize,
+                            ...textTypographyStyle(theme, 'bold')
+                          }}
+                        >
+                          {trendSign}{col.netProfit.toFixed(2)} €
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Muestrario de Miniaturas / Portadas más valiosas */}
+                    {col.topCards.length > 0 ? (
+                      <View style={{ gap: 4, marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: theme.colors.textSecondary,
+                            ...textTypographyStyle(theme, 'medium')
+                          }}
+                        >
+                          Cartas destacadas:
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                          {col.topCards.map((topCard) => (
+                            <View
+                              key={topCard.id}
+                              style={{
+                                alignItems: 'center',
+                                borderRadius: theme.radius.sm,
+                                overflow: 'hidden'
+                              }}
+                            >
+                              <CardThumbnail
+                                imageUrl={topCard.imageUrl}
+                                title={topCard.title}
+                                width={54}
+                                height={75}
+                                borderRadius={4}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: theme.colors.textSecondary,
+                          fontStyle: 'italic',
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                      >
+                        {t.emptyCollectionNotice}
+                      </Text>
+                    )}
+
+                    {/* Botón para explorar o filtrar las cartas de esta colección */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4 }}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        icon="arrow-forward"
+                        label={t.exploreCollectionButton}
+                        onPress={() => {
+                          setSelectedCollectionFilter(col.name);
+                          setActiveTab('main');
+                        }}
+                      />
+                    </View>
+                  </View>
+                </Card>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Modal para Crear Nueva Colección */}
+      <ModalDialog
+        visible={showNewCollectionModal}
+        title={t.createCollectionTitle}
+        description={t.createCollectionDesc}
+        cancelLabel="Cancelar"
+        onCancel={() => {
+          setShowNewCollectionModal(false);
+          setNewCollectionNameInput('');
+        }}
+        confirmLabel={t.createCollectionSubmit}
+        onConfirm={() => {
+          const clean = newCollectionNameInput.trim();
+          if (!clean) return;
+          if (!availableCollections.some((c) => c.toLowerCase() === clean.toLowerCase())) {
+            setUserCustomCollections((prev) => [...prev, clean]);
+          }
+          setShowNewCollectionModal(false);
+          setNewCollectionNameInput('');
+          setToast(t.collectionCreatedToast(clean));
+        }}
+      >
+        <View style={{ gap: theme.spacing.sm, paddingVertical: theme.spacing.xs }}>
+          <TextField
+            label={t.collectionNameLabel}
+            placeholder={t.collectionNamePlaceholder}
+            value={newCollectionNameInput}
+            onChangeText={setNewCollectionNameInput}
+          />
+        </View>
+      </ModalDialog>
 
       {/* Pestaña Gráficas: Vista macro de valor, evolución, ROI y distribución de la colección */}
       {activeTab === 'analytics' ? (
@@ -3184,15 +3528,20 @@ export function MTGInvestScreen({
                   onPress={() => setActiveMetricChart('value')}
                   style={{
                     flex: 1,
-                    paddingVertical: theme.spacing.sm,
+                    minHeight: 48,
+                    paddingVertical: theme.spacing.xs + 2,
+                    paddingHorizontal: 6,
                     borderRadius: theme.radius.sm,
                     alignItems: 'center',
+                    justifyContent: 'center',
                     backgroundColor:
                       activeMetricChart === 'value' ? theme.colors.surface : 'transparent'
                   }}
                 >
                   <Text
                     style={{
+                      textAlign: 'center',
+                      lineHeight: 16,
                       color:
                         activeMetricChart === 'value'
                           ? theme.colors.accentText
@@ -3214,15 +3563,20 @@ export function MTGInvestScreen({
                   onPress={() => setActiveMetricChart('profit')}
                   style={{
                     flex: 1,
-                    paddingVertical: theme.spacing.sm,
+                    minHeight: 48,
+                    paddingVertical: theme.spacing.xs + 2,
+                    paddingHorizontal: 6,
                     borderRadius: theme.radius.sm,
                     alignItems: 'center',
+                    justifyContent: 'center',
                     backgroundColor:
                       activeMetricChart === 'profit' ? theme.colors.surface : 'transparent'
                   }}
                 >
                   <Text
                     style={{
+                      textAlign: 'center',
+                      lineHeight: 16,
                       color:
                         activeMetricChart === 'profit'
                           ? theme.colors.accentText
@@ -3244,15 +3598,20 @@ export function MTGInvestScreen({
                   onPress={() => setActiveMetricChart('roi')}
                   style={{
                     flex: 1,
-                    paddingVertical: theme.spacing.sm,
+                    minHeight: 48,
+                    paddingVertical: theme.spacing.xs + 2,
+                    paddingHorizontal: 6,
                     borderRadius: theme.radius.sm,
                     alignItems: 'center',
+                    justifyContent: 'center',
                     backgroundColor:
                       activeMetricChart === 'roi' ? theme.colors.surface : 'transparent'
                   }}
                 >
                   <Text
                     style={{
+                      textAlign: 'center',
+                      lineHeight: 16,
                       color:
                         activeMetricChart === 'roi'
                           ? theme.colors.accentText
