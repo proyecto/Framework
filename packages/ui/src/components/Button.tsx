@@ -77,6 +77,8 @@ export function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={onPress}
+      unstable_pressDelay={0}
+      hitSlop={4}
       style={({ pressed }) => [
         {
           flexDirection: 'row',

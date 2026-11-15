@@ -92,6 +92,7 @@ export function ModalDialog({
             style={{ maxHeight: contentMaxHeight }}
             contentContainerStyle={{ gap: theme.spacing.sm, paddingVertical: 2 }}
             showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
           >
             {children}
           </ScrollView>
@@ -247,6 +248,7 @@ export function AppShell<T extends string>({
           gap: theme.spacing.md,
           paddingBottom: theme.spacing.xxl
         }}
+        keyboardShouldPersistTaps="handled"
       >
         {topBanner}
         {children}
@@ -272,6 +274,8 @@ export function AppShell<T extends string>({
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
                 onPress={() => onTabChange(tab.id)}
+                unstable_pressDelay={0}
+                hitSlop={6}
                 style={{
                   flex: 1,
                   paddingVertical: theme.spacing.sm + 2,

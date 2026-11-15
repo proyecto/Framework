@@ -2220,7 +2220,7 @@ class MintmoxModel implements IMintmoxModel
 ```
 
 Miembros públicos:
-- `constructor(private readonly repository: ISyncableRepository<CardEntity>)`
+- `constructor(private readonly repository: ISyncableRepository<CardEntity>, private readonly autoSeed = false)`
 - `dispose(): void`
 - `subscribe(listener: () => void): () => void`
 - `getSnapshot(): CardEntity[]`
@@ -2285,6 +2285,7 @@ Miembros públicos:
 - `userId?: string`
 - `transport?: IRemoteSyncTransport`
 - `scryfallClient?: IScryfallApiClient`
+- `autoSeed?: boolean`
 
 ### `CreateMtginvestControllerOptions`
 

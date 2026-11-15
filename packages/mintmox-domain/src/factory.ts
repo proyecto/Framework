@@ -18,6 +18,7 @@ export interface CreateMintmoxControllerOptions {
   userId?: string;
   transport?: IRemoteSyncTransport;
   scryfallClient?: IScryfallApiClient;
+  autoSeed?: boolean;
 }
 
 export type CreateMtginvestControllerOptions = CreateMintmoxControllerOptions;
@@ -37,7 +38,10 @@ export function createMintmoxController(
     defaultMode: 'local',
     defaultPlan: 'free'
   });
-  return new MintmoxController(new MintmoxModel(repository), options.scryfallClient);
+  return new MintmoxController(
+    new MintmoxModel(repository, options.autoSeed ?? false),
+    options.scryfallClient
+  );
 }
 
 export const createMtginvestController = createMintmoxController;

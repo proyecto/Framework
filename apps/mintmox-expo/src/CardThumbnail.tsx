@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Platform, View } from 'react-native';
 import { GoogleIcon, useFrameworkTheme } from '@framework/ui';
 import { getSmallImageUrl, loadCardImageAsDataUri, SCRYFALL_IMAGE_HEADERS } from './cardImageLoader';
@@ -37,36 +37,40 @@ export const CardThumbnail = React.memo(function CardThumbnail({
   );
   const [hasError, setHasError] = useState(false);
   const [isFallback, setIsFallback] = useState(false);
+  const attemptedResolveRef = useRef(false);
+  const onResolveMissingRef = useRef(onResolveMissing);
+  onResolveMissingRef.current = onResolveMissing;
 
   useEffect(() => {
-    let active = true;
+    let isCancelled = false;
     setHasError(false);
     setIsFallback(false);
 
     if (!imageUrl) {
-      if (onResolveMissing) {
-        let isCancelled = false;
-        void onResolveMissing().then((resolved) => {
+      if (onResolveMissingRef.current && !attemptedResolveRef.current) {
+        attemptedResolveRef.current = true;
+        void onResolveMissingRef.current().then((resolved) => {
           if (!isCancelled && resolved) {
             const target = getSmallImageUrl(resolved) ?? resolved;
             setDisplayUri(target);
           }
         });
-        return () => {
-          isCancelled = true;
-        };
+      } else if (!attemptedResolveRef.current) {
+        setDisplayUri(null);
       }
-      setDisplayUri(null);
-      return;
+      return () => {
+        isCancelled = true;
+      };
     }
 
+    attemptedResolveRef.current = false;
     const targetUrl = getSmallImageUrl(imageUrl) ?? imageUrl;
     setDisplayUri(targetUrl);
 
     return () => {
-      active = false;
+      isCancelled = true;
     };
-  }, [imageUrl, onResolveMissing]);
+  }, [imageUrl]);
 
   const handleImageError = () => {
     // Si la carga nativa falló en móvil y aún no hemos probado el fallback data URI

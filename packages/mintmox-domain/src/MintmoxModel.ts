@@ -38,7 +38,10 @@ export class MintmoxModel implements IMintmoxModel {
   private readonly unsubRepo: () => void;
   private seededOnce = false;
 
-  constructor(private readonly repository: ISyncableRepository<CardEntity>) {
+  constructor(
+    private readonly repository: ISyncableRepository<CardEntity>,
+    private readonly autoSeed = false
+  ) {
     this.unsubRepo = this.repository.subscribeStatus(() => {
       this.notify();
     });
@@ -71,41 +74,43 @@ export class MintmoxModel implements IMintmoxModel {
 
     if (!this.seededOnce) {
       this.seededOnce = true;
-      const history = await this.repository.list({ includeDeleted: true });
-      if (history.length === 0) {
-        for (let idx = 0; idx < SEED_CARDS.length; idx++) {
-          const seed = SEED_CARDS[idx]!;
-          const seedId = `CARD-${String(idx + 1).padStart(5, '0')}`;
-          const now = new Date().toISOString();
-          const curPrice = seed.currentPrice ?? 0;
-          const prevPrice = seed.previousPrice ?? seed.currentPrice ?? 0;
-          const seedMarketPrices: CardMarketPrices = seed.marketPrices ?? {
-            cardmarket: curPrice,
-            tcgplayer: Number((curPrice * 1.08).toFixed(2)),
-            cardKingdom: Number((curPrice * 1.18).toFixed(2)),
-            manapool: Number((curPrice * 1.07).toFixed(2))
-          };
-          await this.repository.save({
-            id: generateId(),
-            title: seed.title,
-            nameEn: seed.nameEn,
-            edition: seed.edition ?? 'Desconocida',
-            editionCode: seed.editionCode,
-            language: seed.language ?? 'EN',
-            quantity: Math.max(1, Number(seed.quantity ?? 1)),
-            currentPrice: curPrice,
-            previousPrice: prevPrice,
-            marketPrices: seedMarketPrices,
-            condition: seed.condition ?? 'NM',
-            isFavorite: false,
-            priceHistory: SEED_PRICE_HISTORIES[seedId] ?? [],
-            createdAt: now,
-            updatedAt: now,
-            deletedAt: null,
-            version: 1
-          });
+      if (this.autoSeed) {
+        const history = await this.repository.list({ includeDeleted: true });
+        if (history.length === 0) {
+          for (let idx = 0; idx < SEED_CARDS.length; idx++) {
+            const seed = SEED_CARDS[idx]!;
+            const seedId = `CARD-${String(idx + 1).padStart(5, '0')}`;
+            const now = new Date().toISOString();
+            const curPrice = seed.currentPrice ?? 0;
+            const prevPrice = seed.previousPrice ?? seed.currentPrice ?? 0;
+            const seedMarketPrices: CardMarketPrices = seed.marketPrices ?? {
+              cardmarket: curPrice,
+              tcgplayer: Number((curPrice * 1.08).toFixed(2)),
+              cardKingdom: Number((curPrice * 1.18).toFixed(2)),
+              manapool: Number((curPrice * 1.07).toFixed(2))
+            };
+            await this.repository.save({
+              id: generateId(),
+              title: seed.title,
+              nameEn: seed.nameEn,
+              edition: seed.edition ?? 'Desconocida',
+              editionCode: seed.editionCode,
+              language: seed.language ?? 'EN',
+              quantity: Math.max(1, Number(seed.quantity ?? 1)),
+              currentPrice: curPrice,
+              previousPrice: prevPrice,
+              marketPrices: seedMarketPrices,
+              condition: seed.condition ?? 'NM',
+              isFavorite: false,
+              priceHistory: SEED_PRICE_HISTORIES[seedId] ?? [],
+              createdAt: now,
+              updatedAt: now,
+              deletedAt: null,
+              version: 1
+            });
+          }
+          items = await this.repository.list();
         }
-        items = await this.repository.list();
       }
     }
 

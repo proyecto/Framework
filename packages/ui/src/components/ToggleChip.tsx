@@ -56,6 +56,8 @@ export function ToggleChip({
       accessibilityLabel={accessibilityLabel || label}
       disabled={disabled}
       onPress={onPress}
+      unstable_pressDelay={0}
+      hitSlop={4}
       style={({ pressed }) => [
         {
           flexDirection: 'row',

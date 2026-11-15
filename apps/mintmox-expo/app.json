@@ -14,6 +14,11 @@
     "android": {
       "package": "com.rafaelruiz.mintmox",
       "versionCode": 26111411,
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1D2023"
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1D2023"

@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Text, View } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -26,6 +26,8 @@ const WEB_FALLBACK_METRICS = {
   frame: { x: 0, y: 0, width: 0, height: 0 },
   insets: { top: 0, right: 0, bottom: 0, left: 0 }
 };
+
+const MINTMOX_LOGO = require('./assets/mintmox-logo.png');
 
 const THEME_STORAGE_KEY = 'mintmox_theme_preference';
 const LANGUAGE_STORAGE_KEY = 'mintmox_language_preference';
@@ -126,14 +128,24 @@ export default function App() {
         <View
           style={{
             flex: 1,
-            backgroundColor: LIGHT_THEME.colors.background,
+            backgroundColor: '#1D2023',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12
+            gap: 16
           }}
         >
-          <ActivityIndicator size="small" color={LIGHT_THEME.colors.accent} />
-          <Text style={{ color: LIGHT_THEME.colors.textSecondary }}>
+          <Image
+            source={MINTMOX_LOGO}
+            style={{ width: 140, height: 140, resizeMode: 'contain' }}
+          />
+          <ActivityIndicator size="small" color="#10B981" />
+          <Text
+            style={{
+              color: '#9CA3AF',
+              fontSize: 14,
+              letterSpacing: 0.5
+            }}
+          >
             Iniciando MintMox...
           </Text>
         </View>

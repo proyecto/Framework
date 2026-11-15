@@ -70,7 +70,8 @@ describe('MintMox MVC domain', () => {
     const controller = createMtginvestController({
       store: new InMemoryEntityStoreDriver(),
       kv: new MemoryKeyValueStore(),
-      deviceId: 'test-device'
+      deviceId: 'test-device',
+      autoSeed: true
     });
     const view = new SpyView();
     controller.attachView(view);
@@ -131,6 +132,21 @@ describe('MintMox MVC domain', () => {
       expect(edited?.quantity).toBe(2);
       expect(edited?.currentPrice).toBe(6200);
     }
+
+    controller.dispose();
+  });
+
+  it('starts completely empty (0 cards) by default for new installations', async () => {
+    const controller = createMtginvestController({
+      store: new InMemoryEntityStoreDriver(),
+      kv: new MemoryKeyValueStore(),
+      deviceId: 'test-fresh-install'
+    });
+    const view = new SpyView();
+    controller.attachView(view);
+    await controller.init();
+
+    expect(view.latest.items.length).toBe(0);
 
     controller.dispose();
   });
@@ -277,7 +293,8 @@ describe('MintMox MVC domain', () => {
       store,
       kv: new MemoryKeyValueStore(),
       deviceId: 'test-device',
-      scryfallClient: client
+      scryfallClient: client,
+      autoSeed: true
     });
 
     const view = new SpyView();
@@ -497,7 +514,8 @@ describe('MintMox MVC domain', () => {
       store,
       kv: new MemoryKeyValueStore(),
       deviceId: 'test-device',
-      scryfallClient: client
+      scryfallClient: client,
+      autoSeed: true
     });
 
     const view = new SpyView();
