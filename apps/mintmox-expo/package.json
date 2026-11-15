@@ -8,6 +8,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "web": "expo start --web",
+    "build:apk": "eas build -p android --profile preview",
+    "postinstall": "cd ../.. && pnpm build",
+    "eas-build-post-install": "cd ../.. && pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

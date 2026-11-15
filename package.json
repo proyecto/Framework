@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "build": "pnpm -r --filter './packages/*' build",
+    "eas-build-post-install": "pnpm build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "verify:arch": "node scripts/verify-architecture.mjs",
