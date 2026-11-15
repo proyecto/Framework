@@ -10,15 +10,11 @@
     },
     "preview": {
       "distribution": "internal",
-      "node": "22.x",
-      "pnpm": "10.x",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "node": "22.x",
-      "pnpm": "10.x",
       "android": {
         "buildType": "apk"
       }
