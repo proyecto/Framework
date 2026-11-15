@@ -1,22 +1,52 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MintMox</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc; text-align: center; }
-    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-    p { color: #94a3b8; margin-bottom: 2rem; }
-    a { color: #38bdf8; text-decoration: none; margin: 0 10px; font-size: 0.9rem; }
-    a:hover { text-decoration: underline; }
-  </style>
+  <title>Mintmox - Gestión y Seguimiento de Colecciones</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>MintMox</h1>
-  <p>Próximamente</p>
-  <div>
-    <a href="/privacy-policy.html">Política de Privacidad</a>
-  </div>
+
+<body
+  class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+  <header class="max-w-4xl mx-auto px-6 py-8 w-full flex justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <span class="text-2xl font-bold tracking-tight text-indigo-400">Mintmox</span>
+    </div>
+    <nav class="space-x-6 text-sm text-slate-400">
+      <a href="privacy-policy.html" class="hover:text-white transition">Privacidad</a>
+    </nav>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-6 py-16 text-center flex-grow">
+    <div
+      class="inline-block mb-4 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-semibold tracking-wide uppercase">
+      Local-First Architecture
+    </div>
+    <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight mb-6">
+      Control total de tu <span
+        class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">colección</span>
+    </h1>
+    <p class="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+      Herramienta especializada de catalogación y seguimiento histórico para coleccionistas. Analiza índices de rareza,
+      evolución de archivo y métricas de mercado con total privacidad.
+    </p>
+    <div class="flex justify-center gap-4">
+      <a href="privacy-policy.html"
+        class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium px-6 py-3 rounded-xl transition">
+        Política de Privacidad
+      </a>
+    </div>
+  </main>
+
+  <footer
+    class="max-w-4xl mx-auto px-6 py-8 w-full border-t border-slate-900 text-xs text-slate-600 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <p>© Mintmox. Herramienta independiente de gestión de colecciones.</p>
+    <div class="flex gap-4">
+      <a href="privacy-policy.html" class="hover:text-slate-400 transition">Privacidad</a>
+    </div>
+  </footer>
 </body>
+
 </html>
