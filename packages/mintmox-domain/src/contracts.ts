@@ -17,10 +17,23 @@ export const DEFAULT_COLLECTION = 'Principal';
 
 export type CardTrend = 'up' | 'down' | 'flat';
 
+/** Cotizaciones de mercado en diferentes tiendas y plataformas comerciales. */
+export interface CardMarketPrices {
+  cardmarket?: number;  // Cotización de referencia Cardmarket (EUR €)
+  tcgplayer?: number;   // Cotización de referencia TCGplayer (USD $)
+  cardKingdom?: number; // Cotización minorista Card Kingdom (USD $)
+  manapool?: number;    // Cotización de mercado ManaPool (USD $ o EUR €)
+  [storeKey: string]: number | undefined;
+}
+
 /** Punto histórico de cotización de una carta. */
 export interface CardPricePoint {
-  date: string;  // Formato 'YYYY-MM-DD'
-  price: number; // Cotización unitaria en €
+  date: string;          // Formato 'YYYY-MM-DD'
+  price: number;         // Cotización unitaria principal en € (Cardmarket)
+  cardmarket?: number;   // Cotización Cardmarket (EUR €)
+  tcgplayer?: number;    // Cotización TCGplayer (USD $)
+  cardKingdom?: number;  // Cotización Card Kingdom (USD $)
+  manapool?: number;     // Cotización ManaPool (USD $)
 }
 
 /** Entidad de carta de MTG con seguimiento de inversión y cotización. */
@@ -34,6 +47,7 @@ export interface CardEntity extends EntityBase {
   currentPrice: number;       // Último valor de mercado registrado (€)
   previousPrice: number;      // Valor anterior de referencia o última cotización (€)
   buyPrice?: number;          // Precio de compra unitario original / Coste de adquisición (€)
+  marketPrices?: CardMarketPrices; // Cotizaciones en múltiples tiendas (Cardmarket, TCGplayer, Card Kingdom, ManaPool)
   isFoil?: boolean;           // Versión foil / brillante (Scryfall consulta eur_foil)
   isAltered?: boolean;        // Carta alterada artísticamente (full art, bordes extendidos, pintura)
   isSigned?: boolean;         // Carta firmada (por artista o jugador)
@@ -57,6 +71,7 @@ export interface CreateCardInput {
   currentPrice?: number;
   previousPrice?: number;
   buyPrice?: number;
+  marketPrices?: CardMarketPrices;
   isFoil?: boolean;
   isAltered?: boolean;
   isSigned?: boolean;
@@ -169,6 +184,7 @@ export interface IMintmoxModel extends IModel {
         | 'currentPrice'
         | 'previousPrice'
         | 'buyPrice'
+        | 'marketPrices'
         | 'isFoil'
         | 'isAltered'
         | 'isSigned'
@@ -220,6 +236,7 @@ export interface IMintmoxController extends IController<MintmoxViewState, ViewEv
         | 'currentPrice'
         | 'previousPrice'
         | 'buyPrice'
+        | 'marketPrices'
         | 'isFoil'
         | 'isAltered'
         | 'isSigned'

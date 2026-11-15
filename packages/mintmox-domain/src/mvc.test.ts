@@ -3,6 +3,7 @@ import type { IView, ViewEvent } from '@framework/core';
 import { InMemoryEntityStoreDriver, MemoryKeyValueStore } from '@framework/data';
 import {
   buildCardChart,
+  buildMarketIndexChart,
   buildOneYearCardChart,
   buildPortfolioChart,
   buildThreeMonthCardChart,
@@ -11,11 +12,13 @@ import {
   createMtginvestController,
   findMtgSetByCode,
   findMtgSetByName,
+  generateChartTimeframeLabels,
   getCardCollections,
   getPortfolioProfitLeaders,
   MTG_SETS,
   ScryfallApiClient,
   SEED_CARDS,
+  type CardEntity,
   type HttpFetchFn,
   type MtginvestViewState
 } from './index.js';
@@ -400,6 +403,33 @@ describe('MintMox MVC domain', () => {
     expect(port1a.profitValues[12]).toBe(60);
     expect(port1a.roiValues[12]).toBe(21.4); // 60 / 280 * 100
 
+    // Verificamos que no caiga artificialmente a 0 en meses previos antes del histórico
+    expect(port1a.investmentValues[0]).toBe(280);
+    expect(port1a.portfolioValues[0]).toBeGreaterThan(0);
+    expect(port1a.marketSeries?.length).toBe(4);
+    expect(port1a.availableMarkets?.length).toBe(4);
+    expect(port1a.availableMarkets?.map((m) => m.id)).toEqual(['cardmarket', 'tcgplayer', 'cardKingdom', 'manapool']);
+
+    // Multi-market en la cartera completa
+    const multiMarketItems: CardEntity[] = [
+      {
+        ...mockItems[0]!,
+        marketPrices: { cardmarket: 300, tcgplayer: 330, cardKingdom: 350, manapool: 320 }
+      },
+      {
+        ...mockItems[1]!,
+        marketPrices: { cardmarket: 20, tcgplayer: 22, cardKingdom: 25, manapool: 21 }
+      }
+    ];
+    const multiPort = buildPortfolioChart(multiMarketItems, '1A', ref);
+    expect(multiPort.availableMarkets?.map((m) => m.id)).toEqual(
+      expect.arrayContaining(['cardmarket', 'tcgplayer', 'cardKingdom', 'manapool'])
+    );
+    expect(multiPort.marketSeries?.length).toBe(4);
+    const tcgSeries = multiPort.marketSeries?.find((s) => s.id === 'tcgplayer');
+    expect(tcgSeries).toBeDefined();
+    expect(tcgSeries?.currentTotal).toBe(330 * 1 + 22 * 2); // 374
+
     // 2. ROI Distribution
     const distribution = calculatePortfolioRoiDistribution(mockItems);
     expect(distribution.length).toBe(5);
@@ -709,5 +739,58 @@ describe('MintMox MVC domain', () => {
     expect(getCardCollections(updated!)).toEqual(['Commander Decks', 'Colección Foil']);
 
     controller.dispose();
+  });
+
+  it('builds market index charts for collectibles, liquidity, and Base 100 composite', () => {
+    const ref = new Date('2026-11-13T00:00:00Z');
+
+    // 1. Selectivos de Coleccionismo e Inversión
+    const collChart = buildMarketIndexChart('collectibles', '1A', ref);
+    expect(collChart.title).toBe(
+      'Evolución de Mercado: Selectivos de Coleccionismo e Inversión (Cardmarket EUR)'
+    );
+    expect(collChart.unit).toBe('€');
+    expect(collChart.labels.length).toBe(13);
+    expect(collChart.series.length).toBe(3);
+    expect(collChart.series[0]?.values.length).toBe(13);
+    expect(collChart.summary.latestValue).toBe(1465.0);
+    expect(collChart.summary.changeValue).toBeGreaterThan(0);
+    expect(collChart.summary.trend).toBe('up');
+
+    // 2. Selectivos de Juego Activo y Liquidez
+    const liqChart = buildMarketIndexChart('liquidity', '3M', ref);
+    expect(liqChart.title).toBe(
+      'Evolución de Mercado: Selectivos de Juego Activo y Liquidez (Commander y Fetchlands)'
+    );
+    expect(liqChart.unit).toBe('€');
+    expect(liqChart.labels.length).toBe(9);
+    expect(liqChart.series.length).toBe(3);
+    expect(liqChart.series[0]?.values.length).toBe(9);
+    expect(liqChart.summary.constituents).toContain('Polluted Delta');
+    expect(liqChart.summary.constituents).toContain('Sol Ring (Masterpiece)');
+
+    // 3. Índice General MTG Composite Base 100
+    const compChart = buildMarketIndexChart('composite', '1S', ref);
+    expect(compChart.title).toBe(
+      'Evolución Histórica: Índice General MTG Composite Base 100 (Cardmarket EUR)'
+    );
+    expect(compChart.unit).toBe(' pts');
+    expect(compChart.labels.length).toBe(7);
+    expect(compChart.series[0]?.values[0]).toBe(100.0); // Base 100 inicial
+    expect(compChart.zeroBaseline).toBe(false);
+
+    // 4. Verificación exhaustiva de consistencia de longitudes en todos los timeframes
+    const timeframes = ['1S', '1M', '3M', '6M', '1A'] as const;
+    const types = ['collectibles', 'liquidity', 'composite'] as const;
+
+    for (const t of types) {
+      for (const tf of timeframes) {
+        const data = buildMarketIndexChart(t, tf, ref);
+        expect(data.labels.length).toBeGreaterThan(0);
+        for (const s of data.series) {
+          expect(s.values.length).toBe(data.labels.length);
+        }
+      }
+    }
   });
 });

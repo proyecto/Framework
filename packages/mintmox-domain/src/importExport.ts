@@ -1,5 +1,5 @@
 import { escapeCsvCell, parseCsvRows, ValidationError } from '@framework/core';
-import { type CardEntity, type CreateCardInput, getCardCollections } from './contracts.js';
+import { type CardEntity, type CardMarketPrices, type CreateCardInput, getCardCollections } from './contracts.js';
 import { normalizeCardCondition } from './conditionMultipliers.js';
 import { findMtgSetByCode, findMtgSetByName } from './sets.js';
 
@@ -132,6 +132,10 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     'currentPrice',
     'previousPrice',
     'buyPrice',
+    'cardmarketPrice',
+    'tcgplayerPrice',
+    'cardKingdomPrice',
+    'manaPoolPrice',
     'isFoil',
     'isAltered',
     'isSigned',
@@ -152,6 +156,10 @@ export function exportCardsToCsv(cards: CardEntity[]): string {
     escapeCsvCell(c.currentPrice),
     escapeCsvCell(c.previousPrice),
     escapeCsvCell(c.buyPrice ?? c.previousPrice),
+    escapeCsvCell(c.marketPrices?.cardmarket ?? c.currentPrice),
+    escapeCsvCell(c.marketPrices?.tcgplayer ?? ''),
+    escapeCsvCell(c.marketPrices?.cardKingdom ?? ''),
+    escapeCsvCell(c.marketPrices?.manapool ?? ''),
     escapeCsvCell(c.isFoil ? 'true' : 'false'),
     escapeCsvCell(c.isAltered ? 'true' : 'false'),
     escapeCsvCell(c.isSigned ? 'true' : 'false'),
@@ -339,6 +347,50 @@ export function parseCardsFromCsvWithMetadata(csvStr: string): { cards: CreateCa
   const collectionIdx = findIdx('collection', 'coleccion', 'carpeta', 'binder', 'folder', 'bindername', 'foldername', 'tags', 'category');
   const lastSyncIdx = findIdx('lastpricesyncdate', 'last_sync', 'fechasincro');
 
+  // Detección de columnas específicas de cotizaciones multi-mercado / tiendas
+  const cardmarketIdx = findIdx(
+    'cardmarket',
+    'cardmarketprice',
+    'cardmarket_price',
+    'cardmarket_trend',
+    'cardmarketeur',
+    'mkm',
+    'mkmprice',
+    'mkm_price',
+    'cm_price'
+  );
+  const tcgplayerIdx = findIdx(
+    'tcgplayer',
+    'tcg_market',
+    'tcgplayer_price',
+    'tcgplayerprice',
+    'tcg_market_price',
+    'tcg',
+    'tcgmarket',
+    'tcg_mid',
+    'tcgmarketprice',
+    'tcgmarketusd'
+  );
+  const cardKingdomIdx = findIdx(
+    'cardkingdom',
+    'card_kingdom',
+    'ck',
+    'ck_price',
+    'cardkingdomprice',
+    'card_kingdom_price',
+    'ck_retail',
+    'ckprice'
+  );
+  const manaPoolIdx = findIdx(
+    'manapool',
+    'mana_pool',
+    'mp',
+    'mpprice',
+    'manapoolprice',
+    'mana_pool_price',
+    'mp_price'
+  );
+
   const parseNum = (v: string | undefined): number => {
     if (!v) return 0;
     const clean = v.replace(/[€$]/g, '').trim().replace(',', '.');
@@ -356,9 +408,26 @@ export function parseCardsFromCsvWithMetadata(csvStr: string): { cards: CreateCa
     let editionCode = editionCodeIdx !== -1 && row[editionCodeIdx]?.trim() ? row[editionCodeIdx]!.trim().toUpperCase() : undefined;
     const language = normalizeLanguageCode(langIdx !== -1 ? row[langIdx] : 'EN');
     const quantity = qtyIdx !== -1 ? Math.max(1, parseInt(row[qtyIdx] ?? '1', 10) || 1) : 1;
-    const currentPrice = currentPriceIdx !== -1 ? parseNum(row[currentPriceIdx]) : 0;
+
+    // Extracción de cotizaciones por tienda
+    const cmPrice = cardmarketIdx !== -1 ? parseNum(row[cardmarketIdx]) : undefined;
+    const tcgPrice = tcgplayerIdx !== -1 ? parseNum(row[tcgplayerIdx]) : undefined;
+    const ckPrice = cardKingdomIdx !== -1 ? parseNum(row[cardKingdomIdx]) : undefined;
+    const mpPrice = manaPoolIdx !== -1 ? parseNum(row[manaPoolIdx]) : undefined;
+
+    const rawCurrentPrice = currentPriceIdx !== -1 ? parseNum(row[currentPriceIdx]) : 0;
+    // Cardmarket en EUR rige como valor principal de valoración e inversión
+    const currentPrice = cmPrice !== undefined && cmPrice > 0 ? cmPrice : rawCurrentPrice;
     const previousPrice = prevPriceIdx !== -1 ? parseNum(row[prevPriceIdx]) : currentPrice;
     const buyPrice = buyPriceIdx !== -1 ? parseNum(row[buyPriceIdx]) : previousPrice;
+
+    const marketPrices: CardMarketPrices = {};
+    if (cmPrice !== undefined && cmPrice > 0) marketPrices.cardmarket = cmPrice;
+    else if (currentPrice > 0) marketPrices.cardmarket = currentPrice;
+    if (tcgPrice !== undefined && tcgPrice > 0) marketPrices.tcgplayer = tcgPrice;
+    if (ckPrice !== undefined && ckPrice > 0) marketPrices.cardKingdom = ckPrice;
+    if (mpPrice !== undefined && mpPrice > 0) marketPrices.manapool = mpPrice;
+
     const isFoil = foilIdx !== -1 ? parseFoilValue(row[foilIdx]) : false;
     const isAltered = alteredIdx !== -1 ? Boolean(row[alteredIdx]?.trim().toLowerCase() === 'true' || row[alteredIdx]?.trim().toLowerCase() === 'yes') : false;
     const isSigned = signedIdx !== -1 ? Boolean(row[signedIdx]?.trim().toLowerCase() === 'true' || row[signedIdx]?.trim().toLowerCase() === 'yes') : false;
@@ -408,6 +477,7 @@ export function parseCardsFromCsvWithMetadata(csvStr: string): { cards: CreateCa
       currentPrice,
       previousPrice,
       buyPrice,
+      marketPrices: Object.keys(marketPrices).length > 0 ? marketPrices : undefined,
       isFoil,
       isAltered,
       isSigned,
@@ -416,7 +486,16 @@ export function parseCardsFromCsvWithMetadata(csvStr: string): { cards: CreateCa
       scryfallId,
       collection: collections.join(', '),
       collections,
-      priceHistory: [],
+      priceHistory: (currentPrice > 0 || Object.keys(marketPrices).length > 0)
+        ? [{
+            date: lastPriceSyncDate || new Date().toISOString().slice(0, 10),
+            price: currentPrice,
+            cardmarket: marketPrices.cardmarket,
+            tcgplayer: marketPrices.tcgplayer,
+            cardKingdom: marketPrices.cardKingdom,
+            manapool: marketPrices.manapool
+          }]
+        : [],
       lastPriceSyncDate
     });
   }

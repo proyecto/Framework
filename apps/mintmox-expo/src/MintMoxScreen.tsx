@@ -40,6 +40,8 @@ import {
 import { CardThumbnail } from './CardThumbnail';
 import {
   buildCardChart,
+  buildMarketIndexChart,
+  buildMultiMarketCardChart,
   buildPortfolioChart,
   calculateAdjustedCardPrice,
   calculateCardReturn,
@@ -52,17 +54,20 @@ import {
   getCardCollections,
   getConditionMultiplier,
   getPortfolioProfitLeaders,
+  MARKET_METADATA,
   MTG_SETS,
   ORDERED_CARD_CONDITIONS,
   TIMEFRAME_DESCRIPTIONS,
   type CardCondition,
   type CardEntity,
+  type CardMarketPrices,
   type CardProfitLeader,
   type ChartTimeframe,
   type ConditionMultipliers,
   type CreateCardInput,
   type IMintmoxController,
   type IMtginvestController,
+  type MarketIndexType,
   type RoiDistributionBucket,
   type ScryfallCardData,
   type ScryfallSearchResult
@@ -219,6 +224,15 @@ export const I18N_STRINGS = {
     privacyP5Desc: 'Cualquier función opcional futura (como copia en la nube o cómputo de IA predictiva) requerirá consentimiento expreso y se limitará a cubrir costes de servidores e infraestructura técnica, sin comercializar nunca la propiedad intelectual de MTG.',
     privacyP6Title: 'Descargo Financiero y Predicciones de IA',
     privacyP6Desc: 'MintMox no presta asesoramiento financiero. Toda métrica histórica o predicción asistida por IA es meramente estadística y orientativa. El usuario asume el riesgo íntegro de sus decisiones de compraventa.',
+    paginationShowing: 'Mostrando',
+    paginationOf: 'de',
+    paginationCards: 'cartas',
+    paginationPerPage: 'Por pág:',
+    paginationPageLabel: 'Página',
+    paginationPrev: 'Anterior',
+    paginationNext: 'Siguiente',
+    paginationFirst: 'Primera',
+    paginationLast: 'Última',
     searchPlaceholder: 'Buscar por nombre, edición (ej. 2ED) o idioma...',
     sortButton: 'Ordenar',
     sortModalTitle: 'Ordenar cartas',
@@ -305,6 +319,15 @@ export const I18N_STRINGS = {
     privacyP5Desc: 'Any optional future features (such as multi-device synchronization or predictive AI computing) will require explicit consent and solely cover server hosting and infrastructure costs, never MTG intellectual property.',
     privacyP6Title: 'Financial Disclaimer & AI Predictions',
     privacyP6Desc: 'MintMox does not provide financial advice. All metrics and AI-assisted predictions are strictly statistical and informational. The user assumes full responsibility for trading decisions.',
+    paginationShowing: 'Showing',
+    paginationOf: 'of',
+    paginationCards: 'cards',
+    paginationPerPage: 'Per page:',
+    paginationPageLabel: 'Page',
+    paginationPrev: 'Previous',
+    paginationNext: 'Next',
+    paginationFirst: 'First',
+    paginationLast: 'Last',
     searchPlaceholder: 'Search by card name, edition (e.g. 2ED), or language...',
     sortButton: 'Sort',
     sortModalTitle: 'Sort cards',
@@ -642,6 +665,7 @@ export function MintMoxScreen({
   const [selectedScryfallCard, setSelectedScryfallCard] = useState<ScryfallCardData | null>(null);
   const [newImageUrl, setNewImageUrl] = useState<string | undefined>(undefined);
   const [newScryfallId, setNewScryfallId] = useState<string | undefined>(undefined);
+  const [newMarketPrices, setNewMarketPrices] = useState<CardMarketPrices | undefined>(undefined);
 
   // Opciones de ediciones de Magic extraídas de la hoja Sets
   const setOptions: SelectOption<string>[] = useMemo(() => {
@@ -693,6 +717,10 @@ export function MintMoxScreen({
   // Modo de visualización del listado: 'grid' (Galería visual) o 'list' (Lista compacta con miniaturas)
   const [viewMode, setViewMode] = useState<CardListViewMode>(getInitialViewMode);
 
+  // Paginación y control de rendimiento para colecciones grandes
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+
   const toggleViewMode = () => {
     setViewMode((prev) => {
       const next = prev === 'list' ? 'grid' : 'list';
@@ -738,6 +766,10 @@ export function MintMoxScreen({
   // Estado para la pestaña de Gráficas de la Cartera completa
   const [portfolioTimeframe, setPortfolioTimeframe] = useState<ChartTimeframe>('1A');
   const [activeMetricChart, setActiveMetricChart] = useState<'value' | 'profit' | 'roi'>('value');
+
+  // Estado para el bloque de Índices y Selectivos de Mercado MTG
+  const [marketTimeframe, setMarketTimeframe] = useState<ChartTimeframe>('1A');
+  const [activeMarketChart, setActiveMarketChart] = useState<MarketIndexType>('collectibles');
 
   // Estado para la importación y exportación de la cartera (JSON / CSV)
   const [showImportModal, setShowImportModal] = useState(false);
@@ -945,6 +977,22 @@ export function MintMoxScreen({
     });
   }, [state.items, searchQuery, sortBy, selectedCollectionFilter, conditionMultipliers, conditionPricingEnabled]);
 
+  // Cálculos de paginación para garantizar fluidez y bajo consumo de memoria con miles de cartas
+  const totalCardsCount = filteredAndSortedCards.length;
+  const totalPages = Math.max(1, Math.ceil(totalCardsCount / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  // Cartas a renderizar en la vista actual (lote activo)
+  const paginatedCards = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return filteredAndSortedCards.slice(startIndex, startIndex + pageSize);
+  }, [filteredAndSortedCards, safeCurrentPage, pageSize]);
+
+  // Resetear a página 1 cuando cambia la búsqueda, ordenación o filtro de colección
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, selectedCollectionFilter]);
+
   // Cálculos globales de la cartera de inversión ponderando cantidad de cada carta y estado
   const portfolioSummary = useMemo(() => {
     let totalInvested = 0;
@@ -990,6 +1038,12 @@ export function MintMoxScreen({
     [state.items, portfolioTimeframe, conditionMultipliers, conditionPricingEnabled]
   );
 
+  // Series de mercado MTG: Selectivos de coleccionismo, juego/liquidez e índice general base 100
+  const marketChartData = useMemo(
+    () => buildMarketIndexChart(activeMarketChart, marketTimeframe),
+    [activeMarketChart, marketTimeframe]
+  );
+
   // Distribución de cartas según tramos de rentabilidad (ROI %)
   const roiDistribution = useMemo(
     () =>
@@ -1010,10 +1064,10 @@ export function MintMoxScreen({
     [state.items, conditionMultipliers, conditionPricingEnabled]
   );
 
-  // Gráfica de evolución temporal para la carta en edición/detalle
+  // Gráfica de evolución temporal multi-mercado para la carta en edición/detalle
   const cardChartData = useMemo(() => {
     if (!editingCard) {
-      return { labels: [], values: [], unit: '€' };
+      return { labels: [], series: [], availableMarkets: [] };
     }
     const currentP = parseFloat(editCurrentPrice.replace(',', '.')) || editingCard.currentPrice;
     const prevP = parseFloat(editBuyPrice.replace(',', '.')) || (editingCard.buyPrice ?? editingCard.previousPrice);
@@ -1022,12 +1076,16 @@ export function MintMoxScreen({
       currentPrice: currentP,
       previousPrice: prevP,
       buyPrice: prevP,
+      marketPrices: {
+        ...(editingCard.marketPrices ?? {}),
+        cardmarket: currentP
+      },
       isFoil: editIsFoil,
       isAltered: editIsAltered,
       isSigned: editIsSigned
     };
 
-    return buildCardChart(cardSnapshot, chartTimeframe);
+    return buildMultiMarketCardChart(cardSnapshot, chartTimeframe);
   }, [editingCard, editCurrentPrice, editBuyPrice, editIsFoil, editIsAltered, editIsSigned, chartTimeframe]);
 
   // Autocompletado reactivo con Scryfall al escribir en el buscador del modal de añadir carta
@@ -1178,6 +1236,12 @@ export function MintMoxScreen({
       }
     }
 
+    // Registrar cotizaciones por tienda detectadas desde Scryfall (Cardmarket y TCGplayer)
+    const mPrices: CardMarketPrices = {};
+    if (eurPrice) mPrices.cardmarket = parseFloat(eurPrice);
+    if (usdPrice) mPrices.tcgplayer = parseFloat(usdPrice);
+    setNewMarketPrices(Object.keys(mPrices).length > 0 ? mPrices : undefined);
+
     // 4. Portada de la carta y UUID canónico en Scryfall
     const imgUrl =
       card.imageUris?.normal ??
@@ -1215,6 +1279,7 @@ export function MintMoxScreen({
     setScryfallSuggestions([]);
     setNewImageUrl(undefined);
     setNewScryfallId(undefined);
+    setNewMarketPrices(undefined);
     setShowInlineNewCollection(false);
     setInlineCollectionName('');
   };
@@ -1238,6 +1303,7 @@ export function MintMoxScreen({
       currentPrice: current,
       previousPrice: previous,
       buyPrice: previous,
+      marketPrices: newMarketPrices,
       isFoil: newIsFoil,
       isAltered: newIsAltered,
       isSigned: newIsSigned,
@@ -1246,6 +1312,14 @@ export function MintMoxScreen({
       scryfallId: newScryfallId || undefined,
       collection: newCardCollections.join(', '),
       collections: newCardCollections,
+      priceHistory: current > 0 || (newMarketPrices && Object.keys(newMarketPrices).length > 0)
+        ? [{
+            date: new Date().toISOString().slice(0, 10),
+            price: current,
+            cardmarket: newMarketPrices?.cardmarket ?? current,
+            tcgplayer: newMarketPrices?.tcgplayer
+          }]
+        : [],
       lastPriceSyncDate: current > 0 ? new Date().toISOString().split('T')[0] : undefined
     });
 
@@ -1336,6 +1410,11 @@ export function MintMoxScreen({
     const previous = parseFloat(editBuyPrice.replace(',', '.')) || current;
     const qty = Math.max(1, parseInt(editQuantity.trim(), 10) || 1);
 
+    const nextMarketPrices: CardMarketPrices = {
+      ...(editingCard.marketPrices ?? {}),
+      cardmarket: current
+    };
+
     await controller.updateCard(editingCard.id, {
       title: editTitle.trim(),
       nameEn: editNameEn.trim() || undefined,
@@ -1346,6 +1425,7 @@ export function MintMoxScreen({
       currentPrice: current,
       previousPrice: previous,
       buyPrice: previous,
+      marketPrices: nextMarketPrices,
       isFoil: editIsFoil,
       isAltered: editIsAltered,
       isSigned: editIsSigned,
@@ -1591,6 +1671,12 @@ export function MintMoxScreen({
     <AppShell<MTGTab>
       appName="MintMox"
       subtitle={`Gestor de Colecciones MTG · ${env.platformName}`}
+      appIcon={
+        <Image
+          source={require('../assets/mintmox-emblem.png')}
+          style={{ width: 34, height: 27, resizeMode: 'contain' }}
+        />
+      }
       toastMessage={toast}
       tabs={[
         { id: 'main', label: t.tabMain, icon: 'home' },
@@ -1849,6 +1935,70 @@ export function MintMoxScreen({
 
           {/* 2. Listado de Cartas: Galería visual o Lista compacta */}
           <View style={{ gap: theme.spacing.sm }}>
+            {/* Cabecera informativa y paginación rápida superior */}
+            {totalCardsCount > 0 ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingHorizontal: 2,
+                  paddingVertical: 2
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'medium')
+                  }}
+                >
+                  {totalPages > 1
+                    ? `${t.paginationShowing} ${(safeCurrentPage - 1) * pageSize + 1}–${Math.min(safeCurrentPage * pageSize, totalCardsCount)} ${t.paginationOf} ${totalCardsCount} ${t.paginationCards}`
+                    : `${totalCardsCount} ${t.paginationCards}`}
+                </Text>
+                {totalPages > 1 ? (
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.paginationPrev}
+                      disabled={safeCurrentPage === 1}
+                      onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      hitSlop={8}
+                      style={({ pressed }) => ({
+                        opacity: safeCurrentPage === 1 ? 0.3 : pressed ? 0.6 : 1,
+                        padding: 2
+                      })}
+                    >
+                      <GoogleIcon name="chevron-left" size={20} color={theme.colors.textPrimary} />
+                    </Pressable>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: theme.colors.accent,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      {safeCurrentPage} / {totalPages}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.paginationNext}
+                      disabled={safeCurrentPage === totalPages}
+                      onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      hitSlop={8}
+                      style={({ pressed }) => ({
+                        opacity: safeCurrentPage === totalPages ? 0.3 : pressed ? 0.6 : 1,
+                        padding: 2
+                      })}
+                    >
+                      <GoogleIcon name="chevron-right" size={20} color={theme.colors.textPrimary} />
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
             {filteredAndSortedCards.length === 0 ? (
               <View
                 style={{
@@ -1901,7 +2051,7 @@ export function MintMoxScreen({
                   justifyContent: 'space-between'
                 }}
               >
-                {filteredAndSortedCards.map((card: CardEntity) => {
+                {paginatedCards.map((card: CardEntity) => {
                   const effectivePrice = calculateAdjustedCardPrice(
                     card.currentPrice,
                     card.condition,
@@ -2129,7 +2279,7 @@ export function MintMoxScreen({
               </View>
             ) : (
               /* MODO LISTA COMPACTA CON MINIATURAS VISUALES */
-              filteredAndSortedCards.map((card: CardEntity) => {
+              paginatedCards.map((card: CardEntity) => {
                 const effectivePrice = calculateAdjustedCardPrice(
                   card.currentPrice,
                   card.condition,
@@ -2337,6 +2487,258 @@ export function MintMoxScreen({
               })
             )}
           </View>
+
+          {/* Barra de Paginación Inferior y Control de Lotes */}
+          {totalCardsCount > 0 ? (
+            <View
+              style={{
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radius.lg,
+                padding: theme.spacing.md,
+                gap: theme.spacing.md,
+                marginTop: theme.spacing.xs
+              }}
+            >
+              {/* Fila superior: Resumen de cartas mostradas y selector de tamaño de página */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: theme.spacing.sm
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <GoogleIcon name="auto-stories" size={18} color={theme.colors.accent} />
+                  <Text
+                    style={{
+                      color: theme.colors.textPrimary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'medium')
+                    }}
+                  >
+                    {t.paginationShowing}{' '}
+                    <Text style={{ ...textTypographyStyle(theme, 'bold'), color: theme.colors.accent }}>
+                      {(safeCurrentPage - 1) * pageSize + 1}–{Math.min(safeCurrentPage * pageSize, totalCardsCount)}
+                    </Text>{' '}
+                    {t.paginationOf}{' '}
+                    <Text style={{ ...textTypographyStyle(theme, 'bold'), color: theme.colors.textPrimary }}>
+                      {totalCardsCount}
+                    </Text>{' '}
+                    {t.paginationCards}
+                  </Text>
+                </View>
+
+                {/* Selector de cartas por página */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: 11,
+                      marginRight: 2,
+                      ...textTypographyStyle(theme, 'regular')
+                    }}
+                  >
+                    {t.paginationPerPage}
+                  </Text>
+                  {[10, 25, 50, 100].map((size) => {
+                    const isSelected = pageSize === size;
+                    return (
+                      <Pressable
+                        key={size}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t.paginationPerPage} ${size}`}
+                        onPress={() => {
+                          setPageSize(size);
+                          setCurrentPage(1);
+                        }}
+                        style={({ pressed }) => ({
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: theme.radius.sm,
+                          backgroundColor: isSelected ? theme.colors.accent : theme.colors.surfaceMuted,
+                          borderWidth: 1,
+                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                          opacity: pressed ? 0.7 : 1
+                        })}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: isSelected ? '#ffffff' : theme.colors.textSecondary,
+                            ...textTypographyStyle(theme, isSelected ? 'bold' : 'medium')
+                          }}
+                        >
+                          {size}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Fila inferior: Controles de navegación de página (solo si hay más de 1 página) */}
+              {totalPages > 1 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderTopWidth: 1,
+                    borderTopColor: theme.colors.border,
+                    paddingTop: theme.spacing.sm,
+                    gap: theme.spacing.xs
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.paginationFirst}
+                      disabled={safeCurrentPage === 1}
+                      onPress={() => setCurrentPage(1)}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        opacity: safeCurrentPage === 1 ? 0.35 : pressed ? 0.7 : 1
+                      })}
+                    >
+                      <GoogleIcon
+                        name="first-page"
+                        size={18}
+                        color={safeCurrentPage === 1 ? theme.colors.textSecondary : theme.colors.textPrimary}
+                      />
+                    </Pressable>
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.paginationPrev}
+                      disabled={safeCurrentPage === 1}
+                      onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 2,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        opacity: safeCurrentPage === 1 ? 0.35 : pressed ? 0.7 : 1
+                      })}
+                    >
+                      <GoogleIcon
+                        name="chevron-left"
+                        size={18}
+                        color={safeCurrentPage === 1 ? theme.colors.textSecondary : theme.colors.textPrimary}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: safeCurrentPage === 1 ? theme.colors.textSecondary : theme.colors.textPrimary,
+                          ...textTypographyStyle(theme, 'medium')
+                        }}
+                      >
+                        {t.paginationPrev}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <View
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 5,
+                      backgroundColor: theme.colors.accentSoft,
+                      borderRadius: theme.radius.md,
+                      borderWidth: 1,
+                      borderColor: theme.colors.accent
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: theme.colors.accent,
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      {t.paginationPageLabel} {safeCurrentPage} / {totalPages}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.paginationNext}
+                      disabled={safeCurrentPage === totalPages}
+                      onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 2,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        opacity: safeCurrentPage === totalPages ? 0.35 : pressed ? 0.7 : 1
+                      })}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: safeCurrentPage === totalPages ? theme.colors.textSecondary : theme.colors.textPrimary,
+                          ...textTypographyStyle(theme, 'medium')
+                        }}
+                      >
+                        {t.paginationNext}
+                      </Text>
+                      <GoogleIcon
+                        name="chevron-right"
+                        size={18}
+                        color={safeCurrentPage === totalPages ? theme.colors.textSecondary : theme.colors.textPrimary}
+                      />
+                    </Pressable>
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.paginationLast}
+                      disabled={safeCurrentPage === totalPages}
+                      onPress={() => setCurrentPage(totalPages)}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        opacity: safeCurrentPage === totalPages ? 0.35 : pressed ? 0.7 : 1
+                      })}
+                    >
+                      <GoogleIcon
+                        name="last-page"
+                        size={18}
+                        color={safeCurrentPage === totalPages ? theme.colors.textSecondary : theme.colors.textPrimary}
+                      />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
 
           {/* Modal para añadir carta */}
           <ModalDialog
@@ -3394,7 +3796,96 @@ export function MintMoxScreen({
                   })}
                 </View>
 
-                {/* 3. Gráfica */}
+                {/* Comparativa Multi-Tienda (Cardmarket, TCGplayer, Card Kingdom, ManaPool) */}
+                {cardChartData.availableMarkets.length > 0 ? (
+                  <View
+                    style={{
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderRadius: theme.radius.md,
+                      padding: theme.spacing.sm,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border,
+                      gap: 6
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <GoogleIcon name="storefront" size={16} color={theme.colors.accent} />
+                        <Text
+                          style={{
+                            color: theme.colors.textPrimary,
+                            fontSize: theme.typography.captionSize,
+                            ...textTypographyStyle(theme, 'bold')
+                          }}
+                        >
+                          Cotizaciones por Tienda
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          color: theme.colors.textSecondary,
+                          fontSize: 10,
+                          ...textTypographyStyle(theme, 'regular')
+                        }}
+                      >
+                        Arbitraje y mercado
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: 6
+                      }}
+                    >
+                      {cardChartData.availableMarkets.map((m) => {
+                        const hasPrice = m.currentPrice !== undefined && m.currentPrice > 0;
+                        return (
+                          <View
+                            key={m.id}
+                            style={{
+                              flex: 1,
+                              minWidth: 95,
+                              backgroundColor: theme.colors.surface,
+                              borderRadius: theme.radius.sm,
+                              paddingHorizontal: 8,
+                              paddingVertical: 6,
+                              borderLeftWidth: 3,
+                              borderLeftColor: m.color,
+                              borderWidth: 1,
+                              borderColor: theme.colors.border
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: theme.colors.textSecondary,
+                                fontSize: 10,
+                                ...textTypographyStyle(theme, 'medium')
+                              }}
+                            >
+                              {m.name}
+                            </Text>
+                            <Text
+                              style={{
+                                color: hasPrice ? theme.colors.textPrimary : theme.colors.textSecondary,
+                                fontSize: 13,
+                                fontVariant: ['tabular-nums'],
+                                ...textTypographyStyle(theme, 'bold')
+                              }}
+                            >
+                              {hasPrice
+                                ? `${m.currency === '€' ? '' : '$'}${m.currentPrice!.toFixed(2)}${m.currency === '€' ? ' €' : ''}`
+                                : '—'}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* 3. Gráfica Multi-Tienda */}
                 <View
                   style={{
                     backgroundColor: theme.colors.surfaceMuted,
@@ -3405,18 +3896,11 @@ export function MintMoxScreen({
                   }}
                 >
                   <SimpleLineChart
-                    series={[
-                      {
-                        id: 'price-evolution',
-                        name: 'Cotización',
-                        color: theme.colors.accent,
-                        values: cardChartData.values
-                      }
-                    ]}
+                    series={cardChartData.series}
                     labels={cardChartData.labels}
-                    unit="€"
-                    height={165}
-                    showLegend={false}
+                    unit=""
+                    height={180}
+                    showLegend={cardChartData.series.length > 1}
                     showDots={true}
                     showGrid={true}
                   />
@@ -4193,6 +4677,69 @@ export function MintMoxScreen({
                 })}
               </View>
 
+              {/* Comparador de valoración total por tienda en la cartera */}
+              {portfolioChartData.availableMarkets && portfolioChartData.availableMarkets.length > 1 ? (
+                <View style={{ gap: 6 }}>
+                  <Text
+                    style={{
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize,
+                      ...textTypographyStyle(theme, 'semibold')
+                    }}
+                  >
+                    Cotizaciones de la cartera por tienda:
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {portfolioChartData.availableMarkets.map((m) => (
+                      <View
+                        key={m.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          paddingHorizontal: 8,
+                          paddingVertical: 5,
+                          borderRadius: theme.radius.sm,
+                          backgroundColor: theme.colors.surface,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: m.color
+                          }}
+                        />
+                        <Text
+                          style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: theme.typography.captionSize - 1,
+                            ...textTypographyStyle(theme, 'medium')
+                          }}
+                        >
+                          {m.name}:
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.colors.textPrimary,
+                            fontSize: theme.typography.captionSize,
+                            fontVariant: ['tabular-nums'],
+                            ...textTypographyStyle(theme, 'bold')
+                          }}
+                        >
+                          {m.currency === '€'
+                            ? `${m.currentTotal.toFixed(2)} €`
+                            : `${m.currency}${m.currentTotal.toFixed(2)}`}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
               {/* Gráfica SimpleLineChart según la métrica activa */}
               <View
                 style={{
@@ -4207,17 +4754,26 @@ export function MintMoxScreen({
                   <SimpleLineChart
                     series={[
                       {
-                        id: 'portfolio-val',
-                        name: 'Valor de Mercado',
-                        color: theme.colors.accent,
-                        values: portfolioChartData.portfolioValues
-                      },
-                      {
                         id: 'portfolio-inv',
                         name: 'Inversión Total',
                         color: '#64748B',
                         values: portfolioChartData.investmentValues
-                      }
+                      },
+                      ...(portfolioChartData.marketSeries && portfolioChartData.marketSeries.length > 0
+                        ? portfolioChartData.marketSeries.map((ms) => ({
+                            id: ms.id,
+                            name: ms.name,
+                            color: ms.color,
+                            values: ms.values
+                          }))
+                        : [
+                            {
+                              id: 'portfolio-val',
+                              name: 'Valor de Mercado',
+                              color: theme.colors.accent,
+                              values: portfolioChartData.portfolioValues
+                            }
+                          ])
                     ]}
                     labels={portfolioChartData.labels}
                     unit="€"
@@ -4231,16 +4787,31 @@ export function MintMoxScreen({
                   <SimpleLineChart
                     series={[
                       {
-                        id: 'portfolio-profit',
-                        name: 'Beneficio Neto',
+                        id: 'portfolio-profit-cm',
+                        name: 'Cardmarket (Beneficio €)',
                         color: '#10B981',
                         values: portfolioChartData.profitValues
-                      }
+                      },
+                      ...(portfolioChartData.availableMarkets &&
+                      portfolioChartData.availableMarkets.length > 1 &&
+                      portfolioChartData.marketProfits
+                        ? portfolioChartData.availableMarkets
+                            .filter((m) => m.id !== 'cardmarket')
+                            .map((m) => ({
+                              id: `portfolio-profit-${m.id}`,
+                              name: `${m.name} (${m.currency})`,
+                              color: m.color,
+                              values: portfolioChartData.marketProfits?.[m.id] ?? []
+                            }))
+                        : [])
                     ]}
                     labels={portfolioChartData.labels}
                     unit="€"
                     height={205}
-                    showLegend={false}
+                    showLegend={Boolean(
+                      portfolioChartData.availableMarkets &&
+                        portfolioChartData.availableMarkets.length > 1
+                    )}
                     showDots={true}
                     showGrid={true}
                   />
@@ -4248,16 +4819,31 @@ export function MintMoxScreen({
                   <SimpleLineChart
                     series={[
                       {
-                        id: 'portfolio-roi',
-                        name: 'Rentabilidad (ROI)',
+                        id: 'portfolio-roi-cm',
+                        name: 'Cardmarket (ROI %)',
                         color: '#8B5CF6',
                         values: portfolioChartData.roiValues
-                      }
+                      },
+                      ...(portfolioChartData.availableMarkets &&
+                      portfolioChartData.availableMarkets.length > 1 &&
+                      portfolioChartData.marketRois
+                        ? portfolioChartData.availableMarkets
+                            .filter((m) => m.id !== 'cardmarket')
+                            .map((m) => ({
+                              id: `portfolio-roi-${m.id}`,
+                              name: `${m.name} (%)`,
+                              color: m.color,
+                              values: portfolioChartData.marketRois?.[m.id] ?? []
+                            }))
+                        : [])
                     ]}
                     labels={portfolioChartData.labels}
                     unit="%"
                     height={205}
-                    showLegend={false}
+                    showLegend={Boolean(
+                      portfolioChartData.availableMarkets &&
+                        portfolioChartData.availableMarkets.length > 1
+                    )}
                     showDots={true}
                     showGrid={true}
                   />
@@ -4266,7 +4852,341 @@ export function MintMoxScreen({
             </View>
           </Card>
 
-          {/* 3. Distribución de Rentabilidad (ROI %) */}
+          {/* 3. Bloque de Índices y Selectivos del Mercado MTG (Cardmarket EUR) */}
+          <Card
+            title="Mercado MTG: Índices y Selectivos"
+            subtitle={`Cotizaciones de referencia Cardmarket EUR · ${TIMEFRAME_DESCRIPTIONS[marketTimeframe]}`}
+            icon="trending-up"
+          >
+            <View style={{ gap: theme.spacing.md }}>
+              {/* Selector de las 3 Gráficas de Mercado */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 6,
+                  backgroundColor: theme.colors.surfaceMuted,
+                  padding: 4,
+                  borderRadius: theme.radius.md
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver gráfica de Coleccionismo e Inversión"
+                  onPress={() => setActiveMarketChart('collectibles')}
+                  style={{
+                    flex: 1,
+                    minHeight: 48,
+                    paddingVertical: theme.spacing.xs + 2,
+                    paddingHorizontal: 6,
+                    borderRadius: theme.radius.sm,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor:
+                      activeMarketChart === 'collectibles'
+                        ? theme.colors.surface
+                        : 'transparent'
+                  }}
+                >
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      lineHeight: 16,
+                      color:
+                        activeMarketChart === 'collectibles'
+                          ? theme.colors.accentText
+                          : theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize + 1,
+                      ...textTypographyStyle(
+                        theme,
+                        activeMarketChart === 'collectibles' ? 'bold' : 'medium'
+                      )
+                    }}
+                  >
+                    Coleccionismo e Inversión
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver gráfica de Juego Activo y Liquidez"
+                  onPress={() => setActiveMarketChart('liquidity')}
+                  style={{
+                    flex: 1,
+                    minHeight: 48,
+                    paddingVertical: theme.spacing.xs + 2,
+                    paddingHorizontal: 6,
+                    borderRadius: theme.radius.sm,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor:
+                      activeMarketChart === 'liquidity'
+                        ? theme.colors.surface
+                        : 'transparent'
+                  }}
+                >
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      lineHeight: 16,
+                      color:
+                        activeMarketChart === 'liquidity'
+                          ? theme.colors.accentText
+                          : theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize + 1,
+                      ...textTypographyStyle(
+                        theme,
+                        activeMarketChart === 'liquidity' ? 'bold' : 'medium'
+                      )
+                    }}
+                  >
+                    Juego y Liquidez
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver gráfica de Índice General Base 100"
+                  onPress={() => setActiveMarketChart('composite')}
+                  style={{
+                    flex: 1,
+                    minHeight: 48,
+                    paddingVertical: theme.spacing.xs + 2,
+                    paddingHorizontal: 6,
+                    borderRadius: theme.radius.sm,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor:
+                      activeMarketChart === 'composite'
+                        ? theme.colors.surface
+                        : 'transparent'
+                  }}
+                >
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      lineHeight: 16,
+                      color:
+                        activeMarketChart === 'composite'
+                          ? theme.colors.accentText
+                          : theme.colors.textSecondary,
+                      fontSize: theme.typography.captionSize + 1,
+                      ...textTypographyStyle(
+                        theme,
+                        activeMarketChart === 'composite' ? 'bold' : 'medium'
+                      )
+                    }}
+                  >
+                    Índice General Base 100
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Selector de Rango Temporal (1S, 1M, 3M, 6M, 1A) */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 6
+                }}
+              >
+                {(['1S', '1M', '3M', '6M', '1A'] as const).map((tf) => {
+                  const isSelected = marketTimeframe === tf;
+                  return (
+                    <Button
+                      key={tf}
+                      size="sm"
+                      variant={isSelected ? 'primary' : 'outline'}
+                      label={tf}
+                      onPress={() => setMarketTimeframe(tf)}
+                    />
+                  );
+                })}
+              </View>
+
+              {/* Título Oficial del Índice y Resumen Métrico */}
+              <View
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  padding: theme.spacing.sm + 2,
+                  gap: 6
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.bodySize,
+                    ...textTypographyStyle(theme, 'bold')
+                  }}
+                >
+                  {marketChartData.title}
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'regular')
+                  }}
+                >
+                  {marketChartData.subtitle}
+                </Text>
+
+                {/* Métricas: Último Cierre y Variación */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: 4,
+                    paddingTop: 6,
+                    borderTopWidth: 1,
+                    borderTopColor: theme.colors.border
+                  }}
+                >
+                  <View style={{ gap: 2 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'medium')
+                      }}
+                    >
+                      ÚLTIMO REGISTRO
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.colors.textPrimary,
+                        fontSize: theme.typography.bodySize + 2,
+                        fontVariant: ['tabular-nums'],
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      {marketChartData.summary.latestValue.toLocaleString('es-ES', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                      {marketChartData.unit}
+                    </Text>
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 11,
+                        ...textTypographyStyle(theme, 'medium')
+                      }}
+                    >
+                      VARIACIÓN ({marketTimeframe})
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <GoogleIcon
+                        name={
+                          marketChartData.summary.trend === 'up'
+                            ? 'trending-up'
+                            : marketChartData.summary.trend === 'down'
+                              ? 'trending-down'
+                              : 'trending-flat'
+                        }
+                        size={16}
+                        color={
+                          marketChartData.summary.trend === 'up'
+                            ? '#10B981'
+                            : marketChartData.summary.trend === 'down'
+                              ? '#EF4444'
+                              : theme.colors.textSecondary
+                        }
+                      />
+                      <Text
+                        style={{
+                          color:
+                            marketChartData.summary.trend === 'up'
+                              ? '#10B981'
+                              : marketChartData.summary.trend === 'down'
+                                ? '#EF4444'
+                                : theme.colors.textSecondary,
+                          fontSize: theme.typography.bodySize,
+                          fontVariant: ['tabular-nums'],
+                          ...textTypographyStyle(theme, 'bold')
+                        }}
+                      >
+                        {marketChartData.summary.changeValue >= 0 ? '+' : ''}
+                        {marketChartData.summary.changeValue.toLocaleString('es-ES', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                        {marketChartData.unit} ({marketChartData.summary.changePercent >= 0 ? '+' : ''}
+                        {marketChartData.summary.changePercent} %)
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Gráfica SimpleLineChart de Mercado */}
+              <View
+                style={{
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderRadius: theme.radius.md,
+                  padding: theme.spacing.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border
+                }}
+              >
+                <SimpleLineChart
+                  series={marketChartData.series}
+                  labels={marketChartData.labels}
+                  unit={marketChartData.unit}
+                  height={205}
+                  showLegend={true}
+                  showDots={true}
+                  showGrid={true}
+                  zeroBaseline={marketChartData.zeroBaseline}
+                />
+              </View>
+
+              {/* Cesta representativa de cartas constituyentes */}
+              <View style={{ gap: 6 }}>
+                <Text
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.captionSize,
+                    ...textTypographyStyle(theme, 'semibold')
+                  }}
+                >
+                  Constituyentes representativos de la cesta:
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {marketChartData.summary.constituents.map((item, idx) => (
+                    <View
+                      key={idx}
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.textPrimary,
+                          fontSize: 11,
+                          ...textTypographyStyle(theme, 'medium')
+                        }}
+                      >
+                        {item}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          {/* 4. Distribución de Rentabilidad (ROI %) */}
           <Card
             title="Distribución de Rentabilidad (ROI %)"
             subtitle="Desglose por tramos de ganancia y pérdida en la colección"
@@ -4335,7 +5255,7 @@ export function MintMoxScreen({
             </View>
           </Card>
 
-          {/* 4. Top 5 Joyas de la Cartera (Mayor Plusvalía en €) */}
+          {/* 5. Top 5 Joyas de la Cartera (Mayor Plusvalía en €) */}
           <Card
             title="Top 5 • Mayor Plusvalía (€)"
             subtitle="Cartas con mayor revalorización monetaria neta"
@@ -4434,7 +5354,7 @@ export function MintMoxScreen({
             </View>
           </Card>
 
-          {/* 5. Top 5 Mayor Pérdida (€) */}
+          {/* 6. Top 5 Mayor Pérdida (€) */}
           <Card
             title="Top 5 • Mayor Pérdida (€)"
             subtitle="Cartas con mayor caída respecto al precio de adquisición"
@@ -5069,6 +5989,23 @@ export function MintMoxScreen({
             icon="info"
           >
             <View style={{ gap: theme.spacing.md }}>
+              <View
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: theme.spacing.md,
+                  backgroundColor: '#1D2023',
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border
+                }}
+              >
+                <Image
+                  source={require('../assets/mintmox-logo.png')}
+                  style={{ width: 170, height: 152, resizeMode: 'contain' }}
+                />
+              </View>
+
               <Text
                 style={{
                   color: theme.colors.textPrimary,
@@ -5825,6 +6762,23 @@ export function MintMoxScreen({
         contentMaxHeight={520}
       >
         <View style={{ gap: theme.spacing.md }}>
+          <View
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: theme.spacing.sm,
+              backgroundColor: '#1D2023',
+              borderRadius: theme.radius.md,
+              borderWidth: 1,
+              borderColor: theme.colors.border
+            }}
+          >
+            <Image
+              source={require('../assets/mintmox-logo.png')}
+              style={{ width: 140, height: 125, resizeMode: 'contain' }}
+            />
+          </View>
+
           <View
             style={{
               backgroundColor: theme.colors.accentSoft,

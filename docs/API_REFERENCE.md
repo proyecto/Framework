@@ -13,7 +13,7 @@ Este documento se genera directamente desde el AST de TypeScript y los comentari
 - [`@framework/data-libsql`](#frameworkdata-libsql) (4 símbolos exportados)
 - [`@framework/example-domain`](#frameworkexample-domain) (15 símbolos exportados)
 - [`@framework/expo-adapter`](#frameworkexpo-adapter) (1 símbolos exportados)
-- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (81 símbolos exportados)
+- [`@framework/mintmox-domain`](#frameworkmintmox-domain) (94 símbolos exportados)
 - [`@framework/react`](#frameworkreact) (6 símbolos exportados)
 - [`@framework/server`](#frameworkserver) (10 símbolos exportados)
 - [`@framework/ui`](#frameworkui) (66 símbolos exportados)
@@ -1418,6 +1418,21 @@ const DEFAULT_COLLECTION
 type CardTrend = 'up' | 'down' | 'flat'
 ```
 
+### `CardMarketPrices`
+
+- Origen: `packages/mintmox-domain/src/contracts.ts`
+- Descripción: Cotizaciones de mercado en diferentes tiendas y plataformas comerciales.
+
+```ts
+interface CardMarketPrices
+```
+
+Miembros públicos:
+- `cardmarket?: number`
+- `tcgplayer?: number`
+- `cardKingdom?: number`
+- `manapool?: number`
+
 ### `CardPricePoint`
 
 - Origen: `packages/mintmox-domain/src/contracts.ts`
@@ -1430,6 +1445,10 @@ interface CardPricePoint
 Miembros públicos:
 - `date: string`
 - `price: number`
+- `cardmarket?: number`
+- `tcgplayer?: number`
+- `cardKingdom?: number`
+- `manapool?: number`
 
 ### `CardEntity`
 
@@ -1450,6 +1469,7 @@ Miembros públicos:
 - `currentPrice: number`
 - `previousPrice: number`
 - `buyPrice?: number`
+- `marketPrices?: CardMarketPrices`
 - `isFoil?: boolean`
 - `isAltered?: boolean`
 - `isSigned?: boolean`
@@ -1480,6 +1500,7 @@ Miembros públicos:
 - `currentPrice?: number`
 - `previousPrice?: number`
 - `buyPrice?: number`
+- `marketPrices?: CardMarketPrices`
 - `isFoil?: boolean`
 - `isAltered?: boolean`
 - `isSigned?: boolean`
@@ -1586,7 +1607,7 @@ Miembros públicos:
 - `getSnapshot(): CardEntity[]`
 - `loadItems(): Promise<CardEntity[]>`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'marketPrices' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -1621,7 +1642,7 @@ interface IMintmoxController extends IController<MintmoxViewState, ViewEvent>
 Miembros públicos:
 - `scryfallClient: IScryfallApiClient`
 - `createItem(input: CreateCardInput): Promise<void>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'marketPrices' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<void>`
 - `getCardImageUrl(card: CardEntity): Promise<string | null>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<void>`
 - `syncCardmarketPrices(options?: { force?: boolean }): Promise<CardmarketSyncResult>`
@@ -1964,6 +1985,74 @@ function buildSixMonthCardChart(card: Pick<CardEntity, 'currentPrice' | 'previou
 function buildCardChart(card: Pick<CardEntity, 'currentPrice' | 'previousPrice' | 'priceHistory'>, timeframe: ChartTimeframe, referenceDate?: Date): CardChartSeriesData
 ```
 
+### `MultiMarketSeries`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+interface MultiMarketSeries
+```
+
+Miembros públicos:
+- `id: string`
+- `name: string`
+- `color: string`
+- `values: number[]`
+
+### `MultiMarketChartData`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+interface MultiMarketChartData
+```
+
+Miembros públicos:
+- `labels: string[]`
+- `series: MultiMarketSeries[]`
+- `availableMarkets: Array<{ id: string; name: string; color: string; currency: string; currentPrice?: number }>`
+
+### `MARKET_METADATA`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+const MARKET_METADATA
+```
+
+### `MarketStoreKey`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+type MarketStoreKey = keyof typeof MARKET_METADATA
+```
+
+### `buildMultiMarketCardChart`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+- Descripción: Genera la gráfica de cotizaciones multi-mercado (Cardmarket, TCGplayer, Card Kingdom, ManaPool) para comparar la cotización y arbitraje entre tiendas en el modal de detalle/edición.
+
+```ts
+function buildMultiMarketCardChart(card: CardEntity, timeframe: ChartTimeframe, referenceDate?: Date): MultiMarketChartData
+```
+
+### `PortfolioMarketSeries`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+interface PortfolioMarketSeries
+```
+
+Miembros públicos:
+- `id: MarketStoreKey`
+- `name: string`
+- `color: string`
+- `currency: string`
+- `values: number[]`
+- `currentTotal: number`
+
 ### `PortfolioChartSeriesData`
 
 - Origen: `packages/mintmox-domain/src/chartUtils.ts`
@@ -1979,11 +2068,24 @@ Miembros públicos:
 - `portfolioValues: number[]`
 - `profitValues: number[]`
 - `roiValues: number[]`
+- `marketSeries?: PortfolioMarketSeries[]`
+- `availableMarkets?: Array<{ id: MarketStoreKey; name: string; color: string; currency: string; currentTotal: number; }>`
+- `marketProfits?: Record<MarketStoreKey, number[]>`
+- `marketRois?: Record<MarketStoreKey, number[]>`
+
+### `generateChartTimeframeLabels`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+- Descripción: Genera las etiquetas y claves de fecha para un rango temporal determinado.
+
+```ts
+function generateChartTimeframeLabels(timeframe: ChartTimeframe, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): { labels: string[]; dateKeys: string[] }
+```
 
 ### `buildPortfolioChart`
 
 - Origen: `packages/mintmox-domain/src/chartUtils.ts`
-- Descripción: Calcula la evolución temporal consolidada de toda la colección. Permite analizar la cartera a nivel macro (Valor total vs Coste, Beneficio neto y ROI %).
+- Descripción: Calcula la evolución temporal consolidada de toda la colección. Permite analizar la cartera a nivel macro (Valor total vs Coste, Beneficio neto y ROI %). Soporta todas las tiendas disponibles (Cardmarket, TCGplayer, Card Kingdom, ManaPool).
 
 ```ts
 function buildPortfolioChart(items: CardEntity[], timeframe: ChartTimeframe, referenceDate: Date = new Date('2026-11-13T00:00:00Z'), pricingOptions?: PortfolioPricingOptions): PortfolioChartSeriesData
@@ -2049,6 +2151,65 @@ Miembros públicos:
 function getPortfolioProfitLeaders(items: CardEntity[], limit = 5, pricingOptions?: PortfolioPricingOptions): { topGainers: CardProfitLeader[]; topLosers: CardProfitLeader[]; }
 ```
 
+### `MarketIndexType`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+- Descripción: Tipos de gráficas e índices de mercado MTG disponibles.
+
+```ts
+type MarketIndexType = 'collectibles' | 'liquidity' | 'composite'
+```
+
+### `MarketIndexSeries`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+interface MarketIndexSeries
+```
+
+Miembros públicos:
+- `id: string`
+- `name: string`
+- `color: string`
+- `values: number[]`
+
+### `MarketIndexChartData`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+interface MarketIndexChartData
+```
+
+Miembros públicos:
+- `chartType: MarketIndexType`
+- `title: string`
+- `shortLabel: string`
+- `subtitle: string`
+- `unit: string`
+- `labels: string[]`
+- `zeroBaseline: boolean`
+- `series: MarketIndexSeries[]`
+- `summary: { latestValue: number; changeValue: number; changePercent: number; trend: 'up' | 'down' | 'neutral'; basketDescription: string; constituents: string[]; }`
+
+### `MARKET_INDEX_PRESETS`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+
+```ts
+const MARKET_INDEX_PRESETS: Record< MarketIndexType, { title: string; shortLabel: string; subtitle: string; unit: string; zeroBaseline: boolean; basketDescription: string; constituents: string[]; seriesDefinitions: Array<{ id: string; name: string; color: string }>; values: Record<ChartTimeframe, number[][]>; } >
+```
+
+### `buildMarketIndexChart`
+
+- Origen: `packages/mintmox-domain/src/chartUtils.ts`
+- Descripción: Construye la estructura de datos para graficar índices y selectivos de mercado MTG según el tipo de índice y el marco temporal seleccionado.
+
+```ts
+function buildMarketIndexChart(chartType: MarketIndexType, timeframe: ChartTimeframe, referenceDate: Date = new Date('2026-11-13T00:00:00Z')): MarketIndexChartData
+```
+
 ### `MintmoxModel`
 
 - Origen: `packages/mintmox-domain/src/MintmoxModel.ts`
@@ -2070,7 +2231,7 @@ Miembros públicos:
 - `exportToJson(): string`
 - `exportToCsv(): string`
 - `createItem(input: CreateCardInput): Promise<CardEntity>`
-- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
+- `updateCard(id: string, patch: Partial< Pick< CardEntity, | 'title' | 'nameEn' | 'edition' | 'editionCode' | 'language' | 'quantity' | 'currentPrice' | 'previousPrice' | 'buyPrice' | 'marketPrices' | 'isFoil' | 'isAltered' | 'isSigned' | 'condition' | 'imageUrl' | 'scryfallId' | 'collection' | 'collections' | 'priceHistory' | 'lastPriceSyncDate' > >): Promise<CardEntity>`
 - `updatePrices(id: string, currentPrice: number, previousPrice?: number): Promise<CardEntity>`
 - `syncCardmarketPrices(scryfallClient: IScryfallApiClient, options?: { force?: boolean }): Promise<CardmarketSyncResult>`
 - `deleteItem(id: string): Promise<void>`
@@ -3136,6 +3297,7 @@ interface AppShellProps<T extends string>
 Miembros públicos:
 - `appName: string`
 - `subtitle?: string`
+- `appIcon?: ReactNode`
 - `headerRight?: ReactNode`
 - `topBanner?: ReactNode`
 - `toastMessage?: string | null`
@@ -3150,7 +3312,7 @@ Miembros públicos:
 - Descripción: Contenedor maestro (**Template / Layout Shell**) que unifica el aspecto visual de todas las aplicaciones creadas con el framework: cabecera fija, banda de notificaciones, cuerpo desplazable y barra inferior de pestañas.
 
 ```ts
-function AppShell<T extends string>({ appName, subtitle, headerRight, topBanner, toastMessage, tabs, activeTab, onTabChange, children }: AppShellProps<T>)
+function AppShell<T extends string>({ appName, subtitle, appIcon, headerRight, topBanner, toastMessage, tabs, activeTab, onTabChange, children }: AppShellProps<T>)
 ```
 
 ### `ChartSeries`

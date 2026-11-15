@@ -349,6 +349,50 @@ export function SimpleLineChart({
                 ))
               : null}
 
+            {/* Línea de referencia de Cero / Umbral neutro (cuando los valores abarcan positivos y negativos) */}
+            {showGrid && minVal < 0 && maxVal > 0 ? (
+              (() => {
+                const valRange = Math.max(0.0001, maxVal - minVal);
+                const normalizedZero = (0 - minVal) / valRange;
+                const zeroY = yPaddingTop + (1 - Math.max(0, Math.min(1, normalizedZero))) * plotHeight;
+                return (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: zeroY,
+                      left: 0,
+                      right: 0,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      zIndex: 1
+                    }}
+                  >
+                    <Text
+                      style={{
+                        width: xPaddingLeft - 8,
+                        textAlign: 'right',
+                        color: theme.colors.textPrimary,
+                        fontSize: 10,
+                        fontVariant: ['tabular-nums'],
+                        ...textTypographyStyle(theme, 'bold')
+                      }}
+                    >
+                      0{unit}
+                    </Text>
+                    <View
+                      style={{
+                        flex: 1,
+                        height: 1.5,
+                        backgroundColor: theme.colors.textSecondary,
+                        opacity: 0.7
+                      }}
+                    />
+                  </View>
+                );
+              })()
+            ) : null}
+
             {/* Segmentos de línea para cada serie */}
             {activeSeries.map((s) => {
               const coords = getCoordinates(s.values);

@@ -141,6 +141,7 @@ export interface AppShellTab<T extends string> {
 export interface AppShellProps<T extends string> {
   appName: string;
   subtitle?: string;
+  appIcon?: ReactNode;
   headerRight?: ReactNode;
   topBanner?: ReactNode;
   toastMessage?: string | null;
@@ -158,6 +159,7 @@ export interface AppShellProps<T extends string> {
 export function AppShell<T extends string>({
   appName,
   subtitle,
+  appIcon,
   headerRight,
   topBanner,
   toastMessage,
@@ -189,27 +191,30 @@ export function AppShell<T extends string>({
           gap: theme.spacing.md
         }}
       >
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              color: theme.colors.textPrimary,
-              fontSize: theme.typography.titleSize - 2,
-              ...textTypographyStyle(theme, 'extrabold')
-            }}
-          >
-            {appName}
-          </Text>
-          {subtitle ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
+          {appIcon}
+          <View style={{ flex: 1 }}>
             <Text
               style={{
-                color: theme.colors.textSecondary,
-                fontSize: theme.typography.captionSize,
-                ...textTypographyStyle(theme, 'regular')
+                color: theme.colors.textPrimary,
+                fontSize: theme.typography.titleSize - 2,
+                ...textTypographyStyle(theme, 'extrabold')
               }}
             >
-              {subtitle}
+              {appName}
             </Text>
-          ) : null}
+            {subtitle ? (
+              <Text
+                style={{
+                  color: theme.colors.textSecondary,
+                  fontSize: theme.typography.captionSize,
+                  ...textTypographyStyle(theme, 'regular')
+                }}
+              >
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
         </View>
         {headerRight}
       </View>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CardEntity } from './contracts.js';
+import { buildMultiMarketCardChart } from './chartUtils.js';
 import {
   detectAndParseCards,
   exportCardsToCsv,
@@ -282,6 +283,55 @@ describe('MintMox Import / Export module', () => {
     expect(res.cards[1]?.title).toBe('Underground Sea');
     expect(res.cards[1]?.buyPrice).toBe(520);
     expect(res.cards[1]?.condition).toBe('EX');
+  });
+
+  it('imports multi-market columns (Cardmarket, TCGplayer, Card Kingdom, ManaPool)', () => {
+    const multiMarketCsv = [
+      'Name,Set code,Quantity,Cardmarket,TCGplayer,Card Kingdom,ManaPool,Purchase price',
+      'Mox Diamond,STH,1,580.00,649.99,699.99,635.00,450.00',
+      'Volcanic Island,3ED,1,690.00,780.00,825.00,750.00,500.00'
+    ].join('\n');
+
+    const res = detectAndParseCards(multiMarketCsv);
+    expect(res.format).toBe('csv');
+    expect(res.cards).toHaveLength(2);
+
+    const mox = res.cards[0]!;
+    expect(mox.title).toBe('Mox Diamond');
+    expect(mox.currentPrice).toBe(580); // Cardmarket rige como precio principal
+    expect(mox.buyPrice).toBe(450);
+    expect(mox.marketPrices).toBeDefined();
+    expect(mox.marketPrices?.cardmarket).toBe(580);
+    expect(mox.marketPrices?.tcgplayer).toBe(649.99);
+    expect(mox.marketPrices?.cardKingdom).toBe(699.99);
+    expect(mox.marketPrices?.manapool).toBe(635);
+
+    // Comprobamos la generación de la gráfica multi-mercado
+    const cardEntity: CardEntity = {
+      id: 'MOX-1',
+      title: mox.title,
+      edition: 'Stronghold',
+      editionCode: 'STH',
+      quantity: 1,
+      currentPrice: mox.currentPrice!,
+      previousPrice: mox.previousPrice!,
+      marketPrices: mox.marketPrices,
+      priceHistory: mox.priceHistory,
+      isFavorite: false,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+      deletedAt: null,
+      version: 1
+    };
+
+    const multiChart = buildMultiMarketCardChart(cardEntity, '1A');
+    expect(multiChart.series).toHaveLength(4);
+    expect(multiChart.series.map((s) => s.id)).toEqual(['cardmarket', 'tcgplayer', 'cardKingdom', 'manapool']);
+    expect(multiChart.availableMarkets).toHaveLength(4);
+    expect(multiChart.availableMarkets[0]?.currentPrice).toBe(580);
+    expect(multiChart.availableMarkets[1]?.currentPrice).toBe(649.99);
+    expect(multiChart.availableMarkets[2]?.currentPrice).toBe(699.99);
+    expect(multiChart.availableMarkets[3]?.currentPrice).toBe(635);
   });
 });
 

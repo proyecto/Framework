@@ -11,6 +11,8 @@ import {
   type CardmarketSyncResult,
   type CreateCardInput,
   type CardEntity,
+  type CardMarketPrices,
+  type CardPricePoint,
   type IMintmoxModel,
   type IMtginvestModel,
   type ImportCardsOptions,
@@ -75,6 +77,14 @@ export class MintmoxModel implements IMintmoxModel {
           const seed = SEED_CARDS[idx]!;
           const seedId = `CARD-${String(idx + 1).padStart(5, '0')}`;
           const now = new Date().toISOString();
+          const curPrice = seed.currentPrice ?? 0;
+          const prevPrice = seed.previousPrice ?? seed.currentPrice ?? 0;
+          const seedMarketPrices: CardMarketPrices = seed.marketPrices ?? {
+            cardmarket: curPrice,
+            tcgplayer: Number((curPrice * 1.08).toFixed(2)),
+            cardKingdom: Number((curPrice * 1.18).toFixed(2)),
+            manapool: Number((curPrice * 1.07).toFixed(2))
+          };
           await this.repository.save({
             id: generateId(),
             title: seed.title,
@@ -83,8 +93,9 @@ export class MintmoxModel implements IMintmoxModel {
             editionCode: seed.editionCode,
             language: seed.language ?? 'EN',
             quantity: Math.max(1, Number(seed.quantity ?? 1)),
-            currentPrice: seed.currentPrice ?? 0,
-            previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
+            currentPrice: curPrice,
+            previousPrice: prevPrice,
+            marketPrices: seedMarketPrices,
             condition: seed.condition ?? 'NM',
             isFavorite: false,
             priceHistory: SEED_PRICE_HISTORIES[seedId] ?? [],
@@ -96,6 +107,36 @@ export class MintmoxModel implements IMintmoxModel {
         }
         items = await this.repository.list();
       }
+    }
+
+    // Enriquecimiento suave para que cualquier inventario existente disponga de las 4 tiendas
+    let didMigrate = false;
+    for (const item of items) {
+      const mp = item.marketPrices ?? {};
+      const needsUpdate =
+        !item.marketPrices ||
+        mp.cardKingdom === undefined ||
+        mp.manapool === undefined ||
+        mp.tcgplayer === undefined;
+
+      if (needsUpdate && item.currentPrice > 0) {
+        const baseEur = mp.cardmarket ?? item.currentPrice;
+        const baseUsd = mp.tcgplayer ?? Number((baseEur * 1.08).toFixed(2));
+        const updatedMp: CardMarketPrices = {
+          cardmarket: baseEur,
+          tcgplayer: baseUsd,
+          cardKingdom: mp.cardKingdom ?? Number((baseUsd * 1.10).toFixed(2)),
+          manapool: mp.manapool ?? Number((baseUsd * 0.99).toFixed(2))
+        };
+        await this.repository.save({
+          ...item,
+          marketPrices: updatedMp
+        });
+        didMigrate = true;
+      }
+    }
+    if (didMigrate) {
+      items = await this.repository.list();
     }
 
     this.items = items;
@@ -112,6 +153,14 @@ export class MintmoxModel implements IMintmoxModel {
       const seed = SEED_CARDS[idx]!;
       const seedId = `CARD-${String(idx + 1).padStart(5, '0')}`;
       const now = new Date().toISOString();
+      const curPrice = seed.currentPrice ?? 0;
+      const prevPrice = seed.previousPrice ?? seed.currentPrice ?? 0;
+      const seedMarketPrices: CardMarketPrices = seed.marketPrices ?? {
+        cardmarket: curPrice,
+        tcgplayer: Number((curPrice * 1.08).toFixed(2)),
+        cardKingdom: Number((curPrice * 1.18).toFixed(2)),
+        manapool: Number((curPrice * 1.07).toFixed(2))
+      };
       await this.repository.save({
         id: generateId(),
         title: seed.title,
@@ -120,8 +169,9 @@ export class MintmoxModel implements IMintmoxModel {
         editionCode: seed.editionCode,
         language: seed.language ?? 'EN',
         quantity: Math.max(1, Number(seed.quantity ?? 1)),
-        currentPrice: seed.currentPrice ?? 0,
-        previousPrice: seed.previousPrice ?? seed.currentPrice ?? 0,
+        currentPrice: curPrice,
+        previousPrice: prevPrice,
+        marketPrices: seedMarketPrices,
         condition: seed.condition ?? 'NM',
         isFavorite: false,
         priceHistory: SEED_PRICE_HISTORIES[seedId] ?? [],
@@ -251,6 +301,7 @@ export class MintmoxModel implements IMintmoxModel {
       currentPrice,
       previousPrice,
       buyPrice,
+      marketPrices: input.marketPrices ? { ...input.marketPrices } : undefined,
       isFoil,
       isAltered,
       isSigned,
@@ -285,6 +336,7 @@ export class MintmoxModel implements IMintmoxModel {
         | 'currentPrice'
         | 'previousPrice'
         | 'buyPrice'
+        | 'marketPrices'
         | 'isFoil'
         | 'isAltered'
         | 'isSigned'
@@ -328,6 +380,7 @@ export class MintmoxModel implements IMintmoxModel {
       currentPrice: patch.currentPrice !== undefined ? Number(patch.currentPrice) : current.currentPrice,
       previousPrice: patch.previousPrice !== undefined ? Number(patch.previousPrice) : current.previousPrice,
       buyPrice: patch.buyPrice !== undefined ? Number(patch.buyPrice) : current.buyPrice,
+      marketPrices: patch.marketPrices !== undefined ? patch.marketPrices : current.marketPrices,
       isFoil: patch.isFoil !== undefined ? Boolean(patch.isFoil) : current.isFoil,
       isAltered: patch.isAltered !== undefined ? Boolean(patch.isAltered) : current.isAltered,
       isSigned: patch.isSigned !== undefined ? Boolean(patch.isSigned) : current.isSigned,
@@ -448,18 +501,55 @@ export class MintmoxModel implements IMintmoxModel {
       const eurPrice = eurPriceStr ? parseFloat(eurPriceStr) : null;
       const isValidPrice = typeof eurPrice === 'number' && !isNaN(eurPrice) && eurPrice > 0;
 
+      // El precio en dólares de Scryfall proviene directamente de TCGplayer (usd = normal, usdFoil = foil)
+      const usdPriceStr = item.isFoil
+        ? (cardData.prices?.usdFoil ?? cardData.prices?.usd)
+        : (cardData.prices?.usd ?? cardData.prices?.usdFoil);
+      const usdPrice = usdPriceStr ? parseFloat(usdPriceStr) : null;
+      const isValidUsd = typeof usdPrice === 'number' && !isNaN(usdPrice) && usdPrice > 0;
+
       const currentPrice = isValidPrice ? eurPrice : item.currentPrice;
       const previousPrice =
         isValidPrice && eurPrice !== item.currentPrice ? item.currentPrice : item.previousPrice;
 
-      // Actualización del histórico diario para la gráfica anual
+      // Actualización de cotizaciones por tienda
+      const marketPrices: CardMarketPrices = { ...(item.marketPrices ?? {}) };
+      if (isValidPrice) marketPrices.cardmarket = eurPrice;
+      if (isValidUsd) marketPrices.tcgplayer = usdPrice;
+
+      // Preservamos o calculamos las cotizaciones de Card Kingdom y ManaPool
+      // (si el usuario las importó desde su Excel, se conservan intactas)
+      if (marketPrices.cardKingdom === undefined) {
+        if (isValidUsd) {
+          marketPrices.cardKingdom = Number((usdPrice * 1.10).toFixed(2));
+        } else if (isValidPrice) {
+          marketPrices.cardKingdom = Number((eurPrice * 1.18).toFixed(2));
+        }
+      }
+      if (marketPrices.manapool === undefined) {
+        if (isValidUsd) {
+          marketPrices.manapool = Number((usdPrice * 0.99).toFixed(2));
+        } else if (isValidPrice) {
+          marketPrices.manapool = Number((eurPrice * 1.07).toFixed(2));
+        }
+      }
+
+      // Actualización del histórico diario multitienda para la gráfica temporal
       const priceHistory = [...(item.priceHistory ?? [])];
-      if (isValidPrice) {
+      if (isValidPrice || isValidUsd || marketPrices.cardKingdom || marketPrices.manapool) {
         const todayIdx = priceHistory.findIndex((p) => p.date === todayStr);
+        const pointData: CardPricePoint = {
+          date: todayStr,
+          price: currentPrice,
+          cardmarket: marketPrices.cardmarket,
+          tcgplayer: marketPrices.tcgplayer,
+          cardKingdom: marketPrices.cardKingdom,
+          manapool: marketPrices.manapool
+        };
         if (todayIdx >= 0) {
-          priceHistory[todayIdx] = { date: todayStr, price: currentPrice };
+          priceHistory[todayIdx] = pointData;
         } else {
-          priceHistory.push({ date: todayStr, price: currentPrice });
+          priceHistory.push(pointData);
         }
       }
 
@@ -477,6 +567,7 @@ export class MintmoxModel implements IMintmoxModel {
         ...item,
         currentPrice,
         previousPrice,
+        marketPrices,
         priceHistory,
         imageUrl,
         scryfallId,
